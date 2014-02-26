@@ -1,0 +1,11 @@
+LIBRARY smartbus_net_cli.dll
+EXPORTS
+SmartBusNetCli_CreateConnect
+SmartBusNetCli_Init
+SmartBusNetCli_Release
+SmartBusNetCli_RemoteInvokeFlow
+SmartBusNetCli_SendData
+SmartBusNetCli_SendPing
+SmartBusNetCli_SetCallBackFn
+SmartBusNetCli_SetTrace
+SmartBusNetCli_SetTraceStr

@@ -1,0 +1,25 @@
+.dojoxScrollWindow {
+	position: relative;
+	height: 100%;
+}
+
+.dojoxScrollHelper .helperInner {
+	visibility: hidden;
+}
+
+.dojoxScrollHelper {
+	border: 1px solid #252f45;
+	width: 4px;
+	background: #ededed;
+	height: 20px;
+	position: absolute;
+	top: 4px;
+	right: 2px;
+	border-radius: 3px;
+	-moz-border-radius: 3px;
+	-webkit-border-radius: 3px;
+}
+
+.dojoxScrollWrapper {
+
+}

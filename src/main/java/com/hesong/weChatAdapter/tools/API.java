@@ -1,0 +1,36 @@
+package com.hesong.weChatAdapter.tools;
+
+public class API {
+    
+    public static String TOKEN = "weixin";
+    
+    public final static String MESSAGE_TYPE_TAG = "MsgType";
+    public final static String MESSAGE_FROM_TAG = "FromUserName";
+    public final static String MESSAGE_TO_TAG = "ToUserName";
+    public final static String MESSAGE_CREATE_TIME_TAG = "CreateTime";
+    public final static String MESSAGE_CONTENT_TAG = "Content";
+    public final static String MESSAGE_ID_TAG = "MsgId";
+    public final static String MESSAGE_EVENT_TAG = "Event";
+    public final static String MESSAGE_EVENT_KEY_TAG = "EventKey";
+    public final static String MESSAGE_TICKET_TAG = "Ticket";
+    
+    
+    // 消息类型
+    public final static String TEXT_MESSAGE = "text";
+    public final static String IMAGE_MESSAGE = "image";
+    public final static String VOICE_MESSAGE = "voice";
+    public final static String VIDEO_MESSAGE = "video";
+    public final static String LOCATION_MESSAGE = "location";
+    public final static String LINK_MESSAGE = "link";
+    public final static String EVENT_MESSAGE = "event";
+    
+    // 事件类型
+    public final static String SUBSCRIBE_EVENT = "subscribe";
+    public final static String UNSUBSCRIBE_EVENT = "unsubscribe";
+    public final static String SCAN_EVENT = "SCAN";
+    public final static String LOCATION_EVENT = "LOCATION";
+    public final static String CLICK_EVENT = "CLICK";
+
+    public static String APPID = "wx735e58e85eb3614a";
+    public static String APP_SECRET = "d21d943d536c383c9e60053ff15996c2";
+}
