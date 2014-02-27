@@ -15,6 +15,7 @@ import org.springframework.web.bind.annotation.ResponseBody;
 import com.hesong.smartbus.client.WeChatCallback;
 import com.hesong.smartbus.client.net.Client;
 import com.hesong.smartbus.client.net.Client.ConnectError;
+import com.hesong.weChatAdapter.manager.MessageManager;
 
 @Controller
 @RequestMapping("/smartbus")
@@ -39,23 +40,13 @@ public class SmartbusController {
             short port = Short.parseShort(smartbusProps.get("port"));
             byte unitId = Byte.parseByte(smartbusProps.get("unitId"));
             byte clientId = Byte.parseByte(smartbusProps.get("clientId"));
-
+            
             log.info(host + " " + port + " " + unitId + " " + clientId);
-
-            Client.initialize(unitId);
-
-            Client client = new Client(clientId, (long) 11, host, port,
-                    "WeChat client");
-            client.setCallbacks(new WeChatCallback());
-
-            log.info("Connect...");
-
-                client.connect();
-        } catch (IOException | ConnectError e) {
-            log.info("Smartbus connection failed: "+e.toString());
+            return MessageManager.makeClient(unitId, clientId, host, port);
+            
+        } catch (IOException e) {
+            log.info("Json mapper exception: "+e.toString());
             return "failed";
         }
-
-        return "success";
     }
 }

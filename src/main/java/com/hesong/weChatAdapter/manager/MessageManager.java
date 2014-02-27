@@ -4,8 +4,13 @@ import java.util.Date;
 import java.util.Map;
 
 import org.apache.log4j.Logger;
+
 import net.sf.json.JSONObject;
 
+import com.hesong.smartbus.client.WeChatCallback;
+import com.hesong.smartbus.client.net.Client;
+import com.hesong.smartbus.client.net.Client.ConnectError;
+import com.hesong.smartbus.client.net.Client.SendDataError;
 import com.hesong.weChatAdapter.message.response.RespTextMessage;
 import com.hesong.weChatAdapter.model.AccessToken;
 import com.hesong.weChatAdapter.tools.API;
@@ -30,6 +35,8 @@ public class MessageManager {
         switch (message.get(API.MESSAGE_TYPE_TAG)) {
         case API.TEXT_MESSAGE:
             return processTextMessage(message);
+        case API.IMAGE_MESSAGE:
+            return processImageMessage(message);
         case API.EVENT_MESSAGE:
             return processEventMessage(message);
         default:
@@ -59,6 +66,26 @@ public class MessageManager {
             String respXml = WeChatXMLParser.xstream.toXML(msg);
             log.info("respXml: "+respXml);
             return respXml;
+            
+        } catch (Exception e) {
+            e.printStackTrace();
+            log.info("Exception: "+e.toString());
+        }
+        return "";
+    }
+    
+    public static String processImageMessage(Map<String, String> message){
+        log.info("Response image message");
+        try {
+            log.info("From = "+message.get(API.MESSAGE_FROM_TAG));
+            log.info("To = "+message.get(API.MESSAGE_TO_TAG));
+            log.info("Message type = "+message.get(API.MESSAGE_TYPE_TAG));
+            log.info("Create time = "+message.get(API.MESSAGE_CREATE_TIME_TAG));
+            log.info("PicUrl = "+message.get(API.MESSAGE_PIC_URL_TAG));
+            log.info("MediaId = "+message.get(API.MESSAGE_MEDIA_ID_tAG));
+            log.info("Message ID = "+message.get(API.MESSAGE_ID_TAG));
+            
+            return "";
             
         } catch (Exception e) {
             e.printStackTrace();
@@ -122,5 +149,26 @@ public class MessageManager {
 
         }
         return false;
+    }
+    
+    public static String makeClient(byte unitId, byte clientId, String host, short port){
+        Client.initialize(unitId);
+
+        Client client = new Client(clientId, (long) 11, host, port,
+                "WeChat client");
+        client.setCallbacks(new WeChatCallback());
+
+        log.info("Connect...");
+
+            try {
+                client.connect();
+                Thread.sleep(5000);
+                client.sendText((byte)0, (byte)211, 30, 45, 11, "nihao");
+                return "success";
+            } catch (ConnectError | InterruptedException | SendDataError e) {
+                // TODO Auto-generated catch block
+                e.printStackTrace();
+                return "failed";
+            }
     }
 }

@@ -178,5 +178,5 @@ public class JniWrapper {
                     clienttype, status, addinfo);
         }
     }
-
+    
 }

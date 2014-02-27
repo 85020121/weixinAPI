@@ -1,4 +1,4 @@
-package com.hesong.weChatAdapter.jsonrpc;
+package com.hesong.jsonrpc;
 
 import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;

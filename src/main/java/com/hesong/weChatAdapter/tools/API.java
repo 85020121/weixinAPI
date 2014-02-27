@@ -10,6 +10,8 @@ public class API {
     public final static String MESSAGE_CREATE_TIME_TAG = "CreateTime";
     public final static String MESSAGE_CONTENT_TAG = "Content";
     public final static String MESSAGE_ID_TAG = "MsgId";
+    public final static String MESSAGE_PIC_URL_TAG = "PicUrl";
+    public final static String MESSAGE_MEDIA_ID_tAG = "MediaId";
     public final static String MESSAGE_EVENT_TAG = "Event";
     public final static String MESSAGE_EVENT_KEY_TAG = "EventKey";
     public final static String MESSAGE_TICKET_TAG = "Ticket";

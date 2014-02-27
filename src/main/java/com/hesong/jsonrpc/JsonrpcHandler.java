@@ -1,4 +1,4 @@
-package com.hesong.weChatAdapter.jsonrpc;
+package com.hesong.jsonrpc;
 
 import java.io.IOException;
 import java.lang.annotation.Annotation;

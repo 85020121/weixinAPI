@@ -11,11 +11,11 @@ import net.sf.json.JSONObject;
 
 import org.junit.Test;
 
+import com.hesong.jsonrpc.JsonrpcHandler;
+import com.hesong.jsonrpc.WeChatMethodSet;
 import com.hesong.smartbus.client.WeChatCallback;
 import com.hesong.smartbus.client.net.Client;
 import com.hesong.smartbus.client.net.Client.ConnectError;
-import com.hesong.weChatAdapter.jsonrpc.JsonrpcHandler;
-import com.hesong.weChatAdapter.jsonrpc.WeChatMethodSet;
 import com.hesong.weChatAdapter.manager.MessageManager;
 import com.hesong.weChatAdapter.message.request.TextMessage;
 import com.hesong.weChatAdapter.message.send.TextMessageToSend;
