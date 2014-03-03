@@ -1,7 +1,11 @@
 package com.hesong.smartbus.client.net;
 
+import com.hesong.jsonrpc.JsonrpcHandler;
+import com.hesong.jsonrpc.WeChatMethodSet;
 import com.hesong.smartbus.client.PackInfo;
+import com.hesong.smartbus.client.net.Client.SendDataError;
 
+import java.io.IOException;
 import java.util.Map;
 import java.util.Iterator;
 import java.util.Map.Entry;
@@ -116,6 +120,8 @@ public class JniWrapper {
 
     static {
         System.loadLibrary("smartbus_net_cli_jni");
+        //System.out.println(System.getProperty("user.dir"));
+        //System.load("D:\\JavaProjects\\workspace\\weChatAdapter\\jni\\smartbus_net_cli_jni.dll");
     }
 
     /**
@@ -142,16 +148,38 @@ public class JniWrapper {
         }
     }
 
-    protected static void cb_recvdata(int arg, byte local_clientid,
-            PackInfo head, String txt) {
-        System.out.println("Recv clientId = "+local_clientid);
-        Client inst = instances.get(local_clientid);
-        System.out.println("Client instance:"+inst);
+//    protected static void cb_recvdata(int arg, byte local_clientid,
+//            PackInfo head, String txt) {
+//        System.out.println("Recv clientId = "+local_clientid);
+//        Client inst = instances.get(local_clientid);
+//        System.out.println("Client instance:"+inst);
+//        if (inst != null) {
+//            inst.getCallbacks().onReceiveText(null, txt);
+//        }
+//    }
+
+    protected static void cb_recvdata(int arg, byte cmd, byte cmdtype,
+            byte src_unit_id, byte src_unit_client_id,
+            byte src_unit_client_type, byte dest_unit_id,
+            byte dest_unit_client_id,
+            byte dest_unit_client_type , String txt) {
+        System.out.println("Recv clientId = "+dest_unit_client_id);
+        Client inst = instances.get(dest_unit_client_id);
+        PackInfo head = new PackInfo((byte)arg, cmd, cmdtype, src_unit_id, src_unit_client_id, src_unit_client_type, dest_unit_id, dest_unit_client_id, dest_unit_client_type);
         if (inst != null) {
             inst.getCallbacks().onReceiveText(head, txt);
+            JsonrpcHandler handle = new JsonrpcHandler(new WeChatMethodSet());
+            try {
+                String response = handle.handle(txt);
+                System.out.println(response);
+                inst.sendText(cmd, cmdtype, (int)src_unit_id, (int)src_unit_client_id, (int)src_unit_client_type, response);
+            } catch (IOException | SendDataError e) {
+                // TODO Auto-generated catch block
+                e.printStackTrace();
+            }
         }
     }
-
+    
     protected static void cb_invokeflowret(int arg, byte local_clientid,
             PackInfo head, String projectid, int invoke_id, int ret,
             String param) {

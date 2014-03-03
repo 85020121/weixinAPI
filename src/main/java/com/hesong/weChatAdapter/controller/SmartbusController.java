@@ -12,9 +12,6 @@ import org.springframework.web.bind.annotation.RequestMethod;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseBody;
 
-import com.hesong.smartbus.client.WeChatCallback;
-import com.hesong.smartbus.client.net.Client;
-import com.hesong.smartbus.client.net.Client.ConnectError;
 import com.hesong.weChatAdapter.manager.MessageManager;
 
 @Controller

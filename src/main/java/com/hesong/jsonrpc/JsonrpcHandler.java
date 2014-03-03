@@ -11,6 +11,7 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Set;
 
+import org.apache.log4j.Logger;
 import org.codehaus.jackson.JsonNode;
 import org.codehaus.jackson.JsonParseException;
 import org.codehaus.jackson.map.JsonMappingException;
@@ -20,6 +21,8 @@ import org.codehaus.jackson.node.ArrayNode;
 import org.codehaus.jackson.node.ObjectNode;
 
 public class JsonrpcHandler {
+    private static Logger log = Logger.getLogger(JsonrpcHandler.class);
+    
     private Object handler;
     private ObjectMapper mapper;
 
@@ -45,18 +48,21 @@ public class JsonrpcHandler {
         mapper = new ObjectMapper();
     }
 
-    public void handle(String jsonrpc) throws JsonParseException,
+    public String handle(String jsonrpc) throws JsonParseException,
             JsonMappingException, IOException {
-        System.out.println(hadleNode(mapper.readValue(jsonrpc, JsonNode.class)));
+        log.info("Handle json: "+jsonrpc);
+        return hadleNode(mapper.readValue(jsonrpc, JsonNode.class));
     }
 
     private String hadleNode(JsonNode node) {
         // handle objects
         if (node.isObject()) {
+            System.out.println("Is object.");
             return handleObject(ObjectNode.class.cast(node));
 
             // handle arrays
         } else if (node.isArray()) {
+            System.out.println("Is array.");
             handleArray(ArrayNode.class.cast(node));
             return "";
         }
@@ -80,8 +86,10 @@ public class JsonrpcHandler {
         // parse request
         String jsonRpc = node.get("jsonrpc").getTextValue();
         String methodName = node.get("method").getTextValue();
-        String id = String.valueOf(node.get("id").getIntValue());
+        String id = node.get("id").getTextValue();
         JsonNode params = node.get("params");
+        log.info("Json: "+ jsonRpc + " " + methodName + " "+id+" "+params);
+        
         int paramCount = (params != null) ? params.size() : 0;
 
         // find methods

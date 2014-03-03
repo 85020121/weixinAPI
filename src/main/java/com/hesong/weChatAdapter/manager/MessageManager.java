@@ -162,10 +162,10 @@ public class MessageManager {
 
             try {
                 client.connect();
-                Thread.sleep(5000);
-                client.sendText((byte)0, (byte)211, 30, 45, 11, "nihao");
+//                Thread.sleep(10000);
+//                client.sendText((byte)0, (byte)211, 30, 45, 11, "nihao");
                 return "success";
-            } catch (ConnectError | InterruptedException | SendDataError e) {
+            } catch (ConnectError e) {
                 // TODO Auto-generated catch block
                 e.printStackTrace();
                 return "failed";

@@ -32,6 +32,7 @@ public class WeChatCallback implements Callbacks {
     @Override
     public void onReceiveText(PackInfo head, String txt) {
         log.info("Receive text: "+txt);
+        log.info(head.toString());
     }
 
     @Override

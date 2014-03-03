@@ -9,7 +9,8 @@ package com.hesong.smartbus.client;
  * 
  */
 public class PackInfo {
-	public PackInfo(byte flag, byte cmd, byte cmdType, byte srcUnitId,
+
+    public PackInfo(byte flag, byte cmd, byte cmdType, byte srcUnitId,
 			byte srcClientId, byte srcClientType, byte dstUnitid,
 			byte dstClientId, byte dstClientType) {
 		this.flag = flag;
@@ -96,4 +97,14 @@ public class PackInfo {
 		return dstClientType;
 	}
 
+    @Override
+    public String toString() {
+        return "PackInfo [flag=" + flag + ", cmd=" + cmd + ", cmdType="
+                + cmdType + ", srcUnitId=" + srcUnitId + ", srcClientId="
+                + srcClientId + ", srcClientType=" + srcClientType
+                + ", dstUnitid=" + dstUnitid + ", dstClientId=" + dstClientId
+                + ", dstClientType=" + dstClientType + "]";
+    }
+
+	
 }
