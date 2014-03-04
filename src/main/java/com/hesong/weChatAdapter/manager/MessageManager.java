@@ -1,18 +1,20 @@
 package com.hesong.weChatAdapter.manager;
 
+import java.io.IOException;
 import java.util.Date;
 import java.util.Map;
 
 import org.apache.log4j.Logger;
+import org.codehaus.jackson.map.ObjectMapper;
 
 import net.sf.json.JSONObject;
 
 import com.hesong.smartbus.client.WeChatCallback;
 import com.hesong.smartbus.client.net.Client;
 import com.hesong.smartbus.client.net.Client.ConnectError;
-import com.hesong.smartbus.client.net.Client.SendDataError;
 import com.hesong.weChatAdapter.message.response.RespTextMessage;
 import com.hesong.weChatAdapter.model.AccessToken;
+import com.hesong.weChatAdapter.model.FollowersList;
 import com.hesong.weChatAdapter.tools.API;
 import com.hesong.weChatAdapter.tools.WeChatHttpsUtil;
 import com.hesong.weChatAdapter.tools.WeChatXMLParser;
@@ -20,8 +22,13 @@ import com.hesong.weChatAdapter.tools.WeChatXMLParser;
 public class MessageManager {
     private static Logger log = Logger.getLogger(MessageManager.class);
 
-    private static String SEND_MESSAGE_REQUEST_URL = "https://api.weixin.qq.com/cgi-bin/message/custom/send?access_token=ACCESS_TOKEN";
-
+    private static String SEND_MESSAGE_REQUEST_URL = "https://api.weixin.qq.com/cgi-bin/message/custom/send?access_token=";
+    private static String CREATE_MENU_REQUEST_URL = "https://api.weixin.qq.com/cgi-bin/menu/create?access_token=";
+    private static String GET_MENU_REQUEST_URL = "https://api.weixin.qq.com/cgi-bin/menu/get?access_token=";
+    private static String DELETE_MENU_REQUEST_URL = "https://api.weixin.qq.com/cgi-bin/menu/delete?access_token=";
+    private static String GET_FOLLOWERS_OPENID_REQUEST_URL = "https://api.weixin.qq.com/cgi-bin/user/get?access_token=";
+    private static String GET_FOLLOWERS_FROM_REQUEST_URL = "https://api.weixin.qq.com/cgi-bin/user/get?access_token=ACCESS_TOKEN&next_openid=NEXT_OPENID";
+    
     public static String getResponseMessage(Map<String, String> message) {
         log.info("MsgType = "+message.get(API.MESSAGE_TYPE_TAG));
         if (message.get(API.MESSAGE_TYPE_TAG) != null) {
@@ -104,12 +111,19 @@ public class MessageManager {
             log.info("Event = "+message.get(API.MESSAGE_EVENT_TAG));
             
             RespTextMessage msg = new RespTextMessage();
-            if (message.get(API.MESSAGE_EVENT_TAG).equals(API.SUBSCRIBE_EVENT)) {
+            switch (message.get(API.MESSAGE_EVENT_TAG)) {
+            case API.SUBSCRIBE_EVENT:
                 msg.setContent("Welcome!");
-            } else if (message.get(API.MESSAGE_EVENT_TAG).equals(API.UNSUBSCRIBE_EVENT)) {
-                // TODO: handle unsubscribe event
+                break;
+            case API.UNSUBSCRIBE_EVENT:
                 return "";
+            case API.CLICK_EVENT:
+                log.info("Event key is: "+message.get(API.MESSAGE_EVENT_KEY_TAG));
+                msg.setContent("Event key is: "+message.get(API.MESSAGE_EVENT_KEY_TAG));
+            default:
+                break;
             }
+
             msg.setCreateTime(new Date().getTime());
             msg.setFromUserName(message.get(API.MESSAGE_TO_TAG));
             msg.setMsgType(API.TEXT_MESSAGE);
@@ -129,11 +143,8 @@ public class MessageManager {
 
     public static boolean sendMessage(Object msg) {
         String jsonMsg = JSONObject.fromObject(msg).toString();
-
-        AccessToken token = WeChatHttpsUtil.getAccessToken(API.APPID,
-                API.APP_SECRET);
-        String request = SEND_MESSAGE_REQUEST_URL.replace("ACCESS_TOKEN",
-                token.getToken());
+        
+        String request = getRequestUrl(API.APPID, API.APP_SECRET, SEND_MESSAGE_REQUEST_URL);
 
         JSONObject jo = WeChatHttpsUtil.httpsRequest(request, "POST", jsonMsg);
 
@@ -149,6 +160,67 @@ public class MessageManager {
 
         }
         return false;
+    }
+    
+    public static void createMenu(String appID, String appSecret, String jsonMenu){
+        String request = getRequestUrl(appID, appSecret, CREATE_MENU_REQUEST_URL);;
+        
+        log.info("Menu string: "+jsonMenu);
+        JSONObject jObject = WeChatHttpsUtil.httpsRequest(request, "POST", jsonMenu);
+        if (jObject != null) {
+            if (jObject.getInt("errcode")!= 0) {
+                log.error("Create menu failed, errorcode:{"
+                        + jObject.getInt("errcode") + "} errormsg:{"
+                        + jObject.getString("errmsg") + "}");
+            }
+        }
+        log.info("Result: "+jObject.toString());
+    }
+    
+    public static String getMenu(String appID, String appSecret){
+        String request = getRequestUrl(appID, appSecret, GET_MENU_REQUEST_URL);
+        JSONObject jo = WeChatHttpsUtil.httpsRequest(request, "GET", null);
+        log.info("Result: "+jo.toString());
+        return jo.toString();
+    }
+    
+    public static String deleteMenu(String appID, String appSecret){
+        String request = getRequestUrl(appID, appSecret, DELETE_MENU_REQUEST_URL);
+        JSONObject jo = WeChatHttpsUtil.httpsRequest(request, "GET", null);
+        log.info("Result: "+jo.toString());
+        return jo.toString();
+    }
+    
+    public static String getFollowersList(String access_token) {
+        String request = GET_FOLLOWERS_OPENID_REQUEST_URL + access_token;
+        JSONObject jo = WeChatHttpsUtil.httpsRequest(request, "GET", null);
+        log.info("Result: " + jo.toString());
+        ObjectMapper objectMapper = new ObjectMapper();
+        FollowersList followers;
+        try {
+            followers = objectMapper.readValue(jo.toString(),
+                    FollowersList.class);
+        } catch (IOException e) {
+            // TODO Auto-generated catch block
+            e.printStackTrace();
+        }
+        return jo.toString();
+    }
+
+    public static String getFollowersFrom(String access_token, String openid){
+        String request = GET_FOLLOWERS_FROM_REQUEST_URL.replace("ACCESS_TOKEN", access_token).replace("NEXT_OPENID", openid);
+        JSONObject jo = WeChatHttpsUtil.httpsRequest(request, "GET", null);
+        log.info("Result: "+jo.toString());
+        ObjectMapper objectMapper = new ObjectMapper();
+        FollowersList followers;
+        try {
+            followers = objectMapper.readValue(jo.toString(), FollowersList.class);
+            followers.getCount();
+        } catch (IOException e) {
+            // TODO Auto-generated catch block
+            e.printStackTrace();
+        }
+        return jo.toString();
     }
     
     public static String makeClient(byte unitId, byte clientId, String host, short port){
@@ -170,5 +242,10 @@ public class MessageManager {
                 e.printStackTrace();
                 return "failed";
             }
+    }
+    
+    private static String getRequestUrl(String appID, String appSecret, String url){
+        AccessToken token = WeChatHttpsUtil.getAccessToken(appID, appSecret);
+        return url+token.getToken();
     }
 }

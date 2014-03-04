@@ -3,6 +3,7 @@ package com.hesong.weChatAdapter.tools;
 public class API {
     
     public static String TOKEN = "weixin";
+    public static String ACCESS_TOKEN = "1Zz3c7UBRgiR4XKE1Fff6UVB7j9U5YJm-GM0hte-PXr4Y2a5AYFFLzuCTvUTRzsIJcxXwMzY7UQxxojqqLgEKlxvs395zT-b4gGk0hhMGTlNn3qyEepu6Uzd2P8SfNqXF0U62KRmqFVIQqA51Nhj8g";
     
     public final static String MESSAGE_TYPE_TAG = "MsgType";
     public final static String MESSAGE_FROM_TAG = "FromUserName";
