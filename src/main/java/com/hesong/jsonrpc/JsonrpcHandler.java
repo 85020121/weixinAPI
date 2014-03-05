@@ -11,6 +11,8 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Set;
 
+import net.sf.json.JSONObject;
+
 import org.apache.log4j.Logger;
 import org.codehaus.jackson.JsonNode;
 import org.codehaus.jackson.JsonParseException;
@@ -174,7 +176,7 @@ public class JsonrpcHandler {
         }
 
         // invoke the method
-        JsonNode result = null;
+        JSONObject result = null;
         ObjectNode error = null;
         try {
             result = invoke(method, paramNodes);
@@ -194,10 +196,17 @@ public class JsonrpcHandler {
         ObjectNode response = mapper.createObjectNode();
         response.put("jsonrpc", jsonRpc);
         response.put("id", id);
-        if (error == null) {
-            response.put("result", result);
+
+        int errcode = result.getInt("errcode");
+        if (error == null && errcode==0) {
+            response.put("result", 0);
         } else if (error != null) {
             response.put("error", error);
+        } else if (errcode != 0) {
+            ObjectNode on = mapper.createObjectNode();
+            on.put("code", errcode);
+            on.put("message", result.getString("errmsg"));
+            response.put("error", on);
         }
         callBack = response.toString();
         return callBack;
@@ -237,7 +246,7 @@ public class JsonrpcHandler {
      * @throws InvocationTargetException
      */
     @SuppressWarnings("deprecation")
-    private JsonNode invoke(Method m, List<JsonNode> params)
+    private JSONObject invoke(Method m, List<JsonNode> params)
             throws JsonParseException, JsonMappingException, IOException,
             IllegalArgumentException, IllegalAccessException,
             InvocationTargetException {
@@ -252,8 +261,7 @@ public class JsonrpcHandler {
 
         // invoke the method
         Object result = m.invoke(handler, convertedParams);
-        return (m.getGenericReturnType() != null) ? mapper.valueToTree(result)
-                : null;
+        return (m.getGenericReturnType() != null) ? (JSONObject)result : null;
     }
 
     /**

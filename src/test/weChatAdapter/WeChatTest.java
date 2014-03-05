@@ -9,13 +9,11 @@ import java.util.Map;
 
 import net.sf.json.JSONObject;
 
+import org.codehaus.jackson.JsonNode;
 import org.junit.Test;
 
 import com.hesong.jsonrpc.JsonrpcHandler;
 import com.hesong.jsonrpc.WeChatMethodSet;
-import com.hesong.smartbus.client.WeChatCallback;
-import com.hesong.smartbus.client.net.Client;
-import com.hesong.smartbus.client.net.Client.ConnectError;
 import com.hesong.weChatAdapter.manager.MessageManager;
 import com.hesong.weChatAdapter.menu.BaseButton;
 import com.hesong.weChatAdapter.menu.Button;
@@ -41,6 +39,7 @@ public class WeChatTest {
     @Test
     public void getTokenTest() {
         System.out.println(WeChatHttpsUtil.getAccessToken(API.APPID, API.APP_SECRET));
+        
     }
 
     @Test
@@ -60,7 +59,7 @@ public class WeChatTest {
     @Test
     public void sendMsgTest() {
         TextMessageToSend msg = new TextMessageToSend();
-        msg.setTouser("ogfGduA0yfPY_aET7do8GvE5Bm4w");
+        msg.setTouser("oJr3Ht294GRv1J0fJYvGlF6kfNSo");
         msg.setMsgtype("text");
         Map<String, String> map = new HashMap<>();
         map.put("content", "Send msg test");

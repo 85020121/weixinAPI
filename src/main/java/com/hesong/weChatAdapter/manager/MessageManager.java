@@ -1,20 +1,18 @@
 package com.hesong.weChatAdapter.manager;
 
-import java.io.IOException;
 import java.util.Date;
 import java.util.Map;
 
 import org.apache.log4j.Logger;
-import org.codehaus.jackson.map.ObjectMapper;
 
 import net.sf.json.JSONObject;
 
 import com.hesong.smartbus.client.WeChatCallback;
 import com.hesong.smartbus.client.net.Client;
 import com.hesong.smartbus.client.net.Client.ConnectError;
+import com.hesong.smartbus.client.net.Client.SendDataError;
 import com.hesong.weChatAdapter.message.response.RespTextMessage;
 import com.hesong.weChatAdapter.model.AccessToken;
-import com.hesong.weChatAdapter.model.FollowersList;
 import com.hesong.weChatAdapter.tools.API;
 import com.hesong.weChatAdapter.tools.WeChatHttpsUtil;
 import com.hesong.weChatAdapter.tools.WeChatXMLParser;
@@ -141,25 +139,27 @@ public class MessageManager {
         return "";
     }
 
-    public static boolean sendMessage(Object msg) {
+    public static JSONObject sendMessage(Object msg) {
         String jsonMsg = JSONObject.fromObject(msg).toString();
         
-        String request = getRequestUrl(API.APPID, API.APP_SECRET, SEND_MESSAGE_REQUEST_URL);
-
+        String request = SEND_MESSAGE_REQUEST_URL+API.ACCESS_TOKEN;
+        
         JSONObject jo = WeChatHttpsUtil.httpsRequest(request, "POST", jsonMsg);
+        log.info("Send message ret: "+jo.toString());
+        return jo;
 
-        if (jo != null) {
-            if (0 != jo.getInt("errcode")) {
-                log.error("Get token failed, errorcode:{"
-                        + jo.getInt("errcode") + "} errormsg:{"
-                        + jo.getString("errmsg") + "}");
-                return true;
-            } else {
-                log.info(jo.toString());
-            }
-
-        }
-        return false;
+//        if (jo != null) {
+//            if (0 != jo.getInt("errcode")) {
+//                log.error("Get token failed, errorcode:{"
+//                        + jo.getInt("errcode") + "} errormsg:{"
+//                        + jo.getString("errmsg") + "}");
+//                return true;
+//            } else {
+//                log.info(jo.toString());
+//            }
+//
+//        }
+//        return false;
     }
     
     public static void createMenu(String appID, String appSecret, String jsonMenu){
@@ -195,15 +195,15 @@ public class MessageManager {
         String request = GET_FOLLOWERS_OPENID_REQUEST_URL + access_token;
         JSONObject jo = WeChatHttpsUtil.httpsRequest(request, "GET", null);
         log.info("Result: " + jo.toString());
-        ObjectMapper objectMapper = new ObjectMapper();
-        FollowersList followers;
-        try {
-            followers = objectMapper.readValue(jo.toString(),
-                    FollowersList.class);
-        } catch (IOException e) {
-            // TODO Auto-generated catch block
-            e.printStackTrace();
-        }
+//        ObjectMapper objectMapper = new ObjectMapper();
+//        FollowersList followers;
+//        try {
+//            followers = objectMapper.readValue(jo.toString(),
+//                    FollowersList.class);
+//        } catch (IOException e) {
+//            // TODO Auto-generated catch block
+//            e.printStackTrace();
+//        }
         return jo.toString();
     }
 
@@ -211,15 +211,15 @@ public class MessageManager {
         String request = GET_FOLLOWERS_FROM_REQUEST_URL.replace("ACCESS_TOKEN", access_token).replace("NEXT_OPENID", openid);
         JSONObject jo = WeChatHttpsUtil.httpsRequest(request, "GET", null);
         log.info("Result: "+jo.toString());
-        ObjectMapper objectMapper = new ObjectMapper();
-        FollowersList followers;
-        try {
-            followers = objectMapper.readValue(jo.toString(), FollowersList.class);
-            followers.getCount();
-        } catch (IOException e) {
-            // TODO Auto-generated catch block
-            e.printStackTrace();
-        }
+//        ObjectMapper objectMapper = new ObjectMapper();
+//        FollowersList followers;
+//        try {
+//            followers = objectMapper.readValue(jo.toString(), FollowersList.class);
+//            followers.getCount();
+//        } catch (IOException e) {
+//            // TODO Auto-generated catch block
+//            e.printStackTrace();
+//        }
         return jo.toString();
     }
     
@@ -234,10 +234,10 @@ public class MessageManager {
 
             try {
                 client.connect();
-//                Thread.sleep(10000);
-//                client.sendText((byte)0, (byte)211, 30, 45, 11, "nihao");
+                Thread.sleep(2000);
+                client.sendText((byte)0, (byte)211, 28, 25, 11, "{\"method\":\"Echo\",\"params\":[\"Hello world\"]}");
                 return "success";
-            } catch (ConnectError e) {
+            } catch (ConnectError | InterruptedException | SendDataError e) {
                 // TODO Auto-generated catch block
                 e.printStackTrace();
                 return "failed";

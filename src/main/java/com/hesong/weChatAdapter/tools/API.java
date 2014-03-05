@@ -3,7 +3,9 @@ package com.hesong.weChatAdapter.tools;
 public class API {
     
     public static String TOKEN = "weixin";
-    public static String ACCESS_TOKEN = "1Zz3c7UBRgiR4XKE1Fff6UVB7j9U5YJm-GM0hte-PXr4Y2a5AYFFLzuCTvUTRzsIJcxXwMzY7UQxxojqqLgEKlxvs395zT-b4gGk0hhMGTlNn3qyEepu6Uzd2P8SfNqXF0U62KRmqFVIQqA51Nhj8g";
+    public static String ACCESS_TOKEN = "0Y2UhmqMUBkDNRrGo-L6sp2VnL6ZZekW0eHXoZ9Qa-E1e15LQq6P0WS0_AvC6iZbiakqCPbuOBL2j-ztgvrVJbj0bP4-THaH91MkdZ8LRuEMtFC8Twlv4_tgIJ3fV7SBV3O1C9qykeq_GEzavw74Jw";
+    public static String APPID = "wx5c19ccf5d7bdce97";
+    public static String APP_SECRET = "b3b2b1f0cb0babc572adbd48dd072fb6";
     
     public final static String MESSAGE_TYPE_TAG = "MsgType";
     public final static String MESSAGE_FROM_TAG = "FromUserName";
@@ -34,6 +36,4 @@ public class API {
     public final static String LOCATION_EVENT = "LOCATION";
     public final static String CLICK_EVENT = "CLICK";
 
-    public static String APPID = "wx735e58e85eb3614a";
-    public static String APP_SECRET = "d21d943d536c383c9e60053ff15996c2";
 }

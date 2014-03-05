@@ -11,6 +11,9 @@ import java.util.Iterator;
 import java.util.Map.Entry;
 import java.util.concurrent.ConcurrentHashMap;
 
+import org.codehaus.jackson.JsonNode;
+import org.codehaus.jackson.map.ObjectMapper;
+
 /**
  * smartbus 网络客户端 JNI 包装类
  * 
@@ -148,17 +151,7 @@ public class JniWrapper {
         }
     }
 
-//    protected static void cb_recvdata(int arg, byte local_clientid,
-//            PackInfo head, String txt) {
-//        System.out.println("Recv clientId = "+local_clientid);
-//        Client inst = instances.get(local_clientid);
-//        System.out.println("Client instance:"+inst);
-//        if (inst != null) {
-//            inst.getCallbacks().onReceiveText(null, txt);
-//        }
-//    }
-
-    protected static void cb_recvdata(int arg, byte cmd, byte cmdtype,
+    protected static void cb_recvdata(int arg, byte cmd, byte cmdtype, byte local_clientid,
             byte src_unit_id, byte src_unit_client_id,
             byte src_unit_client_type, byte dest_unit_id,
             byte dest_unit_client_id,
@@ -168,8 +161,10 @@ public class JniWrapper {
         PackInfo head = new PackInfo((byte)arg, cmd, cmdtype, src_unit_id, src_unit_client_id, src_unit_client_type, dest_unit_id, dest_unit_client_id, dest_unit_client_type);
         if (inst != null) {
             inst.getCallbacks().onReceiveText(head, txt);
-            JsonrpcHandler handle = new JsonrpcHandler(new WeChatMethodSet());
+            
             try {
+                //JsonNode jo = new ObjectMapper().readValue(txt, JsonNode.class);
+                JsonrpcHandler handle = new JsonrpcHandler(new WeChatMethodSet());
                 String response = handle.handle(txt);
                 System.out.println(response);
                 inst.sendText(cmd, cmdtype, (int)src_unit_id, (int)src_unit_client_id, (int)src_unit_client_type, response);
@@ -181,10 +176,16 @@ public class JniWrapper {
     }
     
     protected static void cb_invokeflowret(int arg, byte local_clientid,
-            PackInfo head, String projectid, int invoke_id, int ret,
-            String param) {
+            byte head_flag, byte cmd, byte cmdtype, byte src_unit_id,
+            byte src_unit_client_id, byte src_unit_client_type,
+            byte dest_unit_id, byte dest_unit_client_id,
+            byte dest_unit_client_type, String projectid, int invoke_id,
+            int ret, String param) {
         Client inst = instances.get(local_clientid);
         if (inst != null) {
+            PackInfo head = new PackInfo(head_flag, cmd, cmdtype, src_unit_id,
+                    src_unit_client_id, src_unit_client_type, dest_unit_id,
+                    dest_unit_client_id, dest_unit_client_type);
             if (ret == 1) {
                 inst.getCallbacks().onFlowReturn(head, projectid, invoke_id,
                         param);
