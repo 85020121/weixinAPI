@@ -55,11 +55,11 @@ public class MessageController {
     }
 
     @RequestMapping(method = RequestMethod.POST)
-    public void response(HttpServletRequest request,
+    public void receiveMessage(HttpServletRequest request,
             HttpServletResponse response) {
         // request.setCharacterEncoding("UTF-8");
         // response.setCharacterEncoding("UTF-8");
-        log.info("In response...");
+        log.info("In receiveMessage...");
         
         try {
             PrintWriter out = response.getWriter();

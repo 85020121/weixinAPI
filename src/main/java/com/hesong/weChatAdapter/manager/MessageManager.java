@@ -1,16 +1,15 @@
 package com.hesong.weChatAdapter.manager;
 
 import java.util.Date;
+import java.util.HashMap;
 import java.util.Map;
+import java.util.UUID;
 
 import org.apache.log4j.Logger;
 
 import net.sf.json.JSONObject;
 
-import com.hesong.smartbus.client.WeChatCallback;
-import com.hesong.smartbus.client.net.Client;
-import com.hesong.smartbus.client.net.Client.ConnectError;
-import com.hesong.smartbus.client.net.Client.SendDataError;
+import com.hesong.smartbus.client.net.JniWrapper;
 import com.hesong.weChatAdapter.message.response.RespTextMessage;
 import com.hesong.weChatAdapter.model.AccessToken;
 import com.hesong.weChatAdapter.tools.API;
@@ -60,17 +59,41 @@ public class MessageManager {
             log.info("Content = "+message.get(API.MESSAGE_CONTENT_TAG));
             log.info("Message ID = "+message.get(API.MESSAGE_ID_TAG));
             
-            RespTextMessage msg = new RespTextMessage();
-            msg.setContent("Response Test");
-            msg.setCreateTime(new Date().getTime());
-            msg.setFromUserName(message.get(API.MESSAGE_TO_TAG));
-            msg.setMsgType(API.TEXT_MESSAGE);
-            msg.setToUserName(message.get(API.MESSAGE_FROM_TAG));
+            JSONObject jo = new JSONObject();
+            jo.put("jsonrpc", "2.0");
+            jo.put("method", "imsm.ImMessageReceived");
+            jo.put("id", UUID.randomUUID().toString());
+            Map<String,Object> list = new HashMap<String,Object>();
+            list.put("imtype", "weixin");
+            list.put("account", message.get(API.MESSAGE_TO_TAG));
             
-            WeChatXMLParser.xstream.alias("xml", msg.getClass());
-            String respXml = WeChatXMLParser.xstream.toXML(msg);
-            log.info("respXml: "+respXml);
-            return respXml;
+            JSONObject user = new JSONObject();
+            user.put("user", message.get(API.MESSAGE_FROM_TAG));
+            user.put("usertype", 2);
+            
+            list.put("user", user);
+            list.put("room", null);
+            list.put("msgtype", "text");
+            list.put("msgcontent", message);
+            
+            jo.put("params", list);
+            log.info("JSON MESSAGE: "+jo.toString());
+            
+            
+            JniWrapper.instances.get((byte)33).sendText((byte)0, (byte)2, 0, 14, 11, jo.toString());
+//            RespTextMessage msg = new RespTextMessage();
+//            
+//            msg.setContent("Response Test");
+//            msg.setCreateTime(new Date().getTime());
+//            msg.setFromUserName(message.get(API.MESSAGE_TO_TAG));
+//            msg.setMsgType(API.TEXT_MESSAGE);
+//            msg.setToUserName(message.get(API.MESSAGE_FROM_TAG));
+//            
+//            WeChatXMLParser.xstream.alias("xml", msg.getClass());
+//            String respXml = WeChatXMLParser.xstream.toXML(msg);
+            
+//            log.info("respXml: "+respXml);
+            return "";
             
         } catch (Exception e) {
             e.printStackTrace();
@@ -139,29 +162,17 @@ public class MessageManager {
         return "";
     }
 
-    public static JSONObject sendMessage(Object msg) {
-        String jsonMsg = JSONObject.fromObject(msg).toString();
+    public static JSONObject sendMessage(String msg) {
+       // String jsonMsg = JSONObject.fromObject(msg).toString();
         
         String request = SEND_MESSAGE_REQUEST_URL+API.ACCESS_TOKEN;
-        
-        JSONObject jo = WeChatHttpsUtil.httpsRequest(request, "POST", jsonMsg);
+        log.info("sendMessage: "+msg);
+        JSONObject jo = WeChatHttpsUtil.httpsRequest(request, "POST", msg);
         log.info("Send message ret: "+jo.toString());
         return jo;
 
-//        if (jo != null) {
-//            if (0 != jo.getInt("errcode")) {
-//                log.error("Get token failed, errorcode:{"
-//                        + jo.getInt("errcode") + "} errormsg:{"
-//                        + jo.getString("errmsg") + "}");
-//                return true;
-//            } else {
-//                log.info(jo.toString());
-//            }
-//
-//        }
-//        return false;
     }
-    
+
     public static void createMenu(String appID, String appSecret, String jsonMenu){
         String request = getRequestUrl(appID, appSecret, CREATE_MENU_REQUEST_URL);;
         
@@ -223,26 +234,27 @@ public class MessageManager {
         return jo.toString();
     }
     
-    public static String makeClient(byte unitId, byte clientId, String host, short port){
-        Client.initialize(unitId);
-
-        Client client = new Client(clientId, (long) 11, host, port,
-                "WeChat client");
-        client.setCallbacks(new WeChatCallback());
-
-        log.info("Connect...");
-
-            try {
-                client.connect();
-                Thread.sleep(2000);
-                client.sendText((byte)0, (byte)211, 28, 25, 11, "{\"method\":\"Echo\",\"params\":[\"Hello world\"]}");
-                return "success";
-            } catch (ConnectError | InterruptedException | SendDataError e) {
-                // TODO Auto-generated catch block
-                e.printStackTrace();
-                return "failed";
-            }
-    }
+//    public static String makeClient(byte unitId, byte clientId, String host, short port){
+//        Client.initialize(unitId);
+//
+//        Client client = new Client(clientId, (long) 11, host, port,
+//                "WeChat client");
+//        client.setCallbacks(new WeChatCallback());
+//
+//        log.info("Connect...");
+//
+//        try {
+//            client.connect();
+//            Thread.sleep(2000);
+//            client.sendText((byte) 0, (byte) 211, 28, 25, 11,
+//                    "{\"method\":\"Echo\",\"params\":[\"Hello world\"]}");
+//            return "success";
+//        } catch (ConnectError | InterruptedException | SendDataError e) {
+//            // TODO Auto-generated catch block
+//            e.printStackTrace();
+//            return "failed";
+//        }
+//    }
     
     private static String getRequestUrl(String appID, String appSecret, String url){
         AccessToken token = WeChatHttpsUtil.getAccessToken(appID, appSecret);

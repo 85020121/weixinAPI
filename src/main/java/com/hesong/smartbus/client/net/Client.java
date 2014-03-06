@@ -217,6 +217,7 @@ public class Client {
         int result = JniWrapper.SendText(this.localClientId, cmd, cmdType,
                 dstUnitId, dstClientId, dstClientType, txt);
         if (result != 0) {
+            // TODO
             throw new SendDataError();
         }
     }

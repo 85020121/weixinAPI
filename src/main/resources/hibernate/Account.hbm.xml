@@ -1,0 +1,35 @@
+<?xml version="1.0"?>
+<!DOCTYPE hibernate-mapping PUBLIC "-//Hibernate/Hibernate Mapping DTD 3.0//EN"
+"http://hibernate.sourceforge.net/hibernate-mapping-3.0.dtd">
+
+<hibernate-mapping>
+	<class name="com.hesong.weChatAdapter.account.Account" table="cc_mgr_t_imacc"
+		catalog="hssmart">
+
+		<id name="id" type="string">
+			<column name="id" length="50" not-null="true" />
+		</id>
+
+		<property name="unitid" type="string">
+			<column name="unitid" length="50" not-null="true" />
+		</property>
+		<property name="acctype" type="string">
+			<column name="acctype" length="50" not-null="true" />
+		</property>
+		<property name="accname" type="string">
+			<column name="accname" length="50" not-null="true" />
+		</property>
+		<property name="accdata" type="string">
+			<column name="accdata" />
+		</property>
+		<property name="displayname" type="string">
+			<column name="displayname" length="255" />
+		</property>
+		<property name="remark" type="string">
+			<column name="remark" length="255" />
+		</property>
+		<property name="enabled" type="byte">
+			<column name="enabled" length="1" />
+		</property>
+	</class>
+</hibernate-mapping>

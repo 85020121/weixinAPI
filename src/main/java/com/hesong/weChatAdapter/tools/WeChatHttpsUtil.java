@@ -92,11 +92,8 @@ public class WeChatHttpsUtil {
 
         if (jo != null) {
             try {
-                token = new AccessToken();
-                token.setToken(jo.getString("access_token"));
-                token.setExpiresIn(jo.getInt("expires_in"));
-                log.info("Token: " + token.getToken());
-                log.info("Expires in: " + token.getExpiresIn());
+                token = new AccessToken(appid, appSecret, jo.getString("access_token"), jo.getInt("expires_in"));
+                log.info(token.toString());
             } catch (Exception e) {
                 log.error("Get token failed, errorcode:{"
                         + jo.getInt("errcode") + "} errormsg:{"

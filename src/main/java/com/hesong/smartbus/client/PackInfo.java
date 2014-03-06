@@ -12,7 +12,7 @@ public class PackInfo {
 
     public PackInfo(byte flag, byte cmd, byte cmdType, byte srcUnitId,
 			byte srcClientId, byte srcClientType, byte dstUnitid,
-			byte dstClientId, byte dstClientType) {
+			byte dstClientId, byte dstClientType, String text) {
 		this.flag = flag;
 		this.cmd = cmd;
 		this.cmdType = cmdType;
@@ -22,6 +22,7 @@ public class PackInfo {
 		this.dstUnitid = dstUnitid;
 		this.dstClientId = dstClientId;
 		this.dstClientType = dstClientType;
+		this.text = text;
 	}
 
 	private byte flag;
@@ -33,6 +34,9 @@ public class PackInfo {
 	private byte dstUnitid;
 	private byte dstClientId;
 	private byte dstClientType;
+	private String text;
+	
+	
 
 	/**
 	 * 标志
@@ -96,6 +100,14 @@ public class PackInfo {
 	public byte getDstClientType() {
 		return dstClientType;
 	}
+	
+    public String getText() {
+        return text;
+    }
+
+    public void setText(String text) {
+        this.text = text;
+    }
 
     @Override
     public String toString() {
@@ -103,8 +115,7 @@ public class PackInfo {
                 + cmdType + ", srcUnitId=" + srcUnitId + ", srcClientId="
                 + srcClientId + ", srcClientType=" + srcClientType
                 + ", dstUnitid=" + dstUnitid + ", dstClientId=" + dstClientId
-                + ", dstClientType=" + dstClientType + "]";
+                + ", dstClientType=" + dstClientType + ", text=" + text + "]";
     }
 
-	
 }

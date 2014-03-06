@@ -3,7 +3,7 @@ package com.hesong.weChatAdapter.tools;
 public class API {
     
     public static String TOKEN = "weixin";
-    public static String ACCESS_TOKEN = "0Y2UhmqMUBkDNRrGo-L6sp2VnL6ZZekW0eHXoZ9Qa-E1e15LQq6P0WS0_AvC6iZbiakqCPbuOBL2j-ztgvrVJbj0bP4-THaH91MkdZ8LRuEMtFC8Twlv4_tgIJ3fV7SBV3O1C9qykeq_GEzavw74Jw";
+    public static String ACCESS_TOKEN = "nRZvVpDU7LxcSi7GnG2LrUukYmvhVo0ZmEyTM2gXMKwgz9Ib7ZNqU8mW7t1zeeKItIc8GD1oUZSpj3Va_902f2-GeIIk3UcVEcAUjYN8BBtzV5HNLeazPj2v3LlmscIEDvfhROYRwUQlHdsa1abMsQ";
     public static String APPID = "wx5c19ccf5d7bdce97";
     public static String APP_SECRET = "b3b2b1f0cb0babc572adbd48dd072fb6";
     

@@ -63,11 +63,11 @@ public class WeChatTest {
         msg.setMsgtype("text");
         Map<String, String> map = new HashMap<>();
         map.put("content", "Send msg test");
-        msg.setText(map);
+        //msg.setText(map);
         String jsonMsg = JSONObject.fromObject(msg).toString();
         System.out.println(jsonMsg);
 
-        MessageManager.sendMessage(msg);
+        //MessageManager.sendMessage(msg);
     }
     
     @Test
@@ -77,19 +77,14 @@ public class WeChatTest {
         msg.setMsgtype("text");
         Map<String, String> map = new HashMap<>();
         map.put("content", "Send msg test");
-        msg.setText(map);
+        //msg.setText(map);
         String jsonrpc;
         jsonrpc = "{\"jsonrpc\": \"2.0\", \"method\": \"sendMessage\", \"params\": [\"ogfGduA0yfPY_aET7do8GvE5Bm4w\",\"text\",{\"content\":\"Send jsonrpc msg test\"}], \"id\": 1}";
         //jsonrpc = "{\"jsonrpc\": \"2.0\", \"method\": \"echo\", \"params\": [\"Hello JSON-RPC\"], \"id\": 1}";
         System.out.println(jsonrpc);
 
         JsonrpcHandler handler = new JsonrpcHandler(new WeChatMethodSet());
-        try {
             handler.handle(jsonrpc);
-        } catch (IOException e) {
-            // TODO Auto-generated catch block
-            e.printStackTrace();
-        }
     }
     
     @Test

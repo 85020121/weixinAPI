@@ -17,6 +17,7 @@ import com.hesong.smartbus.client.net.Client;
 import com.hesong.smartbus.client.net.Client.ConnectError;
 import com.hesong.smartbus.client.net.Client.SendDataError;
 import com.hesong.weChatAdapter.manager.MessageManager;
+import com.hesong.weChatAdapter.runner.SmartbusExecutor;
 
 @Controller
 @RequestMapping("/smartbus")
@@ -49,23 +50,7 @@ public class SmartbusController {
             byte clientId = Byte.parseByte(smartbusProps.get("clientId"));
 
             log.info(host + " " + port + " " + unitId + " " + clientId);
-            Client.initialize(unitId);
-
-            client = new Client(clientId, (long) 11, host, port,
-                    "WeChat client");
-            client.setCallbacks(new WeChatCallback());
-
-            log.info("Connect...");
-
-            try {
-                client.connect();
-                // client.sendText((byte)0, (byte)211, 28, 25, 11, "{\"method\":\"Echo\",\"params\":[\"Hello world\"]}");
-                return "success";
-            } catch (ConnectError e) {
-                // TODO Auto-generated catch block
-                e.printStackTrace();
-                return "failed";
-            }
+            return SmartbusExecutor.execute(unitId, clientId, host, port);
 
         } catch (IOException e) {
             log.info("Json mapper exception: " + e.toString());

@@ -1,18 +1,14 @@
 package com.hesong.smartbus.client.net;
 
-import com.hesong.jsonrpc.JsonrpcHandler;
-import com.hesong.jsonrpc.WeChatMethodSet;
 import com.hesong.smartbus.client.PackInfo;
-import com.hesong.smartbus.client.net.Client.SendDataError;
-
-import java.io.IOException;
 import java.util.Map;
 import java.util.Iterator;
 import java.util.Map.Entry;
+import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.LinkedBlockingDeque;
 
-import org.codehaus.jackson.JsonNode;
-import org.codehaus.jackson.map.ObjectMapper;
+import org.apache.log4j.Logger;
 
 /**
  * smartbus 网络客户端 JNI 包装类
@@ -21,6 +17,8 @@ import org.codehaus.jackson.map.ObjectMapper;
  * 
  */
 public class JniWrapper {
+    static int count = 0;
+    
     /**
      * 初始化 smartbus net 客户端
      * 
@@ -123,14 +121,18 @@ public class JniWrapper {
 
     static {
         System.loadLibrary("smartbus_net_cli_jni");
-        //System.out.println(System.getProperty("user.dir"));
-        //System.load("D:\\JavaProjects\\workspace\\weChatAdapter\\jni\\smartbus_net_cli_jni.dll");
+        // System.out.println(System.getProperty("user.dir"));
+        // System.load("D:\\JavaProjects\\workspace\\weChatAdapter\\jni\\smartbus_net_cli_jni.dll");
     }
 
     /**
      * 该库中，客户端ID->客户端实例 对照表
      */
     public static Map<Byte, Client> instances = new ConcurrentHashMap<Byte, Client>();
+    
+    public static BlockingQueue<PackInfo> messageQueue = new LinkedBlockingDeque<PackInfo>();
+    
+    private static Logger log = Logger.getLogger(JniWrapper.class);
 
     protected static void cb_connection(int arg, byte local_clientid,
             int accesspoint_unitid, int ack) {
@@ -151,30 +153,41 @@ public class JniWrapper {
         }
     }
 
-    protected static void cb_recvdata(int arg, byte cmd, byte cmdtype, byte local_clientid,
-            byte src_unit_id, byte src_unit_client_id,
+    protected static void cb_recvdata(int arg, byte cmd, byte cmdtype,
+            byte local_clientid, byte src_unit_id, byte src_unit_client_id,
             byte src_unit_client_type, byte dest_unit_id,
-            byte dest_unit_client_id,
-            byte dest_unit_client_type , String txt) {
-        System.out.println("Recv clientId = "+dest_unit_client_id);
+            byte dest_unit_client_id, byte dest_unit_client_type, String txt) {
+        System.out.println("Recv clientId = " + dest_unit_client_id);
         Client inst = instances.get(dest_unit_client_id);
-        PackInfo head = new PackInfo((byte)arg, cmd, cmdtype, src_unit_id, src_unit_client_id, src_unit_client_type, dest_unit_id, dest_unit_client_id, dest_unit_client_type);
+        PackInfo head = new PackInfo((byte) arg, cmd, cmdtype, src_unit_id,
+                src_unit_client_id, src_unit_client_type, dest_unit_id,
+                dest_unit_client_id, dest_unit_client_type, txt);
         if (inst != null) {
             inst.getCallbacks().onReceiveText(head, txt);
-            
             try {
-                //JsonNode jo = new ObjectMapper().readValue(txt, JsonNode.class);
-                JsonrpcHandler handle = new JsonrpcHandler(new WeChatMethodSet());
-                String response = handle.handle(txt);
-                System.out.println(response);
-                inst.sendText(cmd, cmdtype, (int)src_unit_id, (int)src_unit_client_id, (int)src_unit_client_type, response);
-            } catch (IOException | SendDataError e) {
-                // TODO Auto-generated catch block
-                e.printStackTrace();
+                log.info("JniWrapper put packInfo into message queue.");
+                messageQueue.put(head);
+                log.info("In message: "+(++count));
+            } catch (InterruptedException e) {
+                log.info("JniWrapper put message queue exception: "+e.toString());
             }
+//            try {
+//                // JsonNode jo = new ObjectMapper().readValue(txt,
+//                // JsonNode.class);
+//                JsonrpcHandler handle = new JsonrpcHandler(
+//                        new WeChatMethodSet());
+//                String response = handle.handle(txt);
+//                System.out.println(response);
+//                inst.sendText(cmd, cmdtype, (int) src_unit_id,
+//                        (int) src_unit_client_id, (int) src_unit_client_type,
+//                        response);
+//            } catch (IOException | SendDataError e) {
+//                // TODO Auto-generated catch block
+//                e.printStackTrace();
+//            }
         }
     }
-    
+
     protected static void cb_invokeflowret(int arg, byte local_clientid,
             byte head_flag, byte cmd, byte cmdtype, byte src_unit_id,
             byte src_unit_client_id, byte src_unit_client_type,
@@ -185,7 +198,7 @@ public class JniWrapper {
         if (inst != null) {
             PackInfo head = new PackInfo(head_flag, cmd, cmdtype, src_unit_id,
                     src_unit_client_id, src_unit_client_type, dest_unit_id,
-                    dest_unit_client_id, dest_unit_client_type);
+                    dest_unit_client_id, dest_unit_client_type, null);
             if (ret == 1) {
                 inst.getCallbacks().onFlowReturn(head, projectid, invoke_id,
                         param);
@@ -207,5 +220,5 @@ public class JniWrapper {
                     clienttype, status, addinfo);
         }
     }
-    
+
 }

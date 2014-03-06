@@ -13,6 +13,12 @@
         <load-on-startup>1</load-on-startup>
     </servlet>
     
+    <servlet>
+        <servlet-name>preloadServlet</servlet-name>
+        <servlet-class>com.hesong.weChatAdapter.context.ContextPreloader</servlet-class>
+        <load-on-startup>2</load-on-startup>
+    </servlet>
+    
     <!-- 字符过滤器-->
     <filter>
         <filter-name>encodingFilter</filter-name>
