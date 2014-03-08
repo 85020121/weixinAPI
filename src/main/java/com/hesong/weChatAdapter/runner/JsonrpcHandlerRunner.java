@@ -1,6 +1,5 @@
 package com.hesong.weChatAdapter.runner;
 
-import java.io.IOException;
 import java.util.concurrent.BlockingQueue;
 
 import com.hesong.jsonrpc.JsonrpcHandler;
@@ -12,14 +11,26 @@ public class JsonrpcHandlerRunner implements Runnable {
     private BlockingQueue<PackInfo> messageQueue;
     private BlockingQueue<PackInfo> responseQueue;
     private JsonrpcHandler handler;
+    private int id;
 
     public JsonrpcHandlerRunner(BlockingQueue<PackInfo> messageQueue,
-            BlockingQueue<PackInfo> responseQueue) {
+            BlockingQueue<PackInfo> responseQueue, int id) {
         super();
         this.messageQueue = messageQueue;
         this.responseQueue = responseQueue;
         this.handler = new JsonrpcHandler(new WeChatMethodSet());
+        this.id = id;
+        SmartbusExecutor.SmartbusLog.info("Handler number "+id+" loaded.");
     }
+
+    public int getId() {
+        return id;
+    }
+
+    public void setId(int id) {
+        this.id = id;
+    }
+
 
     public BlockingQueue<PackInfo> getMessageQueue() {
         return messageQueue;

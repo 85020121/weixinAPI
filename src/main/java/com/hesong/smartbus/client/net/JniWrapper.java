@@ -132,24 +132,26 @@ public class JniWrapper {
     
     public static BlockingQueue<PackInfo> messageQueue = new LinkedBlockingDeque<PackInfo>();
     
+    public static Client CLIENT;
+    
     private static Logger log = Logger.getLogger(JniWrapper.class);
 
     protected static void cb_connection(int arg, byte local_clientid,
             int accesspoint_unitid, int ack) {
-        Client inst = JniWrapper.instances.get(local_clientid);
-        if (inst != null) {
+        //Client inst = JniWrapper.instances.get(local_clientid);
+        if (CLIENT != null) {
             if (ack == 0) {
-                inst.getCallbacks().onConnectSuccess();
+                CLIENT.getCallbacks().onConnectSuccess();
             } else {
-                inst.getCallbacks().onConnectFail(ack);
+                CLIENT.getCallbacks().onConnectFail(ack);
             }
         }
     }
 
     protected static void cb_disconnect(int arg, byte local_clientid) {
-        Client inst = instances.get(local_clientid);
-        if (inst != null) {
-            inst.getCallbacks().onDisconnect();
+        //Client inst = instances.get(local_clientid);
+        if (CLIENT != null) {
+            CLIENT.getCallbacks().onDisconnect();
         }
     }
 
@@ -158,12 +160,13 @@ public class JniWrapper {
             byte src_unit_client_type, byte dest_unit_id,
             byte dest_unit_client_id, byte dest_unit_client_type, String txt) {
         System.out.println("Recv clientId = " + dest_unit_client_id);
-        Client inst = instances.get(dest_unit_client_id);
+        //Client inst = instances.get(dest_unit_client_id);
+        
         PackInfo head = new PackInfo((byte) arg, cmd, cmdtype, src_unit_id,
                 src_unit_client_id, src_unit_client_type, dest_unit_id,
                 dest_unit_client_id, dest_unit_client_type, txt);
-        if (inst != null) {
-            inst.getCallbacks().onReceiveText(head, txt);
+        if (CLIENT != null) {
+            CLIENT.getCallbacks().onReceiveText(head, txt);
             try {
                 log.info("JniWrapper put packInfo into message queue.");
                 messageQueue.put(head);
@@ -194,16 +197,16 @@ public class JniWrapper {
             byte dest_unit_id, byte dest_unit_client_id,
             byte dest_unit_client_type, String projectid, int invoke_id,
             int ret, String param) {
-        Client inst = instances.get(local_clientid);
-        if (inst != null) {
+        //Client inst = instances.get(local_clientid);
+        if (CLIENT != null) {
             PackInfo head = new PackInfo(head_flag, cmd, cmdtype, src_unit_id,
                     src_unit_client_id, src_unit_client_type, dest_unit_id,
                     dest_unit_client_id, dest_unit_client_type, null);
             if (ret == 1) {
-                inst.getCallbacks().onFlowReturn(head, projectid, invoke_id,
+                CLIENT.getCallbacks().onFlowReturn(head, projectid, invoke_id,
                         param);
             } else {
-                inst.getCallbacks().onFlowTimeout(head, projectid, invoke_id);
+                CLIENT.getCallbacks().onFlowTimeout(head, projectid, invoke_id);
             }
         }
     }

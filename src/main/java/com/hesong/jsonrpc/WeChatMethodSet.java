@@ -1,57 +1,64 @@
 package com.hesong.jsonrpc;
 
-import java.io.IOException;
-import java.util.Map;
-
 import org.apache.log4j.Logger;
-import org.codehaus.jackson.JsonNode;
-import org.codehaus.jackson.JsonParseException;
-import org.codehaus.jackson.map.JsonMappingException;
-import org.codehaus.jackson.map.ObjectMapper;
-import org.codehaus.jackson.node.ObjectNode;
 
 import net.sf.json.JSONObject;
-
+import com.hesong.weChatAdapter.context.ContextPreloader;
 import com.hesong.weChatAdapter.manager.MessageManager;
-import com.hesong.weChatAdapter.message.send.TextMessageToSend;
-import com.hesong.weChatAdapter.tools.API;
+import com.hesong.weChatAdapter.model.AccessToken;
 
 public class WeChatMethodSet {
     private static Logger log = Logger.getLogger(WeChatMethodSet.class);
-
-    private static String MSG_TYPE = "msgtype";
 
     public String echo(String msg) {
         System.out.println("msg: " + msg);
         return msg;
     }
 
-    public JSONObject SendImMessage(String account, String fromuser,
-            String touser, String room, JSONObject msgcontent) {
+    public JSONObject SendImMessage(String account, String touser,
+            String msgcontent) {
         log.info("SendImMessage have been called: " + msgcontent);
-        log.info("toString: " + msgcontent.toString());
-        log.info("msgtype:" + msgcontent.get("msgcontent").toString());
-        JSONObject msg = (JSONObject)msgcontent.get("msgcontent");
-        log.info("msg:"+msg.toString());
-        msg.put("touser", touser);
-        log.info("msg2:"+msg.toString());
+        JSONObject jo = MessageManager.getJsonContent(msgcontent);
+        if (jo ==null) {
+            return createErrorMsg(9922, "Check your json content: "+msgcontent);
+        }
+        log.info("JSONObject: "+jo);
+
+        jo.put("touser", touser);
         
-        return MessageManager.sendMessage(msg.toString());
-//        switch (type) {
-//        case API.TEXT_MESSAGE:
-//            log.info("iiiiiiiiiiiiiimmmmmmmmmmmmmmmmmmmmmmmiiiiiiiiiiiiiiiiiiinnnnnnnnnnnnnn");
-//            TextMessageToSend msg = new TextMessageToSend();
-//            msg.setTouser(touser);
-//            msg.setMsgtype(API.TEXT_MESSAGE);
-//            String text = msgcontent.findValue(API.TEXT_MESSAGE)
-//                    .findValue("content").toString();
-//            log.info("text=" + text);
-//            msg.setText(text);
-//            return MessageManager.sendMessage(msg);
-//
-//        default:
-//            break;
-//        }
+        String token = getAccessToken(account);
+        if (token != null) {
+            return MessageManager.sendMessage(jo.toString(), token);
+        } else{
+            return createErrorMsg(9911, "Invalide WeChat account.");
+        }
+    }
+
+    public JSONObject SendImMessage(String account, String fromuser,
+            String touser, String room, String msgcontent) {
+        log.info("SendImMessage have been called: " + msgcontent);
+        JSONObject jo = MessageManager.getJsonContent(msgcontent);
+        if (jo ==null) {
+            return createErrorMsg(9922, "Check your json content: "+msgcontent);
+        }
+        log.info("JSONObject: "+jo);
+
+        jo.put("touser", touser);
+        String token = getAccessToken(account);
+        if (token != null) {
+            return MessageManager.sendMessage(jo.toString(), token);
+        } else{
+            return createErrorMsg(9911, "Invalide WeChat account.");
+        }
+    }
+    
+    public JSONObject ManageMenu(String account, String action, String menucontent){
+        log.info("ManageMenu have been called with action: "+action);
+        String token = getAccessToken(account);
+        if (token == null) {
+            return createErrorMsg(9911, "Invalide WeChat account.");
+        }
+        return MessageManager.manageMenu(token, action, menucontent);
     }
 
     private JSONObject createErrorMsg(int errcode, String errmsg) {
@@ -59,6 +66,19 @@ public class WeChatMethodSet {
         jo.put("errcode", errcode);
         jo.put("errmsg", errmsg);
         return jo;
+    }
+    
+    private String getAccessToken(String account) {
+        AccessToken ac = ContextPreloader.Account_Map.get(account);
+        if (ac == null) {
+            return null;
+        }
+        String token = ContextPreloader.Account_Map.get(account).getToken();
+        if (token != null) {
+            return token;
+        } else{
+            return null;
+        }
     }
 
 }

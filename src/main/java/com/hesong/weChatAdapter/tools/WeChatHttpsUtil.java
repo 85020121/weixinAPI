@@ -90,7 +90,7 @@ public class WeChatHttpsUtil {
                 "APPSECRET", appSecret);
         JSONObject jo = httpsRequest(requestUrl, "GET", null);
 
-        if (jo != null) {
+        if (jo != null && jo.getString("access_token") != null) {
             try {
                 token = new AccessToken(appid, appSecret, jo.getString("access_token"), jo.getInt("expires_in"));
                 log.info(token.toString());
@@ -98,6 +98,7 @@ public class WeChatHttpsUtil {
                 log.error("Get token failed, errorcode:{"
                         + jo.getInt("errcode") + "} errormsg:{"
                         + jo.getString("errmsg") + "}");
+                return null;
             }
         }
 

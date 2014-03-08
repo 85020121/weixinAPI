@@ -1,7 +1,6 @@
 package com.hesong.jsonrpc;
 
 import java.io.IOException;
-import java.lang.annotation.Annotation;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.lang.reflect.Type;
@@ -11,22 +10,16 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Set;
 
+import net.sf.json.JSONArray;
 import net.sf.json.JSONObject;
+import net.sf.json.JSONSerializer;
 
 import org.apache.log4j.Logger;
-import org.codehaus.jackson.JsonNode;
-import org.codehaus.jackson.JsonParseException;
-import org.codehaus.jackson.map.JsonMappingException;
-import org.codehaus.jackson.map.ObjectMapper;
-import org.codehaus.jackson.map.type.TypeFactory;
-import org.codehaus.jackson.node.ArrayNode;
-import org.codehaus.jackson.node.ObjectNode;
 
 public class JsonrpcHandler {
     private static Logger log = Logger.getLogger(JsonrpcHandler.class);
-    
+
     private Object handler;
-    private ObjectMapper mapper;
 
     public Object getHandler() {
         return handler;
@@ -36,51 +29,21 @@ public class JsonrpcHandler {
         this.handler = handler;
     }
 
-    public ObjectMapper getMapper() {
-        return mapper;
-    }
-
-    public void setMapper(ObjectMapper mapper) {
-        this.mapper = mapper;
-    }
-
     public JsonrpcHandler(Object handler) {
         super();
         this.handler = handler;
-        mapper = new ObjectMapper();
     }
 
     public String handle(String jsonrpc) {
-        log.info("Handle json: "+jsonrpc);
+        log.info("Handle json: " + jsonrpc);
+        JSONObject node = null;
         try {
-            return hadleNode(mapper.readValue(jsonrpc, JsonNode.class));
-        } catch (IOException e) {
-            // TODO Auto-generated catch block
-            e.printStackTrace();
-            return createErrorResponse("2.0", null, 9999, e.toString(), null);
+            node = (JSONObject) JSONSerializer.toJSON(jsonrpc.toString());//JSONObject.fromObject(jsonrpc);
+        } catch (Exception e) {
+            return createErrorResponse("2.0", null, 32602,
+                    "Check your json content: "+jsonrpc+", exception: "+e.getStackTrace(), null);
         }
-    }
 
-    private String hadleNode(JsonNode node) {
-        // handle objects
-        if (node.isObject()) {
-            return handleObject(ObjectNode.class.cast(node));
-
-            // handle arrays
-        } else if (node.isArray()) {
-            handleArray(ArrayNode.class.cast(node));
-            return "";
-        }
-        return "";
-    }
-
-    private void handleArray(ArrayNode cast) {
-        // TODO Auto-generated method stub
-
-    }
-
-    private String handleObject(ObjectNode node) {
-        String callBack;
         // validate request
         if (!node.has("jsonrpc") || !node.has("method")) {
             log.info("Result message, do nothing.");
@@ -88,12 +51,13 @@ public class JsonrpcHandler {
         }
 
         // parse request
-        String jsonRpc = node.get("jsonrpc").getTextValue();
-        String methodName = node.get("method").getTextValue();
-        String id = node.get("id").getTextValue();
-        JsonNode params = node.get("params");
-        log.info("Json: "+ jsonRpc + " " + methodName + " "+id+" "+params);
-        
+        String jsonrpcVesion = node.getString("jsonrpc");
+        String methodName = node.getString("method");
+        String id = node.getString("id");
+        JSONArray params = node.getJSONArray("params");
+        log.info("Json: " + jsonrpcVesion + " " + methodName + " " + id + " "
+                + params);
+
         int paramCount = (params != null) ? params.size() : 0;
 
         // find methods
@@ -101,9 +65,8 @@ public class JsonrpcHandler {
 
         // method not found
         if (methods.isEmpty()) {
-            callBack = createErrorResponse(jsonRpc, id, -32601,
-                    "Method not found", null);
-            return callBack;
+            return createErrorResponse(jsonrpcVesion, id, 32601,
+                    "Method not found:" + methodName, null);
         }
 
         Iterator<Method> itr = methods.iterator();
@@ -113,119 +76,83 @@ public class JsonrpcHandler {
                 itr.remove();
             }
         }
-        
+
         if (methods.size() == 0) {
-            return createErrorResponse(jsonRpc, id, -32602,
-                    "Unknown method or invalid method parameters.", null);
+            return createErrorResponse(jsonrpcVesion, id, 32602,
+                    "Invalid method parameters.", null);
         }
-        
+
         // choose a method
         Method method = null;
-        List<JsonNode> paramNodes = new ArrayList<JsonNode>();
+        List<Object> paramNodes = new ArrayList<Object>();
 
         // handle param arrays, no params, and single methods
-        
+
         if (paramCount == 0 || params.isArray() || (methods.size() == 1)) {
             method = methods.iterator().next();
             for (int i = 0; i < paramCount; i++) {
                 paramNodes.add(params.get(i));
             }
-
             // handle named params
-        } else if (params.isObject()) {
-
-            // loop through each method
-            for (Method m : methods) {
-
-                // get method annotations
-                Annotation[][] annotations = m.getParameterAnnotations();
-                boolean found = true;
-                List<JsonNode> namedParams = new ArrayList<JsonNode>();
-                for (int i = 0; i < annotations.length; i++) {
-
-                    // look for param name annotations
-                    String paramName = null;
-                    for (int j = 0; j < annotations[i].length; j++) {
-                        if (!JsonrpcParamName.class
-                                .isInstance(annotations[i][j])) {
-                            continue;
-                        } else {
-                            paramName = JsonrpcParamName.class.cast(
-                                    annotations[i][j]).value();
-                            continue;
-                        }
-                    }
-
-                    // bail if param name wasn't found
-                    if (paramName == null) {
-                        found = false;
-                        break;
-
-                        // found it by name
-                    } else if (params.has(paramName)) {
-                        namedParams.add(params.get(paramName));
-                    }
-                }
-
-                // did we find it?
-                if (found) {
-                    method = m;
-                    paramNodes.addAll(namedParams);
-                    break;
-                }
-            }
+        } else {
+            return createErrorResponse(jsonrpcVesion, id, 32602,
+                    "Invalid method parameters, check your json request.", null);
         }
 
         // invalid parameters
         if (method == null) {
-            callBack = createErrorResponse(jsonRpc, id, -32602,
-                    "Invalid method parameters.", null);
-            return callBack;
+            return createErrorResponse(jsonrpcVesion, id, 32602,
+                    "Invalid method parameters, check your json request.", null);
         }
 
         // invoke the method
         JSONObject result = null;
-        ObjectNode error = null;
+        JSONObject error = null;
         try {
             result = invoke(method, paramNodes);
         } catch (Exception e) {
-            error = mapper.createObjectNode();
-            error.put("code", 0);
-            error.put("message", e.getLocalizedMessage());
-            //error.put("data", mapper.valueToTree(e));
+            error = new JSONObject();
+            error.put("code", 9999);
+            error.put("message", e.getStackTrace());
         }
+
+        // error.put("data", mapper.valueToTree(e));
 
         // bail if notification request
         if (id == null) {
-            return "id is null";
+            return createErrorResponse(jsonrpcVesion, id, 32603, "Id is null.",
+                    null);
         }
 
         // create response
-        ObjectNode response = mapper.createObjectNode();
-        response.put("jsonrpc", jsonRpc);
+        JSONObject response = new JSONObject();
+        response.put("jsonrpc", jsonrpcVesion);
         response.put("id", id);
-        
+
         if (error != null) {
             response.put("error", error);
             return response.toString();
         }
         if (result != null) {
+            if (!result.has("errcode")) {
+                response.put("result", result);
+                return response.toString();
+            }
             int errcode = result.getInt("errcode");
-            if (errcode==0) {
+            if (errcode == 0) {
                 response.put("result", 0);
             } else if (errcode != 0) {
-                ObjectNode on = mapper.createObjectNode();
-                on.put("code", errcode);
-                on.put("message", result.getString("errmsg"));
-                response.put("error", on);
+                JSONObject jo = new JSONObject();
+                jo.put("code", errcode);
+                jo.put("message", result.getString("errmsg"));
+                response.put("error", jo);
             }
         } else {
-            return createErrorResponse(jsonRpc, id, -32602,
-                    "Invalid method parameters.", null);
+            return createErrorResponse(jsonrpcVesion, id, -32602,
+                    "Invalid method parameters, check your json request.", null);
         }
 
-        callBack = response.toString();
-        return callBack;
+        return response.toString();
     }
 
     /**
@@ -261,23 +188,31 @@ public class JsonrpcHandler {
      * @throws IllegalAccessException
      * @throws InvocationTargetException
      */
-    @SuppressWarnings("deprecation")
-    private JSONObject invoke(Method m, List<JsonNode> params)
-            throws JsonParseException, JsonMappingException, IOException,
-            IllegalArgumentException, IllegalAccessException,
+    private JSONObject invoke(Method m, List<Object> params)
+            throws IllegalAccessException, IllegalArgumentException,
             InvocationTargetException {
-
+        log.info("In invoke");
         // convert the parameters
         Object[] convertedParams = new Object[params.size()];
         Type[] parameterTypes = m.getGenericParameterTypes();
         for (int i = 0; i < parameterTypes.length; i++) {
-            convertedParams[i] = mapper.treeToValue(params.get(i), TypeFactory
-                    .type(parameterTypes[i]).getRawClass());
+            if (params.get(i).toString() == "null") {
+                convertedParams[i] = null;
+                log.info("null " + i);
+                continue;
+            }
+            convertedParams[i] = params.get(i).toString();
+            // convertedParams[i] = mapper.treeToValue(params.get(i),
+            // TypeFactory
+            // .type(parameterTypes[i]).getRawClass());
         }
 
         // invoke the method
-        Object result = m.invoke(handler, convertedParams);
-        return (m.getGenericReturnType() != null) ? (JSONObject)result : null;
+        log.info("Invoking the method...");
+        Object result;
+        result = m.invoke(handler, convertedParams);
+        return (m.getGenericReturnType() != null) ? (JSONObject) result : null;
+
     }
 
     /**
@@ -297,12 +232,12 @@ public class JsonrpcHandler {
      */
     private String createErrorResponse(String jsonRpc, String id, int code,
             String message, Object data) {
-        ObjectNode response = mapper.createObjectNode();
-        ObjectNode error = mapper.createObjectNode();
+        JSONObject response = new JSONObject();
+        JSONObject error = new JSONObject();
         error.put("code", code);
         error.put("message", message);
         if (data != null) {
-            error.put("data", mapper.valueToTree(data));
+            error.put("data", data.toString());
         }
         response.put("jsonrpc", jsonRpc);
         response.put("id", id);

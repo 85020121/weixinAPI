@@ -189,7 +189,7 @@ public class Client {
                 this.slaverHost, this.slaverPort, this.authorUser,
                 this.authorPassword, this.extendedInfo);
         if (result != 0) {
-            throw new ConnectError();
+            
         }
     }
 
