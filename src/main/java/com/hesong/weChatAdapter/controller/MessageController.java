@@ -63,9 +63,11 @@ public class MessageController {
         
         try {
             PrintWriter out = response.getWriter();
-            out.print(MessageManager.getResponseMessage(WeChatXMLParser.parseXML(request)));
+            out.print("");
+            MessageManager.getResponseMessage(WeChatXMLParser.parseXML(request));
             out.close();
             out = null;
+
         } catch (IOException | DocumentException e) {
             log.info("HttpServletResponse getWriter() exception: "
                     + e.toString());

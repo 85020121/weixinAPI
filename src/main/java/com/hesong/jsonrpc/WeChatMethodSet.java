@@ -2,7 +2,11 @@ package com.hesong.jsonrpc;
 
 import org.apache.log4j.Logger;
 
+import net.sf.json.JSON;
+import net.sf.json.JSONArray;
 import net.sf.json.JSONObject;
+import net.sf.json.JSONSerializer;
+
 import com.hesong.weChatAdapter.context.ContextPreloader;
 import com.hesong.weChatAdapter.manager.MessageManager;
 import com.hesong.weChatAdapter.model.AccessToken;
@@ -18,38 +22,84 @@ public class WeChatMethodSet {
     public JSONObject SendImMessage(String account, String touser,
             String msgcontent) {
         log.info("SendImMessage have been called: " + msgcontent);
-        JSONObject jo = MessageManager.getJsonContent(msgcontent);
+        JSONObject jo = getJsonContent(msgcontent);
         if (jo ==null) {
             return createErrorMsg(9922, "Check your json content: "+msgcontent);
         }
+        jo.put("touser", touser);
         log.info("JSONObject: "+jo);
 
-        jo.put("touser", touser);
-        
         String token = getAccessToken(account);
         if (token != null) {
             return MessageManager.sendMessage(jo.toString(), token);
         } else{
-            return createErrorMsg(9911, "Invalide WeChat account.");
+            return createErrorMsg(9911, "Invalide WeChat account: "+account);
         }
     }
 
     public JSONObject SendImMessage(String account, String fromuser,
             String touser, String room, String msgcontent) {
         log.info("SendImMessage have been called: " + msgcontent);
-        JSONObject jo = MessageManager.getJsonContent(msgcontent);
+        JSONObject jo = getJsonContent(msgcontent);
         if (jo ==null) {
             return createErrorMsg(9922, "Check your json content: "+msgcontent);
         }
+
+        jo.put("touser", touser.replace("\"", ""));
         log.info("JSONObject: "+jo);
 
-        jo.put("touser", touser);
-        String token = getAccessToken(account);
+        String token = getAccessToken(account.replace("\"", ""));
         if (token != null) {
             return MessageManager.sendMessage(jo.toString(), token);
         } else{
-            return createErrorMsg(9911, "Invalide WeChat account.");
+            return createErrorMsg(9911, "Invalide WeChat account: "+account);
         }
+    }
+    
+    public JSONObject GetFollowersInfo(String account, String user) {
+        log.info("GetClient have been called, users: " + user);
+        JSONArray ja = null;
+        try {
+            ja = JSONArray.fromObject(user);
+        } catch (Exception e) {
+            return createErrorMsg(9923, "User must be a string or an array: "+user);
+        }
+        if (ja.size() == 0) {
+            return createErrorMsg(9922, "Check your json content: "+user);
+        }
+        String accessToken = getAccessToken(account);
+        if (accessToken == null) {
+            return createErrorMsg(9911, "Invalide WeChat account: "+account);
+        }
+        Object[] userList = ja.toArray();
+        if (userList.length == 1) {
+            return MessageManager.getClientInfo(accessToken, (String)userList[0]);
+        }
+        JSONObject jo = new JSONObject();
+        JSONArray clients = new JSONArray();
+        
+        for (int i = 0; i < userList.length; i++) {
+            clients.add(MessageManager.getClientInfo(accessToken, (String)userList[i]));
+            //jo.put(userList[i], MessageManager.getClientInfo(accessToken, (String)userList[i]));
+        }
+        jo.put("FollowersInfo", clients);
+        log.info("Clients info list: "+jo.toString());
+        return jo;
+    }
+    
+    public JSONObject GetFollowersCount(String account, String status_filter){
+        log.info("GetClientCount have been called for account: " + account);
+        String accessToken = getAccessToken(account);
+        if (accessToken == null) {
+            return createErrorMsg(9911, "Invalide WeChat account: "+account);
+        }
+        JSONObject jo = MessageManager.getFollowersList(accessToken);
+        if (jo.has("total")) {
+            JSONObject result =  new JSONObject();
+            result.put("FollowersCount", jo.get("total"));
+            return result;
+        }
+        return jo;
     }
     
     public JSONObject ManageMenu(String account, String action, String menucontent){
@@ -77,6 +127,14 @@ public class WeChatMethodSet {
         if (token != null) {
             return token;
         } else{
+            return null;
+        }
+    }
+    
+    private JSONObject getJsonContent(String content){
+        try {
+            return (JSONObject) JSONSerializer.toJSON(content.toString());
+        } catch (Exception e) {
             return null;
         }
     }

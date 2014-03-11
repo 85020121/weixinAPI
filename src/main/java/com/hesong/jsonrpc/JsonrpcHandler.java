@@ -135,6 +135,16 @@ public class JsonrpcHandler {
         }
         if (result != null) {
             if (!result.has("errcode")) {
+                if (result.has("FollowersInfo")) {
+                    // reutrn clients info
+                    response.put("result", result.get("FollowersInfo"));
+                    return response.toString();
+                }
+                if (result.has("FollowersCount")) {
+                    // reutrn clients count
+                    response.put("result", result.get("FollowersCount"));
+                    return response.toString();
+                }
                 response.put("result", result);
                 return response.toString();
             }

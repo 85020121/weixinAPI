@@ -7,15 +7,17 @@ import java.util.UUID;
 import org.apache.log4j.Logger;
 
 import net.sf.json.JSONObject;
-import net.sf.json.JSONSerializer;
-
 import com.hesong.smartbus.client.net.Client.SendDataError;
 import com.hesong.smartbus.client.net.JniWrapper;
+import com.hesong.weChatAdapter.context.ContextPreloader;
 import com.hesong.weChatAdapter.tools.API;
 import com.hesong.weChatAdapter.tools.WeChatHttpsUtil;
 
 public class MessageManager {
     private static Logger log = Logger.getLogger(MessageManager.class);
+    
+    private static String ACCESS_TOKEN_TAG = "ACCESS_TOKEN";
+    private static String OPENID_TAG = "OPENID";
 
     private static String GET = "GET";
     private static String POST = "POST";
@@ -24,6 +26,7 @@ public class MessageManager {
     private static String MANAGE_MENU_REQUEST_URL = "https://api.weixin.qq.com/cgi-bin/menu/ACTION?access_token=";
     private static String GET_FOLLOWERS_OPENID_REQUEST_URL = "https://api.weixin.qq.com/cgi-bin/user/get?access_token=";
     private static String GET_FOLLOWERS_FROM_REQUEST_URL = "https://api.weixin.qq.com/cgi-bin/user/get?access_token=ACCESS_TOKEN&next_openid=NEXT_OPENID";
+    private static String GET_CLIENT_INFO_REQUEST_URL = "https://api.weixin.qq.com/cgi-bin/user/info?access_token=ACCESS_TOKEN&openid=OPENID&lang=zh_CN";
 
     public static String getResponseMessage(Map<String, String> message) {
         log.info("MsgType = " + message.get(API.MESSAGE_TYPE_TAG));
@@ -63,8 +66,8 @@ public class MessageManager {
             if (message.get(API.MESSAGE_EVENT_KEY_TAG) != null) {
                 paramsList.put(
                         "msgtype",
-                        "event.CLICK.<"
-                                + message.get(API.MESSAGE_EVENT_KEY_TAG) + ">");
+                        "event.CLICK."
+                                + message.get(API.MESSAGE_EVENT_KEY_TAG));
             } else {
                 paramsList.put("msgtype",
                         "event." + message.get(API.MESSAGE_EVENT_TAG));
@@ -75,7 +78,7 @@ public class MessageManager {
         }
 
         jo.put("params", paramsList);
-        log.info("JSON MESSAGE: " + jo.toString());
+        log.info("SEND JSONRPC OVER SMARTBUS: " + jo.toString());
 
         smartbusSendMessage(jo.toString());
         return "";
@@ -86,6 +89,13 @@ public class MessageManager {
         log.info("sendMessage: " + msg);
         JSONObject jo = WeChatHttpsUtil.httpsRequest(request, POST, msg);
         log.info("Send message ret: " + jo.toString());
+        return jo;
+    }
+    
+    public static JSONObject getClientInfo(String accessToken, String openid){
+        String request = (GET_CLIENT_INFO_REQUEST_URL).replace(ACCESS_TOKEN_TAG, accessToken).replace(OPENID_TAG, openid);
+        JSONObject jo = WeChatHttpsUtil.httpsRequest(request, GET, null);
+        log.info("Client info: "+jo.toString());
         return jo;
     }
 
@@ -105,7 +115,7 @@ public class MessageManager {
         return jObject;
     }
 
-    public static String getFollowersList(String access_token) {
+    public static JSONObject getFollowersList(String access_token) {
         String request = GET_FOLLOWERS_OPENID_REQUEST_URL + access_token;
         JSONObject jo = WeChatHttpsUtil.httpsRequest(request, GET, null);
         log.info("Result: " + jo.toString());
@@ -118,7 +128,7 @@ public class MessageManager {
         // // TODO Auto-generated catch block
         // e.printStackTrace();
         // }
-        return jo.toString();
+        return jo;
     }
 
     public static String getFollowersFrom(String access_token, String openid) {
@@ -141,17 +151,10 @@ public class MessageManager {
 
     private static void smartbusSendMessage(String msg) {
         try {
-            JniWrapper.CLIENT.sendText((byte) 0, (byte) 2, 0, 14, 11, msg);
+            JniWrapper.CLIENT.sendText((byte) 0, (byte) 2, ContextPreloader.destUnitId, ContextPreloader.destClientId, 11, msg);
         } catch (SendDataError e) {
             log.error("Smartbus send message error: " + e.toString());
         }
     }
     
-    public static JSONObject getJsonContent(String content){
-        try {
-            return (JSONObject) JSONSerializer.toJSON(content.toString());
-        } catch (Exception e) {
-            return null;
-        }
-    }
 }

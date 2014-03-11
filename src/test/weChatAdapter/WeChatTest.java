@@ -3,6 +3,10 @@ package weChatAdapter;
 import static org.junit.Assert.*;
 
 import java.util.Date;
+
+import net.sf.json.JSONArray;
+import net.sf.json.JSONObject;
+
 import org.junit.Test;
 
 import com.hesong.jsonrpc.JsonrpcHandler;
@@ -47,28 +51,35 @@ public class WeChatTest {
     @Test
     public void sendMsgTest() {
         JsonrpcHandler handler = new JsonrpcHandler(new WeChatMethodSet());
-        String msg = "{\"jsonrpc\": \"2.0\", \"method\": \"SendImMessage\", \"params\": [\"abcdef\",\"oJr3Ht02_3HFoKDl0WwkdBlLvc3o\", { \"msgtype\":\"text\", \"text\": { \"content\":\"Hello'\\\" *&^%$#你好啊[]{}World\" } } ], \"id\": 3}";
+        String msg = "{\"jsonrpc\": \"2.0\", \"method\": \"SendImMessage\", \"params\": [\"abcdef\",\"oJr3Ht02_3HFoKDl0WwkdBlLvc3o\", { \"msgtype\":\"text\", \"text\": { \"content\":\"Hello'\\\" *&^%$#你\n好啊[]{}World\" } } ], \"id\": 3}";
         System.out.println(handler.handle(msg));
     }
 
     @Test
     public void manageMenuTest() {
         JsonrpcHandler handler = new JsonrpcHandler(new WeChatMethodSet());
-        String get = "{\"jsonrpc\": \"2.0\", \"method\": \"ManageMenu\", \"params\": [\"abcdef\",\"get\", null], \"id\": 2}";
-        String create = "{\"jsonrpc\": \"2.0\", \"method\": \"ManageMenu\", \"params\": [\"abcdef\",\"create\",{ \"button\":[ { \"type\":\"click\", \"name\":\"今日歌曲\", \"key\":\"V1001_TODAY_MUSIC\" }, { \"type\":\"click\", \"name\":\"歌手简介\", \"key\":\"V1001_TODAY_SINGER\" }, { \"name\":\"菜单\", \"sub_button\":[ { \"type\":\"view\", \"name\":\"搜索\", \"url\":\"http://www.soso.com/\" }, { \"type\":\"view\", \"name\":\"视频\", \"url\":\"http://v.qq.com/\" }, { \"type\":\"click\", \"name\":\"赞一下我们\", \"key\":\"V1001_GOOD\" }] }] } ], \"id\": 2}";
-        String delete = "{\"jsonrpc\": \"2.0\", \"method\": \"ManageMenu\", \"params\": [\"abcdef\",\"delete\", null], \"id\": 2}";
+        String get = "{\"jsonrpc\": \"2.0\", \"method\": \"ManageMenu\", \"params\": [\"account\",\"get\", null], \"id\": 2}";
+        String create = "{\"jsonrpc\": \"2.0\", \"method\": \"ManageMenu\", \"params\": [\"account\",\"create\",{ \"button\":[ { \"type\":\"click\", \"name\":\"今日歌曲\", \"key\":\"V1001_TODAY_MUSIC\" }, { \"type\":\"click\", \"name\":\"歌手简介\", \"key\":\"V1001_TODAY_SINGER\" }, { \"name\":\"菜单\", \"sub_button\":[ { \"type\":\"view\", \"name\":\"搜索\", \"url\":\"http://www.soso.com/\" }, { \"type\":\"view\", \"name\":\"视频\", \"url\":\"http://v.qq.com/\" }, { \"type\":\"click\", \"name\":\"赞一下我们\", \"key\":\"V1001_GOOD\" }] }] } ], \"id\": 2}";
+        String delete = "{\"jsonrpc\": \"2.0\", \"method\": \"ManageMenu\", \"params\": [\"account\",\"delete\", null], \"id\": 2}";
         System.out.println(handler.handle(create));
         System.out.println(handler.handle(get));
     }
-
+    
     @Test
-    public void getFollowersTest() {
-        MessageManager.getFollowersList(API.ACCESS_TOKEN);
+    public void getClientInfoTest(){    
+        JsonrpcHandler handler = new JsonrpcHandler(new WeChatMethodSet());
+        String jsonrpc = "{\"jsonrpc\": \"2.0\", \"method\": \"GetClient\", \"params\": [\"abcdef\",[\"oJr3Ht02_3HFoKDl0WwkdBlLvc3o\", \"oJr3Ht294GRv1J0fJYvGlF6kfNSo\",\"123asd\"] ], \"id\": 3}";
+        handler.handle(jsonrpc);
     }
 
-    @Test
-    public void getFollowersFromTest() {
-        MessageManager.getFollowersFrom(API.ACCESS_TOKEN,
-                "ogfGduNuSPi5TyIcYOyMzvlnRF9c");
-    }
+//    @Test
+//    public void getFollowersTest() {
+//        MessageManager.getFollowersList(API.ACCESS_TOKEN);
+//    }
+//
+//    @Test
+//    public void getFollowersFromTest() {
+//        MessageManager.getFollowersFrom(API.ACCESS_TOKEN,
+//                "ogfGduNuSPi5TyIcYOyMzvlnRF9c");
+//    }
 }
