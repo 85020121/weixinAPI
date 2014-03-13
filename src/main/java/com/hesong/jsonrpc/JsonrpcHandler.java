@@ -38,8 +38,9 @@ public class JsonrpcHandler {
         log.info("Handle json: " + jsonrpc);
         JSONObject node = null;
         try {
-            node = (JSONObject) JSONSerializer.toJSON(jsonrpc.toString());//JSONObject.fromObject(jsonrpc);
+            node = (JSONObject) JSONSerializer.toJSON(jsonrpc);//JSONObject.fromObject(jsonrpc);
         } catch (Exception e) {
+            e.printStackTrace();
             return createErrorResponse("2.0", null, 32602,
                     "Check your json content: "+jsonrpc+", exception: "+e.getStackTrace(), null);
         }

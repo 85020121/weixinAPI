@@ -38,7 +38,22 @@ public class PackInfo {
 	
 	
 
-	/**
+	public PackInfo(byte srcUnitId, byte srcClientId, byte dstUnitid,
+            byte dstClientId, String text) {
+        super();
+        this.flag = 0;
+        this.cmd = -1;
+        this.cmdType = (byte)212;
+        this.srcUnitId = srcUnitId;
+        this.srcClientId = srcClientId;
+        this.srcClientType = 2;
+        this.dstUnitid = dstUnitid;
+        this.dstClientId = dstClientId;
+        this.dstClientType = 11;
+        this.text = text;
+    }
+
+    /**
 	 * 标志
 	 */
 	public byte getFlag() {

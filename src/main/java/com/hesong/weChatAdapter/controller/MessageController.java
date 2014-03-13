@@ -64,6 +64,7 @@ public class MessageController {
         try {
             PrintWriter out = response.getWriter();
             out.print("");
+            // TODO: add message to queue
             MessageManager.getResponseMessage(WeChatXMLParser.parseXML(request));
             out.close();
             out = null;

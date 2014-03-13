@@ -37,46 +37,55 @@ public class ContextPreloader extends HttpServlet{
     public static Map<String, AccessToken> Account_Map = new ConcurrentHashMap<String, AccessToken>();
     public static int destUnitId;
     public static int destClientId;
+    public static int srcUnitId;
+    public static int srctClientId;
     
-//    static{
-//        ApplicationContext ctx = AppContext.getApplicationContext();
-//        File f = new File(getSettingFilePath(ctx));
-//        Map<String, String> setting = null;
-//        if (f.exists()){
-//            System.out.println("Setting file exist.");
-//            SAXReader reader = new SAXReader();
-//            setting = new HashMap<String, String>();
-//            try {
-//                Document document = reader.read(f);
-//                Element rootElmt = document.getRootElement();
-//                setting.put("host", rootElmt.elementText("host"));
-//                setting.put("port", rootElmt.elementText("port"));
-//                setting.put("unitid", rootElmt.elementText("unitid"));
-//                setting.put("clientid", rootElmt.elementText("clientid"));
-//                setting.put("destunitid", rootElmt.elementText("destunitid"));
-//                setting.put("destclientid", rootElmt.elementText("destclientid"));
-//                ContextLog.info("Setting: "+setting.toString());
-//            } catch (Exception e) {
-//                setting = null;
-//                e.printStackTrace();
-//            }
-//        }
-//        if (setting != null) {
-//            SmartbusExecutor.execute(Byte.parseByte(setting.get("unitid")), Byte.parseByte(setting.get("clientid")), setting.get("host"), Short.parseShort(setting.get("port")));
-//            destUnitId = Integer.parseInt(setting.get("destunitid"));
-//            destClientId = Integer.parseInt(setting.get("destclientid"));
-//        } else {
-//            SmartbusExecutor.execute((byte)33, (byte)33, "10.4.62.45", (short)8089);
-//            destUnitId = 0;
-//            destClientId = 14;
-//        }
+    static{
+        ApplicationContext ctx = AppContext.getApplicationContext();
+        File f = new File(getSettingFilePath(ctx));
+        Map<String, String> setting = null;
+        if (f.exists()){
+            System.out.println("Setting file exist.");
+            SAXReader reader = new SAXReader();
+            setting = new HashMap<String, String>();
+            try {
+                Document document = reader.read(f);
+                Element rootElmt = document.getRootElement();
+                setting.put("host", rootElmt.elementText("host"));
+                setting.put("port", rootElmt.elementText("port"));
+                setting.put("unitid", rootElmt.elementText("unitid"));
+                setting.put("clientid", rootElmt.elementText("clientid"));
+                setting.put("destunitid", rootElmt.elementText("destunitid"));
+                setting.put("destclientid", rootElmt.elementText("destclientid"));
+                ContextLog.info("Setting: "+setting.toString());
+            } catch (Exception e) {
+                setting = null;
+                e.printStackTrace();
+            }
+        }
+        if (setting != null) {
+            srcUnitId = Byte.parseByte(setting.get("unitid"));
+            srctClientId = Byte.parseByte(setting.get("clientid"));
+            SmartbusExecutor.execute(Byte.parseByte(setting.get("unitid")), Byte.parseByte(setting.get("clientid")), setting.get("host"), Short.parseShort(setting.get("port")));
+            destUnitId = Integer.parseInt(setting.get("destunitid"));
+            destClientId = Integer.parseInt(setting.get("destclientid"));
+        } else {
+            SmartbusExecutor.execute((byte)33, (byte)33, "10.4.62.45", (short)8089);
+            destUnitId = 0;
+            destClientId = 14;
+        }
 //        AccountBo accountBo = (AccountBo) ctx.getBean("accountBo");
 //        @SuppressWarnings("unchecked")
 //        List<Account> list = (List<Account>) accountBo.findByAcctype(API.TOKEN);
 //        for (Account account : list) {
-//            JSONObject jo = JSONObject.fromObject(account.getAccdata());
-//            ContextLog.info("Account: "+jo);
-//            Account_Map.put(account.getAccname(), WeChatHttpsUtil.getAccessToken(jo.getString("appid"), jo.getString("appsecret")));
+//            try {
+//                JSONObject jo = JSONObject.fromObject(account.getAccdata());
+//                ContextLog.info("Account: "+jo);
+//                Account_Map.put(account.getAccname(), WeChatHttpsUtil.getAccessToken(jo.getString("appid"), jo.getString("appsecret")));
+//            } catch (Exception e) {
+//                continue;
+//            }
+//            
 //        }
 //        ContextLog.info("Account_Map:"+Account_Map.toString());
 //        try {
@@ -84,9 +93,9 @@ public class ContextPreloader extends HttpServlet{
 //        } catch (IOException | SchedulerException e) {
 //            ContextLog.error(e.toString());
 //        }
-//        
-//
-//    }
+        
+
+    }
     
     public static String getSettingFilePath(ApplicationContext ctx) {
         String fileName = "";

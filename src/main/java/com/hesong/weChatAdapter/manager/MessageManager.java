@@ -7,9 +7,12 @@ import java.util.UUID;
 import org.apache.log4j.Logger;
 
 import net.sf.json.JSONObject;
+
+import com.hesong.smartbus.client.PackInfo;
 import com.hesong.smartbus.client.net.Client.SendDataError;
 import com.hesong.smartbus.client.net.JniWrapper;
 import com.hesong.weChatAdapter.context.ContextPreloader;
+import com.hesong.weChatAdapter.runner.SmartbusExecutor;
 import com.hesong.weChatAdapter.tools.API;
 import com.hesong.weChatAdapter.tools.WeChatHttpsUtil;
 
@@ -49,7 +52,7 @@ public class MessageManager {
 
         JSONObject user = new JSONObject();
         user.put("user", message.get(API.MESSAGE_FROM_TAG));
-        user.put("usertype", 2);
+        user.put("usertype", API.REAL_WEIXIN_CLIENT);
 
         paramsList.put("user", user);
         paramsList.put("room", null);
@@ -76,11 +79,18 @@ public class MessageManager {
         default:
             break;
         }
-
+//        JSONObject tmp = new JSONObject();
+//        tmp.put("content", message.get("Content"));
+//        WeChatHttpsUtil.httpPostRequest("http://localhost:8080/weChatAdapter/chat/sendMessageQuest", tmp.toString(), 2000);
         jo.put("params", paramsList);
-        log.info("SEND JSONRPC OVER SMARTBUS: " + jo.toString());
+        PackInfo pack = new PackInfo((byte)ContextPreloader.destUnitId, (byte)ContextPreloader.destClientId, (byte)ContextPreloader.srcUnitId, (byte)ContextPreloader.srctClientId, jo.toString());
+        try {
+            SmartbusExecutor.responseQueue.put(pack);
+        } catch (InterruptedException e) {
+            log.error("Puc packinfo into response queue failed: " + e.toString());
+        }
 
-        smartbusSendMessage(jo.toString());
+//        smartbusSendMessage(jo.toString());
         return "";
     }
 
@@ -149,12 +159,12 @@ public class MessageManager {
         return jo.toString();
     }
 
-    private static void smartbusSendMessage(String msg) {
-        try {
-            JniWrapper.CLIENT.sendText((byte) 0, (byte) 2, ContextPreloader.destUnitId, ContextPreloader.destClientId, 11, msg);
-        } catch (SendDataError e) {
-            log.error("Smartbus send message error: " + e.toString());
-        }
-    }
+//    private static void smartbusSendMessage(String msg) {
+//        try {
+//            JniWrapper.CLIENT.sendText((byte) 0, (byte) 2, ContextPreloader.destUnitId, ContextPreloader.destClientId, 11, msg);
+//        } catch (SendDataError e) {
+//            log.error("Smartbus send message error: " + e.toString());
+//        }
+//    }
     
 }

@@ -2,6 +2,7 @@ package com.hesong.smartbus.client.net;
 
 import com.hesong.smartbus.client.Callbacks;
 import com.hesong.smartbus.client.FlowInvokeMode;
+import com.hesong.weChatAdapter.runner.SmartbusExecutor;
 
 /**
  * 和声 Smarbus 网络客户端类
@@ -217,8 +218,7 @@ public class Client {
         int result = JniWrapper.SendText(this.localClientId, cmd, cmdType,
                 dstUnitId, dstClientId, dstClientType, txt);
         if (result != 0) {
-            // TODO
-            throw new SendDataError();
+            SmartbusExecutor.SmartbusLog.info("Send smartbus message failed, errcode: "+result);
         }
     }
 

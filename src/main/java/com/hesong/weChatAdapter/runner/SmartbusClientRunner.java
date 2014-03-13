@@ -8,8 +8,6 @@ import com.hesong.smartbus.client.net.Client.SendDataError;
 
 public class SmartbusClientRunner implements Runnable {
 
-    private static int sendCount = 0;
-
     private Client client;
     private BlockingQueue<PackInfo> responseQueue;
 
@@ -42,13 +40,12 @@ public class SmartbusClientRunner implements Runnable {
             try {
                 PackInfo pack = responseQueue.take();
                 SmartbusExecutor.SmartbusLog
-                        .info("New response in queue, sending...: "
-                                + pack.toString());
+                        .info("New response in queue.");
+                SmartbusExecutor.SmartbusLog
+                .info("SEND JSONRPC OVER SMARTBUS: " + pack.toString());
                 getClient().sendText(pack.getCmd(), pack.getCmdType(),
                         (int) pack.getSrcUnitId(), (int) pack.getSrcClientId(),
                         (int) pack.getSrcClientType(), pack.getText());
-                SmartbusExecutor.SmartbusLog.info("Send message: "
-                        + (++sendCount));
             } catch (InterruptedException | SendDataError e) {
                 if (e instanceof InterruptedException) {
                     SmartbusExecutor.SmartbusLog

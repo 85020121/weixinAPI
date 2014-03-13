@@ -20,6 +20,8 @@ public class SmartbusExecutor {
     private static final int MAX_HANDLER_NUM = 5;
     private static ExecutorService pool = Executors
             .newFixedThreadPool(THREAD_POOL_SIZE);
+    public static BlockingQueue<PackInfo> responseQueue = new LinkedBlockingDeque<PackInfo>();
+
 
     public static String execute(byte unitId, byte clientId, String host,
             short port) {
@@ -33,7 +35,6 @@ public class SmartbusExecutor {
             client.connect();
             SmartbusLog.info("Smartbus connection successed. ");
             JniWrapper.CLIENT = client;
-            BlockingQueue<PackInfo> responseQueue = new LinkedBlockingDeque<PackInfo>();
             for (int i = 0; i < MAX_HANDLER_NUM; i++) {
                 JsonrpcHandlerRunner handler = new JsonrpcHandlerRunner(
                         JniWrapper.messageQueue, responseQueue, i);

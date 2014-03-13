@@ -5,7 +5,9 @@ import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.OutputStream;
 import java.net.ConnectException;
+import java.net.SocketTimeoutException;
 import java.net.URL;
+import java.net.URLConnection;
 
 import javax.net.ssl.HttpsURLConnection;
 import javax.net.ssl.SSLContext;
@@ -48,7 +50,7 @@ public class WeChatHttpsUtil {
 
             if ("GET".equalsIgnoreCase(requestMethod)) {
                 httpsUrlConct.connect();
-                // TODO: use sleep to avoid ssl exception just like: 
+                // TODO: use sleep to avoid ssl exception just like:
                 // Received fatal alert: bad_record_mac
                 // maybe find some other solutions
                 Thread.sleep(1000);
@@ -76,11 +78,60 @@ public class WeChatHttpsUtil {
             jsonObject = JSONObject.fromObject(buffer.toString());
         } catch (ConnectException ce) {
             log.error("WeChat server connection time out.");
+            return getErrorMsg(9003, "WeChat server connection time out: "+ce.toString());
         } catch (Exception e) {
-            log.error("Https request error: " + e.toString());
+            log.error("HTTPS request error: " + e.toString());
+            return getErrorMsg(9002, "HTTPS request error: " + e.toString());
         }
 
         return jsonObject;
+    }
+
+    public static JSONObject httpPostRequest(String requestUrl, String outputStr, int timeout) {
+        StringBuffer buffer = new StringBuffer();
+        InputStream in = null;
+        try {
+            log.info("Post content: "+outputStr);
+            URL url = new URL(requestUrl);
+            URLConnection httpUrlConct = url.openConnection();
+
+            httpUrlConct.setDoInput(true);
+            httpUrlConct.setDoOutput(true);
+            httpUrlConct.setUseCaches(false);
+            httpUrlConct.setReadTimeout(timeout); // 0 to infini
+
+            if (outputStr != null) {
+                OutputStream out = httpUrlConct.getOutputStream();
+                out.write(outputStr.getBytes("UTF-8"));
+                out.close();
+            }
+
+            in = httpUrlConct.getInputStream();
+            InputStreamReader inputReader = new InputStreamReader(in, "UTF-8");
+            BufferedReader bufferedReader = new BufferedReader(inputReader);
+
+            String str = null;
+            while ((str = bufferedReader.readLine()) != null) {
+                buffer.append(str);
+            }
+            bufferedReader.close();
+            inputReader.close();
+
+            //jsonObject = JSONObject.fromObject(buffer.toString());
+            if(buffer.toString().equalsIgnoreCase("success")) {
+                return getErrorMsg(0, "OK");
+            } else {
+                return getErrorMsg(8001, "Request refused.");
+            }
+        } catch(SocketTimeoutException se){
+            log.info("Connection time out.");
+            return getErrorMsg(9001, "HTTP connection timeout.");
+        }catch (Exception e) {
+            e.printStackTrace();
+            log.error("Http request error: " + e.toString());
+            return getErrorMsg(9009, "Http request error: " + e.toString());
+        }
+        
     }
 
     public static AccessToken getAccessToken(String appid, String appSecret) {
@@ -92,7 +143,8 @@ public class WeChatHttpsUtil {
 
         if (jo != null && jo.getString("access_token") != null) {
             try {
-                token = new AccessToken(appid, appSecret, jo.getString("access_token"), jo.getInt("expires_in"));
+                token = new AccessToken(appid, appSecret,
+                        jo.getString("access_token"), jo.getInt("expires_in"));
                 log.info(token.toString());
             } catch (Exception e) {
                 log.error("Get token failed, errorcode:{"
@@ -103,5 +155,12 @@ public class WeChatHttpsUtil {
         }
 
         return token;
+    }
+    
+    public static JSONObject getErrorMsg(int errcode, String errmsg) {
+        JSONObject jsonObject = new JSONObject();
+        jsonObject.put("errcode", errcode);
+        jsonObject.put("errmsg", errmsg);
+        return jsonObject;
     }
 }

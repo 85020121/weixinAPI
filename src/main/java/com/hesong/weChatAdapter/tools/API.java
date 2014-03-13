@@ -34,5 +34,14 @@ public class API {
     public final static String SCAN_EVENT = "SCAN";
     public final static String LOCATION_EVENT = "LOCATION";
     public final static String CLICK_EVENT = "CLICK";
+    
+    // 用户类型定义
+    public final static int USER_UNDEFINE = 0;
+    public final static int REAL_USER = 1;
+    public final static int REAL_WEIXIN_CLIENT = 2;
+    public final static int REAL_CLIENT = 3;
+    public final static int MOCK_USER = 4;
+    public final static int MOCK_WEIXIN_CLIENT = 5;
+    public final static int MOCK_CLIENT = 6;
 
 }

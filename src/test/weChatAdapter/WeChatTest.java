@@ -4,14 +4,13 @@ import static org.junit.Assert.*;
 
 import java.util.Date;
 
-import net.sf.json.JSONArray;
+import net.sf.json.JSON;
 import net.sf.json.JSONObject;
 
 import org.junit.Test;
 
 import com.hesong.jsonrpc.JsonrpcHandler;
 import com.hesong.jsonrpc.WeChatMethodSet;
-import com.hesong.weChatAdapter.manager.MessageManager;
 import com.hesong.weChatAdapter.message.request.TextMessage;
 import com.hesong.weChatAdapter.tools.API;
 import com.hesong.weChatAdapter.tools.SignatureChecker;
@@ -51,7 +50,7 @@ public class WeChatTest {
     @Test
     public void sendMsgTest() {
         JsonrpcHandler handler = new JsonrpcHandler(new WeChatMethodSet());
-        String msg = "{\"jsonrpc\": \"2.0\", \"method\": \"SendImMessage\", \"params\": [\"abcdef\",\"oJr3Ht02_3HFoKDl0WwkdBlLvc3o\", { \"msgtype\":\"text\", \"text\": { \"content\":\"Hello'\\\" *&^%$#你\n好啊[]{}World\" } } ], \"id\": 3}";
+        String msg = "{\"jsonrpc\": \"2.0\", \"method\": \"SendImMessage\", \"params\": [null, \"sender01\",\"oJr3Ht02_3HFoKDl0WwkdBlLvc3o\", \"room1\", { \"msgtype\":\"text\", \"text\": { \"content\":\"Hello'\\\" *&^%$#你\\n好啊[]{}World\" } } ], \"id\": 3}";
         System.out.println(handler.handle(msg));
     }
 
@@ -70,6 +69,23 @@ public class WeChatTest {
         JsonrpcHandler handler = new JsonrpcHandler(new WeChatMethodSet());
         String jsonrpc = "{\"jsonrpc\": \"2.0\", \"method\": \"GetClient\", \"params\": [\"abcdef\",[\"oJr3Ht02_3HFoKDl0WwkdBlLvc3o\", \"oJr3Ht294GRv1J0fJYvGlF6kfNSo\",\"123asd\"] ], \"id\": 3}";
         handler.handle(jsonrpc);
+    }
+    
+    @Test
+    public void test(){
+        JSONObject jo = new JSONObject();
+        jo.put("nihao", "nihao");
+        String jsonrpc = "{\"jsonrpc\": \"2.0\", \"method\": \"Invited\", \"params\": [\"abcdef\",\"fromuser123\",\"room_id123\", \"to_user123\",\"comeon in\",null,120,null], \"id\": 3}";
+        JsonrpcHandler handler = new JsonrpcHandler(new WeChatMethodSet());
+        String j = handler.handle(jsonrpc);
+        System.out.println(j);
+    }
+    
+    @Test
+    public void reqTest(){
+        JSONObject jo = new JSONObject();
+        jo.put("content", "wexin test");
+        WeChatHttpsUtil.httpPostRequest("http://localhost:8080/weChatAdapter/chat/sendMessageQuest", jo.toString(), 2000);
     }
 
 //    @Test
