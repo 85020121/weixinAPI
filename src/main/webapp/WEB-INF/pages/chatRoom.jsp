@@ -4,16 +4,13 @@
 <!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN" "http://www.w3.org/TR/html4/loose.dtd">
 <html>
 <head>
-<%
-    String user = (String) session.getAttribute("sender");
-%>
+
 <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
 <link rel="stylesheet"
 	href="<c:url value='/resources/css/chatroom.css'/>" />
     <link rel="stylesheet" href="<c:url value='/resources/js/libs/dojo/1.9.1/dijit/themes/claro/claro.css'/>" />
     
 <script src="//ajax.googleapis.com/ajax/libs/dojo/1.9.1/dojo/dojo.js"></script>
-<script src="<c:url value='/resources/js/libs/eventsource.js'/>"></script>
 <script type="text/javascript"
 	src="http://code.jquery.com/jquery-1.11.0.min.js"></script>
 
@@ -23,27 +20,27 @@
     dojo.require("dojo.io-query");
     dojo.require("dojo.query");
     dojo.require("dojo.dom");
-    dojo.require("dojo.NodeList-traverse");
+    dojo.require("dojo.cookie");
     
-	dojoConfig = {parseOnLoad: true};
-	function ShowMessage(widht,height) {
-	    var TopY=0;//初始化元素距父元素的距离
-	    $("#invitation").css("width",widht+"px").css("height",height+"px");//设置消息框的大小
-	    $("#invitation").slideDown(1000);//弹出
-	    $(".closeInvation").click(function() {//当点击关闭按钮的时候
-	         if(TopY==0){
-	               $("#invitation").slideUp(1000);//这里之所以用slideUp是为了兼用Firefox浏览器
-	         }
-	        else
-	        {
-	              $("#invitation").animate({top: TopY+height}, "slow", function() { $("#invitation").hide(); });//当TopY不等于0时  ie下和Firefox效果一样
-	        }
-	     });
-	     $(window).scroll(function() {
-	         $("#invitation").css("top", $(window).scrollTop() + $(window).height() - $("#invitation").height());//当滚动条滚动的时候始终在屏幕的右下角
-	         TopY=$("#invitation").offset().top;//当滚动条滚动的时候随时设置元素距父原素距离
-	      });
-	}
+	//dojoConfig = {parseOnLoad: true};
+    function ShowMessage(widht,height) {
+        var TopY=0;//初始化元素距父元素的距离
+        $("#invitation").css("width",widht+"px").css("height",height+"px");//设置消息框的大小
+        $("#invitation").slideDown(1000);//弹出
+        $(".closeInvation").click(function() {//当点击关闭按钮的时候
+             if(TopY==0){
+                   $("#invitation").slideUp(1000);//这里之所以用slideUp是为了兼用Firefox浏览器
+             }
+            else
+            {
+                  $("#invitation").animate({top: TopY+height}, "slow", function() { $("#invitation").hide(); });//当TopY不等于0时  ie下和Firefox效果一样
+            }
+         });
+         $(window).scroll(function() {
+             $("#invitation").css("top", $(window).scrollTop() + $(window).height() - $("#invitation").height());//当滚动条滚动的时候始终在屏幕的右下角
+             TopY=$("#invitation").offset().top;//当滚动条滚动的时候随时设置元素距父原素距离
+          });
+    }
 	
 	function exitRoom() {
 		var xhrArgs = {
@@ -56,18 +53,40 @@
 	        }
 	        dojo.xhrGet(xhrArgs);
 	}
+	
+	function ackInvitation(isAccepted){
+		console.log(isAccepted);
+		var xhrArgs = {
+                url : "http://localhost:8080/weChatAdapter/client/"+dojo.cookie("MOCK_CLIENT_ID")+"/ackInvitation",
+                handleAs : "text",
+                postData : dojo.toJson({"roomId" : dojo.byId("invitationRoomId").innerHTML,
+                    "agreed":isAccepted
+                    }),
+                load : function(data) {
+                	console.log("invitation data: "+data);
+                },
+                error : function(error) {
+                    console.log("invitation error: "+error);
+                }
+            }
+            dojo.xhrPost(xhrArgs);
+	}
 
 	function getMessage() {
-
 	var xhrArgs = {
-			url : "getMessages",
+			url : "http://localhost:8080/weChatAdapter/client/getMessages",
 			handleAs : "json",
 			load : function(data) {
-				console.info("data: "+ data.roomId + ' ' + data.date + ' ' + data.sender + '：' + data.content);
-				var room = data.roomId;
-				var text = dojo.byId(room+"chatboard").value;
-				text += '\r\n' + data.date + ' ' + data.sender + '：' + data.content;
-				dojo.byId(room+"chatboard").innerHTML = text;
+				if(data.msgtype == "invitation"){
+                    dojo.byId("invitationRoomId").innerHTML = data.roomId;
+					ShowMessage(180,100);
+				} else {
+					console.info("data: "+ data.roomId + ' ' + data.date + ' ' + data.sender + '：' + data.content);
+					var room = data.roomId;
+					var text = dojo.byId(room+"chatboard").value;
+					text += '\r\n' + data.date + ' ' + data.sender + '：' + data.content;
+					dojo.byId(room+"chatboard").innerHTML = text;
+				}
 				getMessage();
 // 				setTimeout(function() {
 //                   getMessage();
@@ -102,7 +121,7 @@
 				postData : dojo.toJson({"content" : dojo.byId(room+"messageInput").value,
 				                        "roomId" : room,
 			                            "msgtype" : "text",
-			                            "sender" : "Bowen"
+			                            "sender" : dojo.cookie("MOCK_CLIENT_ID")
 					                    }),
 				handleAs : "text",
 				load : function(data) {
@@ -169,9 +188,10 @@
 </div>
 	
 	
-	<div class="invitation">
-        <a id="accept" class="closeInvation chatSend" style="float:left;" href="javascript:void(0);">接受</a>
-        <a id="refuse" class="closeInvation chatSend" style="float:right;" href="javascript:void(0);">拒绝</a>
+	<div id="invitation">
+	    <div><span id="invitationRoomId">room1</span></div>
+        <a id="accept" class="closeInvation chatSend" onclick='ackInvitation("true")' href="javascript:void(0);">接受</a>
+        <a id="refuse" class="closeInvation chatSend" onclick='ackInvitation("false")' href="javascript:void(0);">拒绝</a>
     </div>
 </body>
 </html>

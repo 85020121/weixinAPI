@@ -350,7 +350,7 @@ cursor: default;
 position: static;
 }
 
-.invitation{
+#invitation{
     right: 0px;
     bottom: 0px; 
     position: absolute; 

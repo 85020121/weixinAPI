@@ -74,25 +74,25 @@ public class ContextPreloader extends HttpServlet{
             destUnitId = 0;
             destClientId = 14;
         }
-//        AccountBo accountBo = (AccountBo) ctx.getBean("accountBo");
-//        @SuppressWarnings("unchecked")
-//        List<Account> list = (List<Account>) accountBo.findByAcctype(API.TOKEN);
-//        for (Account account : list) {
-//            try {
-//                JSONObject jo = JSONObject.fromObject(account.getAccdata());
-//                ContextLog.info("Account: "+jo);
-//                Account_Map.put(account.getAccname(), WeChatHttpsUtil.getAccessToken(jo.getString("appid"), jo.getString("appsecret")));
-//            } catch (Exception e) {
-//                continue;
-//            }
-//            
-//        }
-//        ContextLog.info("Account_Map:"+Account_Map.toString());
-//        try {
-//            new UpdateAccessTokenRunner().task();
-//        } catch (IOException | SchedulerException e) {
-//            ContextLog.error(e.toString());
-//        }
+        AccountBo accountBo = (AccountBo) ctx.getBean("accountBo");
+        @SuppressWarnings("unchecked")
+        List<Account> list = (List<Account>) accountBo.findByAcctype(API.TOKEN);
+        for (Account account : list) {
+            try {
+                JSONObject jo = JSONObject.fromObject(account.getAccdata());
+                ContextLog.info("Account: "+jo);
+                Account_Map.put(account.getAccname(), WeChatHttpsUtil.getAccessToken(jo.getString("appid"), jo.getString("appsecret")));
+            } catch (Exception e) {
+                continue;
+            }
+            
+        }
+        ContextLog.info("Account_Map:"+Account_Map.toString());
+        try {
+            new UpdateAccessTokenRunner().task();
+        } catch (IOException | SchedulerException e) {
+            ContextLog.error(e.toString());
+        }
         
 
     }

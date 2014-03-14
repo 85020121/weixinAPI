@@ -1,6 +1,8 @@
 package com.hesong.weChatAdapter.runner;
 
+import java.util.Map;
 import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.LinkedBlockingDeque;
@@ -21,7 +23,6 @@ public class SmartbusExecutor {
     private static ExecutorService pool = Executors
             .newFixedThreadPool(THREAD_POOL_SIZE);
     public static BlockingQueue<PackInfo> responseQueue = new LinkedBlockingDeque<PackInfo>();
-
 
     public static String execute(byte unitId, byte clientId, String host,
             short port) {

@@ -1,12 +1,16 @@
 package com.hesong.weChatAdapter.runner;
 
+import java.util.Map;
 import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.ConcurrentHashMap;
 
 import com.hesong.jsonrpc.JsonrpcHandler;
 import com.hesong.jsonrpc.WeChatMethodSet;
 import com.hesong.smartbus.client.PackInfo;
 
 public class JsonrpcHandlerRunner implements Runnable {
+    
+    public static Map<String, BlockingQueue<String>> ackRetQueue = new ConcurrentHashMap<String, BlockingQueue<String>>();
 
     private BlockingQueue<PackInfo> messageQueue;
     private BlockingQueue<PackInfo> responseQueue;

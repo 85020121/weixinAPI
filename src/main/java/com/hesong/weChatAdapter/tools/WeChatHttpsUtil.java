@@ -116,13 +116,14 @@ public class WeChatHttpsUtil {
             }
             bufferedReader.close();
             inputReader.close();
-
+            
+            return JSONObject.fromObject(buffer.toString());
             //jsonObject = JSONObject.fromObject(buffer.toString());
-            if(buffer.toString().equalsIgnoreCase("success")) {
-                return getErrorMsg(0, "OK");
-            } else {
-                return getErrorMsg(8001, "Request refused.");
-            }
+//            if(buffer.toString().equalsIgnoreCase("success")) {
+//                return getErrorMsg(0, "OK");
+//            } else {
+//                return getErrorMsg(8001, "Request refused.");
+//            }
         } catch(SocketTimeoutException se){
             log.info("Connection time out.");
             return getErrorMsg(9001, "HTTP connection timeout.");

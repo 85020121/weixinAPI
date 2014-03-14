@@ -16,6 +16,9 @@ import net.sf.json.JSONSerializer;
 
 import org.apache.log4j.Logger;
 
+import com.hesong.weChatAdapter.runner.JsonrpcHandlerRunner;
+import com.hesong.weChatAdapter.runner.SmartbusExecutor;
+
 public class JsonrpcHandler {
     private static Logger log = Logger.getLogger(JsonrpcHandler.class);
 
@@ -37,25 +40,48 @@ public class JsonrpcHandler {
     public String handle(String jsonrpc) {
         log.info("Handle json: " + jsonrpc);
         JSONObject node = null;
+        String id = null;
+        String jsonrpcVesion = null;
+        String methodName = null;
+        JSONArray params = null;
+
         try {
             node = (JSONObject) JSONSerializer.toJSON(jsonrpc);//JSONObject.fromObject(jsonrpc);
+            id = node.getString("id");
+            // parse request
+            jsonrpcVesion = node.getString("jsonrpc");
+
         } catch (Exception e) {
             e.printStackTrace();
-            return createErrorResponse("2.0", null, 32602,
-                    "Check your json content: "+jsonrpc+", exception: "+e.getStackTrace(), null);
+            return createErrorResponse("2.0", id, 7001,
+                    "Check your json content, exception: "+e.getStackTrace(), null);
         }
 
-        // validate request
-        if (!node.has("jsonrpc") || !node.has("method")) {
-            log.info("Result message, do nothing.");
+        // return
+        if (node.has("result") || node.has("error")) {
+            log.info("Result message: "+node.toString());
+            if (JsonrpcHandlerRunner.ackRetQueue.containsKey(id)) {
+                String ret = node.has("result")?"OK":"Failed";
+                try {
+                    JsonrpcHandlerRunner.ackRetQueue.get(id).put(ret);
+                    log.info("ACK RETURN: "+ret);
+                } catch (InterruptedException e) {
+                    // TODO Auto-generated catch block
+                    e.printStackTrace();
+                    log.error("Put result to ackRetQueue error: "+e.toString());
+                }
+            }
             return null;
         }
+        
+        // Invalide JSONRPC 
+        if (!node.has("jsonrpc") || !node.has("method")) {
+            log.info("Invalide JSONRPC: "+node.toString());
+            return createErrorResponse("2.0", id, 7001, "Check your json content.", null);
+        }
+        methodName = node.getString("method");
+        params = node.getJSONArray("params");
 
-        // parse request
-        String jsonrpcVesion = node.getString("jsonrpc");
-        String methodName = node.getString("method");
-        String id = node.getString("id");
-        JSONArray params = node.getJSONArray("params");
         log.info("Json: " + jsonrpcVesion + " " + methodName + " " + id + " "
                 + params);
 
@@ -112,9 +138,10 @@ public class JsonrpcHandler {
         try {
             result = invoke(method, paramNodes);
         } catch (Exception e) {
+            e.printStackTrace();
             error = new JSONObject();
             error.put("code", 9999);
-            error.put("message", e.getStackTrace());
+            error.put("message", e.toString());
         }
 
         // error.put("data", mapper.valueToTree(e));

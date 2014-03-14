@@ -1,5 +1,9 @@
 package com.hesong.jsonrpc;
 
+import java.util.HashMap;
+import java.util.Map;
+import java.util.UUID;
+
 import org.apache.log4j.Logger;
 
 import net.sf.json.JSONException;
@@ -9,13 +13,14 @@ import net.sf.json.JSONSerializer;
 import com.hesong.weChatAdapter.context.ContextPreloader;
 import com.hesong.weChatAdapter.manager.MessageManager;
 import com.hesong.weChatAdapter.model.AccessToken;
+import com.hesong.weChatAdapter.tools.API;
 import com.hesong.weChatAdapter.tools.WeChatHttpsUtil;
 
 public class WeChatMethodSet {
     
     // TODO: use application context to get father url
     private static String INVITE_REQUEST_URL = "http://localhost:8080/weChatAdapter/client/ACCOUNT/invite";
-    private static String SEND_MESSAGE_REQUEST_URL = "http://localhost:8080/weChatAdapter/client/sendMessageRequest";
+    private static String SEND_MESSAGE_REQUEST_URL = "http://localhost:8080/weChatAdapter/client/TOUSER/sendMessageRequest";
     private static int TIMEOUT = 120000;
     
     private static Logger log = Logger.getLogger(WeChatMethodSet.class);
@@ -57,13 +62,20 @@ public class WeChatMethodSet {
             JSONObject tmp = new JSONObject();
             tmp.put("sender", fromuser);
             tmp.put("roomId", room);
-            String msgtype = jo.getString("msgtype");
-            tmp.put("msgtype", msgtype);
-            JSONObject msgDetail = (JSONObject)jo.get(msgtype);
-            if (msgtype.equals("text")) {
-                tmp.put("content", msgDetail.get("content"));
+            String msgtype = null;
+            if (jo.has("msgtype")) {
+                msgtype = jo.getString("msgtype");
+                JSONObject msgDetail = (JSONObject)jo.get(msgtype);
+                if (msgtype.equals("text")) {
+                    tmp.put("content", msgDetail.get("content"));
+                }
+            }else if (jo.has("MsgType")){
+                msgtype = jo.getString("MsgType");
+                tmp.put("content", jo.getString("Content"));
             }
-            JSONObject result = WeChatHttpsUtil.httpPostRequest(SEND_MESSAGE_REQUEST_URL, tmp.toString(), TIMEOUT);
+            tmp.put("msgtype", msgtype);
+            
+            JSONObject result = WeChatHttpsUtil.httpPostRequest(SEND_MESSAGE_REQUEST_URL.replace("TOUSER", touser), tmp.toString(), TIMEOUT);
             return result;
         }
 
@@ -140,21 +152,26 @@ public class WeChatMethodSet {
     public JSONObject Invited(String account, String from_user, String room_id,
             String to_user, String txt, String data, String expire,
             String option) {
+        log.info("Invited have been called.");
         String toUser = null;
         try {
+            log.info("Mark0");
             JSONObject tmp = getJsonContent(to_user);
+            toUser = tmp.getString("user");
             // TODO
-        } catch (JSONException e) {
+        } catch (Exception e) {
+            log.info("Mark1");
             toUser = to_user;
         }
+        log.info("Mark3");
         log.info(from_user+" invit "+toUser+" to room "+room_id);
         JSONObject post = new JSONObject();
-        post.put("type", "invite");
-        post.put("from", from_user);
-        post.put("to", toUser);
-        post.put("room", room_id);
+        post.put("msgtype", "invitation");
+        post.put("fromUser", from_user);
+        post.put("toUser", toUser);
+        post.put("roomId", room_id);
         int timeout = Integer.parseInt(expire);
-        JSONObject response = WeChatHttpsUtil.httpPostRequest(INVITE_REQUEST_URL.replace("ACCOUNT", account), post.toString(), timeout);
+        JSONObject response = WeChatHttpsUtil.httpPostRequest(INVITE_REQUEST_URL.replace("ACCOUNT", toUser), post.toString(), timeout);
         return response;
     }
 
@@ -186,6 +203,15 @@ public class WeChatMethodSet {
         } catch (Exception e) {
             return null;
         }
+    }
+    
+    public static JSONObject createJsonrpcRequest(String method, String id, Map<String, Object> paramsList){
+        JSONObject jsonrpc = new JSONObject();
+        jsonrpc.put("jsonrpc", "2.0");
+        jsonrpc.put("method", method);
+        jsonrpc.put("id", id);
+        jsonrpc.put("params", paramsList);
+        return jsonrpc;
     }
 
 }

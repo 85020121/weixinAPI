@@ -4,7 +4,6 @@ import static org.junit.Assert.*;
 
 import java.util.Date;
 
-import net.sf.json.JSON;
 import net.sf.json.JSONObject;
 
 import org.junit.Test;
@@ -75,7 +74,7 @@ public class WeChatTest {
     public void test(){
         JSONObject jo = new JSONObject();
         jo.put("nihao", "nihao");
-        String jsonrpc = "{\"jsonrpc\": \"2.0\", \"method\": \"Invited\", \"params\": [\"abcdef\",\"fromuser123\",\"room_id123\", \"to_user123\",\"comeon in\",null,120,null], \"id\": 3}";
+        String jsonrpc = "{\"jsonrpc\": \"2.0\", \"method\": \"Invited\", \"params\": [null,\"fromuser123\",\"room0\", \"1234\",\"comeon in\",null,12000,null], \"id\": 3}";
         JsonrpcHandler handler = new JsonrpcHandler(new WeChatMethodSet());
         String j = handler.handle(jsonrpc);
         System.out.println(j);

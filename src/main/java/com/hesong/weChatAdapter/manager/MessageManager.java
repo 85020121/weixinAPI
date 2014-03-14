@@ -55,7 +55,7 @@ public class MessageManager {
         user.put("usertype", API.REAL_WEIXIN_CLIENT);
 
         paramsList.put("user", user);
-        paramsList.put("room", null);
+        paramsList.put("room_id", null);
         paramsList.put("msgcontent", message);
 
         switch (message.get(API.MESSAGE_TYPE_TAG)) {
