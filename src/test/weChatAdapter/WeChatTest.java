@@ -2,14 +2,20 @@ package weChatAdapter;
 
 import static org.junit.Assert.*;
 
+import java.io.IOException;
+import java.io.InputStream;
 import java.util.Date;
 
 import net.sf.json.JSONObject;
 
+import org.apache.commons.net.ftp.FTPClient;
 import org.junit.Test;
 
+import com.hesong.ftp.FTPConnectionFactory;
+import com.hesong.ftp.FTPEngine;
 import com.hesong.jsonrpc.JsonrpcHandler;
 import com.hesong.jsonrpc.WeChatMethodSet;
+import com.hesong.weChatAdapter.manager.MessageManager;
 import com.hesong.weChatAdapter.message.request.TextMessage;
 import com.hesong.weChatAdapter.tools.API;
 import com.hesong.weChatAdapter.tools.SignatureChecker;
@@ -97,4 +103,18 @@ public class WeChatTest {
 //        MessageManager.getFollowersFrom(API.ACCESS_TOKEN,
 //                "ogfGduNuSPi5TyIcYOyMzvlnRF9c");
 //    }
+    
+    @Test
+    public void ftpTest() throws Exception{
+//        FTPClient ftp = FTPConnectionFactory.getFTPClientConnection("10.4.62.41", 21, "Administrator",
+//                "Ky6241");
+        FTPClient ftp = FTPConnectionFactory.getFTPClientConnection("127.0.0.1", 21, "bowen",
+                "waiwai");
+        String request = "http://file.api.weixin.qq.com/cgi-bin/media/get?access_token=Gqdz3iMfSEcgo70_YxH625YUGc4UUbSDCRkClHIuvBdazPynGJ2skiab5FBlEUbvjT1Gjj4blVxDEOcpTNr3PUeV7JwY3QGQO1DMcooCK7yATEfCRYgrWRBCxW2b99nRfNGr_-xCM8qdQAOHK99ocQ&media_id=tTKFC0uxe8WMLJekyZWBBpyppnLjb8R1wg_Mn6q0GwA9bVveYNpQpgZ0nxh2lyMG";
+        InputStream in = WeChatHttpsUtil.httpGetInputStream(request, API.CONTENT_TYPE_VOICE);
+        String filename = MessageManager.sdf_time.format(new Date())+".amr";
+        
+        String dir = MessageManager.getDirName("voices", "bowen");
+        FTPEngine.uploadFile(ftp, "/weixin/images/bowen/2014-03-18", filename, in);
+    }
 }

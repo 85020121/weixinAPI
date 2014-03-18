@@ -48,7 +48,7 @@ public class ChatController {
         msg.setContent(name + "已加入");
         //通知所有用户有人进入聊天室
         processMessage(msg);
-        return "chatDiv";
+        return "chatRoom";
     }
     
     @RequestMapping(value = "/enterRoom", method = RequestMethod.POST)
@@ -68,7 +68,7 @@ public class ChatController {
     @ResponseBody
     public DeferredResult<ChatMessage> getMessages(HttpSession session){
         //取出当前登录用户
-        final String user = "room1";//(String)session.getAttribute("sender");
+        final String user = (String)session.getAttribute("sender");
         //创建DeferredResult<Message>
         DeferredResult<ChatMessage> dr = new DeferredResult<ChatMessage>(5000);
         //若用户不存在则直接返回，否则将其放入用户请求列表中然后返回

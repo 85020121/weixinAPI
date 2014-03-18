@@ -1,15 +1,19 @@
 package com.hesong.jsonrpc;
 
-import java.util.HashMap;
+import java.io.IOException;
+import java.io.InputStream;
+import java.text.SimpleDateFormat;
+import java.util.Date;
 import java.util.Map;
-import java.util.UUID;
 
+import org.apache.commons.net.ftp.FTPClient;
 import org.apache.log4j.Logger;
 
-import net.sf.json.JSONException;
 import net.sf.json.JSONObject;
 import net.sf.json.JSONSerializer;
 
+import com.hesong.ftp.FTPConnectionFactory;
+import com.hesong.ftp.FTPEngine;
 import com.hesong.weChatAdapter.context.ContextPreloader;
 import com.hesong.weChatAdapter.manager.MessageManager;
 import com.hesong.weChatAdapter.model.AccessToken;
@@ -18,18 +22,10 @@ import com.hesong.weChatAdapter.tools.WeChatHttpsUtil;
 
 public class WeChatMethodSet {
     
-    // TODO: use application context to get father url
-    private static String INVITE_REQUEST_URL = "http://localhost:8080/weChatAdapter/client/ACCOUNT/invite";
-    private static String SEND_MESSAGE_REQUEST_URL = "http://localhost:8080/weChatAdapter/client/TOUSER/sendMessageRequest";
     private static int TIMEOUT = 120000;
     
     private static Logger log = Logger.getLogger(WeChatMethodSet.class);
-
-    public String echo(String msg) {
-        System.out.println("msg: " + msg);
-        return msg;
-    }
-
+    
     public JSONObject SendImMessage(String account, String touser,
             String msgcontent) {
         log.info("SendImMessage have been called: " + msgcontent);
@@ -57,6 +53,8 @@ public class WeChatMethodSet {
             return createErrorMsg(9922, "Check your json content: "
                     + msgcontent);
         }
+        
+        // 给虚拟客户端发送消息
         if (account == null) {
             log.info("Send message to client.");
             JSONObject tmp = new JSONObject();
@@ -68,14 +66,20 @@ public class WeChatMethodSet {
                 JSONObject msgDetail = (JSONObject)jo.get(msgtype);
                 if (msgtype.equals("text")) {
                     tmp.put("content", msgDetail.get("content"));
-                }
+                } 
             }else if (jo.has("MsgType")){
                 msgtype = jo.getString("MsgType");
-                tmp.put("content", jo.getString("Content"));
+                if (msgtype.equals("text")) {
+                    tmp.put("content", jo.getString("Content"));
+                } else if (msgtype.equals("image")) {
+                    tmp.put("content", jo.getString("PicUrl"));
+                } else if (msgtype.equals("voice")) {
+                    tmp.put("content", jo.getString("VoiceUrl"));
+                }
             }
             tmp.put("msgtype", msgtype);
             
-            JSONObject result = WeChatHttpsUtil.httpPostRequest(SEND_MESSAGE_REQUEST_URL.replace("TOUSER", touser), tmp.toString(), TIMEOUT);
+            JSONObject result = WeChatHttpsUtil.httpPostRequest(API.SEND_MESSAGE_REQUEST_URL.replace("TOUSER", touser), tmp.toString(), TIMEOUT);
             return result;
         }
 
@@ -155,23 +159,64 @@ public class WeChatMethodSet {
         log.info("Invited have been called.");
         String toUser = null;
         try {
-            log.info("Mark0");
+            log.info("to_user is an object.");
             JSONObject tmp = getJsonContent(to_user);
             toUser = tmp.getString("user");
-            // TODO
         } catch (Exception e) {
-            log.info("Mark1");
+            log.info("to_user is a String.");
             toUser = to_user;
         }
-        log.info("Mark3");
+        String fromUser = null;
+        try {
+            log.info("from_user is an object.");
+            JSONObject tmp = getJsonContent(from_user);
+            fromUser = tmp.getString("user");
+        } catch (Exception e) {
+            log.info("from_user is a String.");
+            fromUser = from_user;
+        }
         log.info(from_user+" invit "+toUser+" to room "+room_id);
         JSONObject post = new JSONObject();
         post.put("msgtype", "invitation");
-        post.put("fromUser", from_user);
+        post.put("fromUser", fromUser);
         post.put("toUser", toUser);
         post.put("roomId", room_id);
         int timeout = Integer.parseInt(expire);
-        JSONObject response = WeChatHttpsUtil.httpPostRequest(INVITE_REQUEST_URL.replace("ACCOUNT", toUser), post.toString(), timeout);
+        JSONObject response = WeChatHttpsUtil.httpPostRequest(API.INVITE_REQUEST_URL.replace("ACCOUNT", toUser), post.toString(), timeout);
+        return response;
+    }
+    
+    public JSONObject EnteredRoom(String account, String from_user, String to_user, String room_id, String txt){
+        log.info("EnteredRoom have been called.");
+        String toUser = null;
+        try {
+            log.info("to_user is an object.");
+            JSONObject tmp = getJsonContent(to_user);
+            toUser = tmp.getString("user");
+        } catch (Exception e) {
+            log.info("to_user is a String.");
+            toUser = to_user;
+        }
+        JSONObject post = new JSONObject();
+        post.put("roomId", room_id);
+        JSONObject response = WeChatHttpsUtil.httpPostRequest(API.ENTER_ROOM_REQUEST_URL.replace("ACCOUNT", toUser), post.toString(), 0);
+        return response;
+    }
+    
+    public JSONObject ExitedRoom(String account, String from_user, String to_user, String room_id, String txt){
+        log.info("ExitedRoom have been called.");
+        String toUser = null;
+        try {
+            log.info("to_user is an object.");
+            JSONObject tmp = getJsonContent(to_user);
+            toUser = tmp.getString("user");
+        } catch (Exception e) {
+            log.info("to_user is a String.");
+            toUser = to_user;
+        }
+        JSONObject post = new JSONObject();
+        post.put("roomId", room_id);
+        JSONObject response = WeChatHttpsUtil.httpPostRequest(API.EXIT_ROOM_REQUEST_URL.replace("ACCOUNT", toUser), post.toString(), 0);
         return response;
     }
 
@@ -183,8 +228,6 @@ public class WeChatMethodSet {
     }
 
     public static String getAccessToken(String account) {
-        // return
-        // "hLIacNToLXQDrQs3HygeHuoULV-xB2pGLNlNOr8DnV85Ofam11lBc3S8BAyRfJfkKHzYYMcQPUGjFyc9WDIqFTcEQBsAnc3ej2QPHe4o5oQg3EKKwzh3t1BuK18QUsXjaqgXkqVpPL-Oz2iZJ01mcQ";
         AccessToken ac = ContextPreloader.Account_Map.get(account);
         if (ac == null) {
             return null;

@@ -5,6 +5,7 @@ import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.OutputStream;
 import java.net.ConnectException;
+import java.net.HttpURLConnection;
 import java.net.SocketTimeoutException;
 import java.net.URL;
 import java.net.URLConnection;
@@ -133,6 +134,26 @@ public class WeChatHttpsUtil {
             return getErrorMsg(9009, "Http request error: " + e.toString());
         }
         
+    }
+    
+    public static InputStream httpGetInputStream(String request, String contentType){
+        try {
+            URL url = new URL(request);
+            HttpURLConnection connection = (HttpURLConnection) url.openConnection();
+            
+            connection.setDoInput(true);
+            connection.setDoOutput(false);
+            connection.setUseCaches(false);
+            
+            connection.setRequestMethod("GET");
+            connection.setRequestProperty("Connection", "Keep-Alive");
+            //connection.setRequestProperty("Content-type", contentType);
+            log.info("headers: "+connection.getHeaderFields().toString());
+            return connection.getInputStream();
+        } catch (Exception e) {
+            // TODO: handle exception
+            return null;
+        }
     }
 
     public static AccessToken getAccessToken(String appid, String appSecret) {

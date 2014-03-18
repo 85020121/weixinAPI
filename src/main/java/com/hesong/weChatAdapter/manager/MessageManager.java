@@ -1,13 +1,23 @@
 package com.hesong.weChatAdapter.manager;
 
+import java.io.IOException;
+import java.io.InputStream;
+import java.text.SimpleDateFormat;
+import java.util.Date;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
 
+import javax.print.attribute.standard.Media;
+
+import org.apache.commons.net.ftp.FTPClient;
 import org.apache.log4j.Logger;
 
 import net.sf.json.JSONObject;
 
+import com.hesong.ftp.FTPConnectionFactory;
+import com.hesong.ftp.FTPEngine;
+import com.hesong.jsonrpc.WeChatMethodSet;
 import com.hesong.smartbus.client.PackInfo;
 import com.hesong.smartbus.client.net.Client.SendDataError;
 import com.hesong.smartbus.client.net.JniWrapper;
@@ -31,6 +41,11 @@ public class MessageManager {
     private static String GET_FOLLOWERS_FROM_REQUEST_URL = "https://api.weixin.qq.com/cgi-bin/user/get?access_token=ACCESS_TOKEN&next_openid=NEXT_OPENID";
     private static String GET_CLIENT_INFO_REQUEST_URL = "https://api.weixin.qq.com/cgi-bin/user/info?access_token=ACCESS_TOKEN&openid=OPENID&lang=zh_CN";
 
+    public static SimpleDateFormat sdf_time = new SimpleDateFormat(
+            "HH-mm-ss");
+    public static SimpleDateFormat sdf_today = new SimpleDateFormat(
+            "yyyy-MM-dd");
+    
     public static String getResponseMessage(Map<String, String> message) {
         log.info("MsgType = " + message.get(API.MESSAGE_TYPE_TAG));
         if (message.get(API.MESSAGE_TYPE_TAG) != null) {
@@ -56,7 +71,6 @@ public class MessageManager {
 
         paramsList.put("user", user);
         paramsList.put("room_id", null);
-        paramsList.put("msgcontent", message);
 
         switch (message.get(API.MESSAGE_TYPE_TAG)) {
         case API.TEXT_MESSAGE:
@@ -64,6 +78,23 @@ public class MessageManager {
             break;
         case API.IMAGE_MESSAGE:
             paramsList.put("msgtype", API.IMAGE_MESSAGE);
+            String filename = sdf_time.format(new Date())+"_"+message.get(API.MESSAGE_FROM_TAG)+".jpg";
+            String account = message.get(API.MESSAGE_TO_TAG);
+            String dirPath = getDirName("images", account);
+            if(uploadMediaFile(message, filename, dirPath, API.CONTENT_TYPE_IMAGE)){
+                message.put(API.MESSAGE_PIC_URL_TAG, dirPath+filename);
+                log.info("New image message: "+message.toString());
+            }
+            break;
+        case API.VOICE_MESSAGE:
+            paramsList.put("msgtype", API.VOICE_MESSAGE);
+            String voice_filename = sdf_time.format(new Date())+"_"+message.get(API.MESSAGE_FROM_TAG)+".amr";
+            String voice_account = message.get(API.MESSAGE_TO_TAG);
+            String voice_dirPath = getDirName("voices", voice_account);
+            if(uploadMediaFile(message, voice_filename, voice_dirPath, API.CONTENT_TYPE_IMAGE)){
+                message.put("VoiceUrl", voice_dirPath+voice_filename);
+                log.info("New image message: "+message.toString());
+            }
             break;
         case API.EVENT_MESSAGE:
             if (message.get(API.MESSAGE_EVENT_KEY_TAG) != null) {
@@ -79,9 +110,8 @@ public class MessageManager {
         default:
             break;
         }
-//        JSONObject tmp = new JSONObject();
-//        tmp.put("content", message.get("Content"));
-//        WeChatHttpsUtil.httpPostRequest("http://localhost:8080/weChatAdapter/chat/sendMessageQuest", tmp.toString(), 2000);
+
+        paramsList.put("msgcontent", message);
         jo.put("params", paramsList);
         PackInfo pack = new PackInfo((byte)ContextPreloader.destUnitId, (byte)ContextPreloader.destClientId, (byte)ContextPreloader.srcUnitId, (byte)ContextPreloader.srctClientId, jo.toString());
         try {
@@ -159,12 +189,34 @@ public class MessageManager {
         return jo.toString();
     }
 
-//    private static void smartbusSendMessage(String msg) {
-//        try {
-//            JniWrapper.CLIENT.sendText((byte) 0, (byte) 2, ContextPreloader.destUnitId, ContextPreloader.destClientId, 11, msg);
-//        } catch (SendDataError e) {
-//            log.error("Smartbus send message error: " + e.toString());
-//        }
-//    }
     
+    public static String getDirName(String type, String account) {
+        String attachmtDirName = String.format(
+                "/weixin/%s/%s/%s/",
+                type, account, sdf_today.format(new Date()));
+        log.info("FTP dir name: "+attachmtDirName);
+        return attachmtDirName;
+    }
+    
+    public static String getMediaPullUrl(String account, String mediaId){
+        String token = WeChatMethodSet.getAccessToken(account);
+        return API.PULLING_MEDIA_URL.replace("ACCESS_TOKEN", token) + mediaId;
+    }
+    
+    private static boolean uploadMediaFile(Map<String, String> message, String filename, String dirPath, String type){
+        try {
+            String mediaId = message.get(API.MESSAGE_MEDIA_ID_TAG);
+            String account = message.get(API.MESSAGE_TO_TAG);
+            FTPClient ftp = FTPConnectionFactory.getDefaultFTPConnection();
+            String request = getMediaPullUrl(account, mediaId);
+            InputStream input = WeChatHttpsUtil.httpGetInputStream(request, API.CONTENT_TYPE_IMAGE);
+            FTPEngine.uploadFile(ftp, dirPath, filename, input);
+            return true;
+        } catch (Exception e) {
+            // TODO Auto-generated catch block
+            e.printStackTrace();
+            return false;
+        }
+    }
+
 }

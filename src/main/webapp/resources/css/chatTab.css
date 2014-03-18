@@ -1,0 +1,328 @@
+a,input {
+	outline: none;
+}
+
+a:link,a:visited {
+	color: #55a;
+	text-decoration: none;
+}
+
+a:hover,a:active {
+	color: #55a;
+	text-decoration: underline;
+}
+
+.chatPanel .chatTitle {
+    background-color: #6B7888;
+    background-image: -moz-linear-gradient(center top , #6A7786 10%, #5E6977 50%, #56616D 90%, #545E6A 100%);
+}
+
+.chatNameWrap {
+border-radius: 6px 6px 0 0;
+text-align: center;
+font-size: 16px;
+}
+
+.chatNameWrap .chatName {
+margin: 0 auto;
+width: 400px;
+white-space: nowrap;
+word-wrap: normal;
+text-overflow: ellipsis;
+-o-text-overflow: ellipsis;
+overflow: hidden;
+padding-top: 10px;
+font-size: 14px;
+font-family: '微软雅黑';
+/* color: #383E45; */
+color: #fff;
+text-shadow: none;
+}
+
+.chatScorll {
+height: 390px;
+width: 100%;
+min-height: 200px;
+overflow: hidden;
+overflow-y: auto;
+/* border-bottom: 1px solid #bebebe; */
+background-color: #EFF3F7;
+}
+
+.chatContent {
+padding-top: 10px;
+width: 100%;
+overflow: hidden;
+position: relative;
+}
+
+.chatItem {
+padding: 4px 0px 10px 0px;
+_background: none;
+_border: none;
+}
+.me {
+float: right;
+width: 100%;
+}
+
+.time {
+font-size: 12px;
+padding: 2px 0;
+margin: 0px auto 10px;
+width: 100px;
+border-radius: 20px;
+color: #7f7f7f;
+/* background-color: #EEE; */
+text-shadow: 0 1px 0 #fff;
+text-align: center;
+}
+
+.time .timeBg {
+height: 1px;
+width: 27px;
+margin-top: 8px;
+background-color: #B4B8BD;
+}
+.left {
+float: left;
+}
+
+.right {
+float: right;
+}
+
+.chatItemContent {
+cursor: pointer;
+}
+
+.me .avatar {
+float: right;
+margin-right: 18px;
+}
+.chatItem .avatar {
+width: 38px;
+height: 38px;
+border: 1px solid #ccc\9;
+border: 1px solid #FFF;
+box-shadow: 0px 1px 0px #B3B6BA;
+}
+
+.me .cloud {
+/* position: relative; */
+float: right;
+min-width: 30px;
+max-width: 300px;
+margin: 0 15px 0 0;
+cursor: pointer;
+}
+.chatItem .cloud {
+/* position: relative; */
+margin: 0px;
+padding-right: 10px;
+}
+.chatItem .cloud {
+max-width: 300px;
+cursor: default;
+position: static;
+}
+.cloudPannel {
+position: relative;
+_position: static;
+}
+
+.me .cloudBody {
+-moz-border-top-colors: none;
+-moz-border-right-colors: none;
+-moz-border-bottom-colors: none;
+-moz-border-left-colors: none;
+border-color: transparent;
+border: 1px solid #AFAFAF;
+border-radius: 5px;
+-moz-border-radius: 5px;
+-webkit-border-radius: 5px;
+box-shadow: 0px 1px 0px #D5D5D5;
+border: 1px solid #9f9f9f\9;
+background: #ECECEC\9;
+border-radius: 6px\9;
+margin-left: 8px;
+}
+
+.me .cloudText .cloudContent {
+background-color: #E5E5E5;
+vertical-align: top;
+padding: 0px 5px;
+background-color: #ECECEC\9;
+}
+.me .cloudContent {
+border: 1px solid #eee\9;
+border-top: 1px solid #FFF;
+border-bottom: 1px solid #F2F2F2;
+padding: 13px\9;
+border-radius: 13px\9;
+border-radius: 4px;
+-moz-border-radius: 4px;
+-webkit-border-radius: 4px;
+overflow: hidden;
+color: #000;
+text-shadow: none;
+background-color: #ECECEC;
+background: -webkit-gradient(linear, left top,left bottom, from(#F4F4F4),to(#E5E5E5), color-stop(0.1,#F3F3F3),color-stop(0.3,#F1F1F1),color-stop(0.5,#ECECEC),color-stop(0.7,#E9E9E9),color-stop(0.9,#E6E6E6),color-stop(1.0,#E5E5E5));
+background-image: -moz-linear-gradient(top, #F3F3F3 10%, #F1F1F1 30%, #ECECEC 50%, #E9E9E9 70%, #E6E6E6 90%, #E5E5E5 100%);
+}
+.chatItem .cloudContent {
+text-align: left;
+font-weight: normal;
+font-size: 14px;
+min-height: 20px;
+word-wrap: break-word;
+}
+
+.me .cloudText .cloudArrow {
+position: absolute;
+right: -10px;
+top: 11px;
+width: 13px;
+height: 24px;
+background: url(../images/cloud/bubble_right_guid17ced3.png) no-repeat;
+}
+
+.you {
+    float: left;
+    width: 100%;
+}
+
+.you .cloud {
+    float: left;
+    min-width: 50px;
+    max-width: 300px;
+    margin: 0px 0px 0px 15px;
+}
+
+.you .cloudText .cloudBody {
+    border: 1px solid #7AA23F;
+    border-radius: 5px;
+    box-shadow: 0px 1px 0px #DBDBDB;
+    background-color: #B2CF73;
+}
+
+.you .cloudText .cloudContent {
+    border-radius: 5px;
+    padding: 0px 5px;
+    text-shadow: none;
+    color: #030303;
+    border-top: 1px solid #DCE6C8;
+    border-bottom: 1px solid #B9CF8B;
+    border-right: 1px solid #CCDEA3;
+}
+
+.chatOperator {
+position: relative;
+text-align: left;
+border-top: 1px solid #808384;
+border-bottom: 1px solid #ddd;
+background-color: #EAECEE;
+background: -webkit-gradient(linear, 0 0, 0 100%, from(#F8F9FA), to(#DADDDF));
+background: -moz-linear-gradient(top, #F8F9FA, #DADDDF);
+border-radius: 0 0 4px 4px;
+-moz-border-radius: 0 0 4px 4px;
+-webkit-border-radius: 0 0 4px 4px;
+color: #383e45;
+height: 55px;
+}
+.lightBorder {
+border-color: #ddd;
+}
+
+.scrollbarBox .scrollbar {
+width: 100%;
+background-color: #6B747A;
+opacity: 0.6;
+border-radius: 10px;
+}
+
+.inputArea {
+padding: 14px 10px 0 5px;
+height: 43px;
+}
+
+.inputArea .attach {
+float: left;
+}
+
+.chatInput {
+float: left;
+width: 350px;
+height: 20px;
+margin: 0 10px 0 10px;
+padding: 7px 10px 2px;
+outline: none;
+box-shadow: 1px 1px 2px #bbb inset;
+background: #EEE;
+background: #fafafa\9;
+border-radius: 2px;
+border: none;
+border-bottom: 1px solid #fff;
+border: 1px solid #ccc\9;
+font: 14px/1.5 Helvetica,"微软雅黑","黑体",Arial,Tahoma;
+line-height: 1.2em;
+resize: none;
+}
+
+a.chatSend {
+display: block;
+float: right;
+height: 28px;
+width: 80px;
+margin: 0px 1px 1px 0;
+color: #fff;
+text-align: center;
+text-decoration: none;
+border: 1px solid #29447E;
+border-radius: 2px;
+-moz-border-radius: 2px;
+-webkit-border-radius: 2px;
+box-shadow: 0 1px 3px #D9D9D9;
+text-shadow: 0 1px 1px #444;
+background: #486CB4;
+background: -webkit-gradient(linear, left top,left bottom, from(#6078AA),to(#465C8C), color-stop(0.1,#5E76A7),color-stop(0.5,#546B9C),color-stop(0.9,#495F8F),color-stop(1.0,#465C8C));
+background-image: -moz-linear-gradient(top, #5E76A7 10%, #546B9C 50%, #495F8F 90%, #465C8C 100%);
+}
+
+a.chatSend b {
+    display: block;
+    border-radius: 3px;
+    font-size: 14px;
+    line-height: 28px;
+    border-top: 1px solid #7B8FB8;
+    text-shadow: 0px -1px 0px #4F739F;
+    text-align: center;
+}
+
+.recordInput {
+border: none;
+box-shadow: none;
+padding: 0px;
+height: 31px;
+width: 385px;
+}
+
+
+#invitation{
+    right: 0px;
+    bottom: 0px; 
+    position: absolute; 
+    z-index: 999;
+    display:none;
+    border:1px solid blue;
+    background:#ffffff;
+}
+
+.senderName {
+	font-size: 12px;
+padding-left: 10px;
+width: 100px;
+border-radius: 20px;
+color: #7F7F7F;
+text-shadow: 0px 1px 0px #FFF;
+}

@@ -13,7 +13,7 @@ public class API {
     public final static String MESSAGE_CONTENT_TAG = "Content";
     public final static String MESSAGE_ID_TAG = "MsgId";
     public final static String MESSAGE_PIC_URL_TAG = "PicUrl";
-    public final static String MESSAGE_MEDIA_ID_tAG = "MediaId";
+    public final static String MESSAGE_MEDIA_ID_TAG = "MediaId";
     public final static String MESSAGE_EVENT_TAG = "Event";
     public final static String MESSAGE_EVENT_KEY_TAG = "EventKey";
     public final static String MESSAGE_TICKET_TAG = "Ticket";
@@ -43,5 +43,15 @@ public class API {
     public final static int MOCK_USER = 4;
     public final static int MOCK_WEIXIN_CLIENT = 5;
     public final static int MOCK_CLIENT = 6;
+    
+    public static String INVITE_REQUEST_URL = "http://localhost:8080/weChatAdapter/client/ACCOUNT/invite";
+    public static String ENTER_ROOM_REQUEST_URL = "http://localhost:8080/weChatAdapter/client/ACCOUNT/entered_room";
+    public static String EXIT_ROOM_REQUEST_URL = "http://localhost:8080/weChatAdapter/client/ACCOUNT/exited_room";
+    public static String SEND_MESSAGE_REQUEST_URL = "http://localhost:8080/weChatAdapter/client/TOUSER/sendMessageRequest";
 
+    public static String PULLING_MEDIA_URL = "http://file.api.weixin.qq.com/cgi-bin/media/get?access_token=ACCESS_TOKEN&media_id=";
+    
+    public static String CONTENT_TYPE_IMAGE = "image/*";
+    public static String CONTENT_TYPE_VOICE = "audio/amr";
+    
 }

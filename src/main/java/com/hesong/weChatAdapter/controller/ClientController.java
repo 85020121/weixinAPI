@@ -2,10 +2,8 @@ package com.hesong.weChatAdapter.controller;
 
 import java.io.IOException;
 import java.text.SimpleDateFormat;
-import java.util.Collection;
 import java.util.Date;
 import java.util.HashMap;
-import java.util.Iterator;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.BlockingQueue;
@@ -47,8 +45,8 @@ public class ClientController {
 
     //private final Map<String, Map<String, DeferredResult<ChatMessage>>> chatRoomMap = new ConcurrentHashMap<String, Map<String, DeferredResult<ChatMessage>>>();
     private final Map<String, DeferredResult<ChatMessage>> chatRequests = new ConcurrentHashMap<String, DeferredResult<ChatMessage>>();
-    private final SimpleDateFormat sdf = new SimpleDateFormat(
-            "yyyy-MM-dd HH:mm:ss");
+//    private final SimpleDateFormat sdf = new SimpleDateFormat(
+//            "yyyy-MM-dd HH:mm:ss");
 
     @ResponseBody
     @RequestMapping(value = "/{account}/login", method = RequestMethod.GET)
@@ -134,7 +132,7 @@ public class ClientController {
             ChatMessage msg = new ChatMessage();
             msg.setRoomId("room1");
             msg.setSender("系统");
-            msg.setDate(sdf.format(new Date()));
+            //msg.setDate(sdf.format(new Date()));
             msg.setContent(account + "已加入");
         } catch (Exception e) {
             log.info("Json mapper exception: " + e.toString());
@@ -193,7 +191,7 @@ public class ClientController {
             ChatMessage msg = new ChatMessage();
             String msgtype = messageMap.get("msgtype");
             msg.setContent(content);
-            msg.setDate(sdf.format(new Date()));
+            //msg.setDate(sdf.format(new Date()));
             msg.setSender(messageMap.get("sender"));
             msg.setRoomId(messageMap.get("roomId"));
             msg.setMsgtype(msgtype);
@@ -222,7 +220,7 @@ public class ClientController {
             ChatMessage msg = new ChatMessage();
             String msgtype = messageMap.get("msgtype");
             msg.setContent(content);
-            msg.setDate(sdf.format(new Date()));
+            //msg.setDate(sdf.format(new Date()));
             msg.setSender(messageMap.get("sender"));
             msg.setRoomId(messageMap.get("roomId"));
             // msg.setRoomId(messageMap.get("roomId"));
@@ -231,40 +229,40 @@ public class ClientController {
             processMessage(msg, account);
             
             // JSONRPC PARAMS
-            JSONObject jsonrpc = new JSONObject();
-            jsonrpc.put("jsonrpc", "2.0");
-            jsonrpc.put("method", "imsm.ImMessageReceived");
-            jsonrpc.put("id", UUID.randomUUID().toString());
-            Map<String, Object> paramsList = new HashMap<String, Object>();
-            paramsList.put("imtype", "weixin");
-            paramsList.put("account", null);
-
-            JSONObject user = new JSONObject();
-            user.put("user", account);
-            user.put("usertype", API.MOCK_CLIENT);
-
-            paramsList.put("user", user);
-            paramsList.put("room_id", messageMap.get("roomId"));
-            paramsList.put("msgtype", msgtype);
-            
-            JSONObject sendmsg = new JSONObject();
-            sendmsg.put("msgtype", msgtype);
-            sendmsg.put("room_id", messageMap.get("roomId"));
-            JSONObject msgcontent = new JSONObject();
-            msgcontent.put("content", content);
-            sendmsg.put(msgtype, msgcontent);
-            paramsList.put("msgcontent", sendmsg);
-            
-            jsonrpc.put("params", paramsList);
-            // JSONRPC END
-            
-            PackInfo pack = new PackInfo((byte)ContextPreloader.destUnitId, (byte)ContextPreloader.destClientId, (byte)ContextPreloader.srcUnitId, (byte)ContextPreloader.srctClientId, jsonrpc.toString());  
-            try {
-                SmartbusExecutor.responseQueue.put(pack);
-            } catch (InterruptedException e) {
-                // TODO Auto-generated catch block
-                e.printStackTrace();
-            }
+//            JSONObject jsonrpc = new JSONObject();
+//            jsonrpc.put("jsonrpc", "2.0");
+//            jsonrpc.put("method", "imsm.ImMessageReceived");
+//            jsonrpc.put("id", UUID.randomUUID().toString());
+//            Map<String, Object> paramsList = new HashMap<String, Object>();
+//            paramsList.put("imtype", "weixin");
+//            paramsList.put("account", null);
+//
+//            JSONObject user = new JSONObject();
+//            user.put("user", account);
+//            user.put("usertype", API.MOCK_CLIENT);
+//
+//            paramsList.put("user", user);
+//            paramsList.put("room_id", messageMap.get("roomId"));
+//            paramsList.put("msgtype", msgtype);
+//            
+//            JSONObject sendmsg = new JSONObject();
+//            sendmsg.put("msgtype", msgtype);
+//            sendmsg.put("room_id", messageMap.get("roomId"));
+//            JSONObject msgcontent = new JSONObject();
+//            msgcontent.put("content", content);
+//            sendmsg.put(msgtype, msgcontent);
+//            paramsList.put("msgcontent", sendmsg);
+//            
+//            jsonrpc.put("params", paramsList);
+//            // JSONRPC END
+//            
+//            PackInfo pack = new PackInfo((byte)ContextPreloader.destUnitId, (byte)ContextPreloader.destClientId, (byte)ContextPreloader.srcUnitId, (byte)ContextPreloader.srctClientId, jsonrpc.toString());  
+//            try {
+//                SmartbusExecutor.responseQueue.put(pack);
+//            } catch (InterruptedException e) {
+//                // TODO Auto-generated catch block
+//                e.printStackTrace();
+//            }
             return "Success";
             
         } catch (IOException e) {
@@ -285,6 +283,7 @@ public class ClientController {
             ChatMessage msg = new ChatMessage();
             msg.setMsgtype("invitation");
             msg.setRoomId(inviteProps.get("roomId"));
+            msg.setSender(inviteProps.get("sender"));
             processMessage(msg, account);
 
         } catch (IOException e) {
@@ -330,6 +329,121 @@ public class ClientController {
             return "Failed.";
         }
         return "Success.";
+    }
+    
+    @SuppressWarnings("unchecked")
+    @RequestMapping(value = "/{account}/enter_room", method = RequestMethod.POST)
+    public @ResponseBody
+    String enterRoom(@PathVariable String account, HttpServletRequest request) {
+        log.info("enterRoom have been called.");
+        ObjectMapper mapper = new ObjectMapper();
+        try {
+            Map<String, String> requestMap = mapper.readValue(request.getInputStream(), Map.class);
+            log.info("requestMap: "+requestMap.toString());
+            Map<String, Object> paramsList = new HashMap<String, Object>();
+            paramsList.put("imtype", "weixin");
+
+            JSONObject user = new JSONObject();
+            user.put("user", account);
+            user.put("usertype", API.MOCK_CLIENT);
+
+            paramsList.put("user", user);
+            paramsList.put("room_id", requestMap.get("roomId"));
+            paramsList.put("options", null);
+            String id = UUID.randomUUID().toString();
+            JSONObject jsonrpc = WeChatMethodSet.createJsonrpcRequest("imsm.EnterRoom", id, paramsList);
+            PackInfo pack = new PackInfo((byte)ContextPreloader.destUnitId, (byte)ContextPreloader.destClientId, (byte)ContextPreloader.srcUnitId, (byte)ContextPreloader.srctClientId, jsonrpc.toString());  
+            try {
+                SmartbusExecutor.responseQueue.put(pack);
+            } catch (InterruptedException e) {
+                // TODO Auto-generated catch block
+                e.printStackTrace();
+            }
+        } catch (IOException e) {
+            log.info("Json mapper exception: " + e.toString());
+            e.printStackTrace();
+            return "Failed.";
+        }
+        return "Success.";
+    }
+    
+    @SuppressWarnings("unchecked")
+    @RequestMapping(value = "/{account}/exit_room", method = RequestMethod.POST)
+    public @ResponseBody
+    String exitRoom(@PathVariable String account, HttpServletRequest request) {
+        log.info("exitRoom have been called.");
+        ObjectMapper mapper = new ObjectMapper();
+        try {
+            Map<String, String> requestMap = mapper.readValue(request.getInputStream(), Map.class);
+            log.info("requestMap: "+requestMap.toString());
+            Map<String, Object> paramsList = new HashMap<String, Object>();
+            paramsList.put("imtype", "weixin");
+
+            JSONObject user = new JSONObject();
+            user.put("user", account);
+            user.put("usertype", API.MOCK_CLIENT);
+
+            paramsList.put("user", user);
+            paramsList.put("room_id", requestMap.get("roomId"));
+            String id = UUID.randomUUID().toString();
+            JSONObject jsonrpc = WeChatMethodSet.createJsonrpcRequest("imsm.ExitRoom", id, paramsList);
+            PackInfo pack = new PackInfo((byte)ContextPreloader.destUnitId, (byte)ContextPreloader.destClientId, (byte)ContextPreloader.srcUnitId, (byte)ContextPreloader.srctClientId, jsonrpc.toString());  
+            try {
+                SmartbusExecutor.responseQueue.put(pack);
+            } catch (InterruptedException e) {
+                // TODO Auto-generated catch block
+                e.printStackTrace();
+            }
+        } catch (IOException e) {
+            log.info("Json mapper exception: " + e.toString());
+            e.printStackTrace();
+            return "Failed.";
+        }
+        return "Success.";
+    }
+    
+    @SuppressWarnings("unchecked")
+    @RequestMapping(value = "/{account}/entered_room", method = RequestMethod.POST)
+    @ResponseBody
+    public JSONObject enteredRoom(@PathVariable String account, HttpServletRequest request){
+        log.info("enteredRoom have been called.");
+        ObjectMapper mapper = new ObjectMapper();
+        try {
+            Map<String, String> requestMap = mapper.readValue(request.getInputStream(), Map.class);
+
+            ChatMessage msg = new ChatMessage();
+            msg.setMsgtype("enteredRoom");
+            msg.setRoomId(requestMap.get("roomId"));
+            processMessage(msg, account);
+
+        } catch (IOException e) {
+            log.info("Json mapper exception: " + e.toString());
+            e.printStackTrace();
+            return WeChatHttpsUtil.getErrorMsg(8002, "Entered room request exception: "+e.toString());
+        }
+        return WeChatHttpsUtil.getErrorMsg(0, "Entered room.");
+    }
+    
+    @SuppressWarnings("unchecked")
+    @RequestMapping(value = "/{account}/exited_room", method = RequestMethod.POST)
+    @ResponseBody
+    public JSONObject exitedRoom(@PathVariable String account, HttpServletRequest request){
+        log.info("exitedRoom have been called.");
+        ObjectMapper mapper = new ObjectMapper();
+        try {
+            Map<String, String> requestMap = mapper.readValue(request.getInputStream(), Map.class);
+
+            ChatMessage msg = new ChatMessage();
+            msg.setMsgtype("exitedRoom");
+            msg.setRoomId(requestMap.get("roomId"));
+            processMessage(msg, account);
+
+        } catch (IOException e) {
+            log.info("Json mapper exception: " + e.toString());
+            e.printStackTrace();
+            return WeChatHttpsUtil.getErrorMsg(8002, "Exited room request exception: "+e.toString());
+        }
+        return WeChatHttpsUtil.getErrorMsg(0, "Exited room.");
     }
     
     private void processMessage(ChatMessage msg, String clientId){
