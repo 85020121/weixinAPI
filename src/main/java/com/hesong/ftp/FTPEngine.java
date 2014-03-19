@@ -30,14 +30,26 @@ public class FTPEngine {
     }
 
     public static boolean mkdir(FTPClient ftp, String path) throws IOException {
-        if (!ftp.changeWorkingDirectory(path)) {
-            if (FTPReply.isPositiveCompletion(ftp.mkd(path))) {
-                ftp.changeWorkingDirectory(path);
-            } else {
-                FTPLogger.info("Make dir failed with path: " + path);
-                return false;
+        String[] pathNames = path.split("/");
+        ftp.changeWorkingDirectory("/");
+        for (int i = 0; i < pathNames.length; i++) {
+            if (!ftp.changeWorkingDirectory(pathNames[i])) {
+                if (FTPReply.isPositiveCompletion(ftp.mkd(pathNames[i]))) {
+                    ftp.changeWorkingDirectory(pathNames[i]);
+                } else {
+                    FTPLogger.info("Make dir failed with path: " + pathNames[i]);
+                    return false;
+                }
             }
         }
+//        if (!ftp.changeWorkingDirectory(path)) {
+//            if (FTPReply.isPositiveCompletion(ftp.mkd(path))) {
+//                ftp.changeWorkingDirectory(path);
+//            } else {
+//                FTPLogger.info("Make dir failed with path: " + path);
+//                return false;
+//            }
+//        }
 
         FTPLogger.info("Destination directory: "
                 + ftp.printWorkingDirectory());

@@ -94,14 +94,14 @@ public class ContextPreloader extends HttpServlet{
 //        } catch (IOException | SchedulerException e) {
 //            ContextLog.error(e.toString());
 //        }
-        
-        try {
-            FTPConnectionFactory.initDefualtFTPclientConnection("127.0.0.1", 21,
-                    "bowen", "waiwai");
-        } catch (IOException e) {
-            // TODO Auto-generated catch block
-            e.printStackTrace();
-        }
+//        
+//        try {
+//            FTPConnectionFactory.initDefualtFTPclientConnection("10.4.62.41", 21,
+//                    "Administrator", "Ky6241");
+//        } catch (IOException e) {
+//            // TODO Auto-generated catch block
+//            e.printStackTrace();
+//        }
 
     }
     

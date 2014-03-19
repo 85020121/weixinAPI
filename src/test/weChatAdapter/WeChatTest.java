@@ -106,15 +106,15 @@ public class WeChatTest {
     
     @Test
     public void ftpTest() throws Exception{
-//        FTPClient ftp = FTPConnectionFactory.getFTPClientConnection("10.4.62.41", 21, "Administrator",
-//                "Ky6241");
-        FTPClient ftp = FTPConnectionFactory.getFTPClientConnection("127.0.0.1", 21, "bowen",
-                "waiwai");
-        String request = "http://file.api.weixin.qq.com/cgi-bin/media/get?access_token=Gqdz3iMfSEcgo70_YxH625YUGc4UUbSDCRkClHIuvBdazPynGJ2skiab5FBlEUbvjT1Gjj4blVxDEOcpTNr3PUeV7JwY3QGQO1DMcooCK7yATEfCRYgrWRBCxW2b99nRfNGr_-xCM8qdQAOHK99ocQ&media_id=tTKFC0uxe8WMLJekyZWBBpyppnLjb8R1wg_Mn6q0GwA9bVveYNpQpgZ0nxh2lyMG";
+        FTPClient ftp = FTPConnectionFactory.getFTPClientConnection("10.4.62.41", 21, "Administrator",
+                "Ky6241");
+//        FTPClient ftp = FTPConnectionFactory.getFTPClientConnection("127.0.0.1", 21, "bowen",
+//                "waiwai");
+        String request = "http://file.api.weixin.qq.com/cgi-bin/media/get?access_token=lv3s0iunvVvEj9K3bz12xlcp5BD-J197i9ewxR0Y8jkDBSIEadTyZuBP1uDl5rl98XNCmrfGF8vCv5dTwDiv5-KRerMNM8rYR8L7atU4uyo70NE130TSV80C_ArGD_YS-G57nlqKrhdL7DhDvLVAhw&media_id=tTKFC0uxe8WMLJekyZWBBpyppnLjb8R1wg_Mn6q0GwA9bVveYNpQpgZ0nxh2lyMG";
         InputStream in = WeChatHttpsUtil.httpGetInputStream(request, API.CONTENT_TYPE_VOICE);
         String filename = MessageManager.sdf_time.format(new Date())+".amr";
         
-        String dir = MessageManager.getDirName("voices", "bowen");
-        FTPEngine.uploadFile(ftp, "/weixin/images/bowen/2014-03-18", filename, in);
+        String dir = MessageManager.getDirName("image", "bowen");
+        FTPEngine.uploadFile(ftp, dir, filename, in);
     }
 }

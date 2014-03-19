@@ -48,6 +48,10 @@ public class API {
     public static String ENTER_ROOM_REQUEST_URL = "http://localhost:8080/weChatAdapter/client/ACCOUNT/entered_room";
     public static String EXIT_ROOM_REQUEST_URL = "http://localhost:8080/weChatAdapter/client/ACCOUNT/exited_room";
     public static String SEND_MESSAGE_REQUEST_URL = "http://localhost:8080/weChatAdapter/client/TOUSER/sendMessageRequest";
+//    public static String INVITE_REQUEST_URL = "http://10.4.62.41:8080/weChatAdapter/client/ACCOUNT/invite";
+//    public static String ENTER_ROOM_REQUEST_URL = "http://10.4.62.41:8080/weChatAdapter/client/ACCOUNT/entered_room";
+//    public static String EXIT_ROOM_REQUEST_URL = "http://10.4.62.41:8080/weChatAdapter/client/ACCOUNT/exited_room";
+//    public static String SEND_MESSAGE_REQUEST_URL = "http://10.4.62.41:8080/weChatAdapter/client/TOUSER/sendMessageRequest";
 
     public static String PULLING_MEDIA_URL = "http://file.api.weixin.qq.com/cgi-bin/media/get?access_token=ACCESS_TOKEN&media_id=";
     

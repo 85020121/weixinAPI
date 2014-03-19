@@ -1,19 +1,12 @@
 package com.hesong.jsonrpc;
 
-import java.io.IOException;
-import java.io.InputStream;
-import java.text.SimpleDateFormat;
-import java.util.Date;
 import java.util.Map;
 
-import org.apache.commons.net.ftp.FTPClient;
 import org.apache.log4j.Logger;
 
 import net.sf.json.JSONObject;
 import net.sf.json.JSONSerializer;
 
-import com.hesong.ftp.FTPConnectionFactory;
-import com.hesong.ftp.FTPEngine;
 import com.hesong.weChatAdapter.context.ContextPreloader;
 import com.hesong.weChatAdapter.manager.MessageManager;
 import com.hesong.weChatAdapter.model.AccessToken;
@@ -186,7 +179,7 @@ public class WeChatMethodSet {
         return response;
     }
     
-    public JSONObject EnteredRoom(String account, String from_user, String to_user, String room_id, String txt){
+    public JSONObject EnteredRoom(String account, String to_user, String room_id, String txt){
         log.info("EnteredRoom have been called.");
         String toUser = null;
         try {
@@ -199,11 +192,12 @@ public class WeChatMethodSet {
         }
         JSONObject post = new JSONObject();
         post.put("roomId", room_id);
+        post.put("sender", toUser);
         JSONObject response = WeChatHttpsUtil.httpPostRequest(API.ENTER_ROOM_REQUEST_URL.replace("ACCOUNT", toUser), post.toString(), 0);
         return response;
     }
     
-    public JSONObject ExitedRoom(String account, String from_user, String to_user, String room_id, String txt){
+    public JSONObject ExitedRoom(String account, String to_user, String room_id, String txt){
         log.info("ExitedRoom have been called.");
         String toUser = null;
         try {
@@ -216,6 +210,7 @@ public class WeChatMethodSet {
         }
         JSONObject post = new JSONObject();
         post.put("roomId", room_id);
+        post.put("sender", toUser);
         JSONObject response = WeChatHttpsUtil.httpPostRequest(API.EXIT_ROOM_REQUEST_URL.replace("ACCOUNT", toUser), post.toString(), 0);
         return response;
     }

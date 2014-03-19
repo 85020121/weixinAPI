@@ -1,14 +1,11 @@
 package com.hesong.weChatAdapter.manager;
 
-import java.io.IOException;
 import java.io.InputStream;
 import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
-
-import javax.print.attribute.standard.Media;
 
 import org.apache.commons.net.ftp.FTPClient;
 import org.apache.log4j.Logger;
@@ -19,8 +16,6 @@ import com.hesong.ftp.FTPConnectionFactory;
 import com.hesong.ftp.FTPEngine;
 import com.hesong.jsonrpc.WeChatMethodSet;
 import com.hesong.smartbus.client.PackInfo;
-import com.hesong.smartbus.client.net.Client.SendDataError;
-import com.hesong.smartbus.client.net.JniWrapper;
 import com.hesong.weChatAdapter.context.ContextPreloader;
 import com.hesong.weChatAdapter.runner.SmartbusExecutor;
 import com.hesong.weChatAdapter.tools.API;
@@ -80,7 +75,7 @@ public class MessageManager {
             paramsList.put("msgtype", API.IMAGE_MESSAGE);
             String filename = sdf_time.format(new Date())+"_"+message.get(API.MESSAGE_FROM_TAG)+".jpg";
             String account = message.get(API.MESSAGE_TO_TAG);
-            String dirPath = getDirName("images", account);
+            String dirPath = getDirName("image", account);
             if(uploadMediaFile(message, filename, dirPath, API.CONTENT_TYPE_IMAGE)){
                 message.put(API.MESSAGE_PIC_URL_TAG, dirPath+filename);
                 log.info("New image message: "+message.toString());
@@ -90,7 +85,7 @@ public class MessageManager {
             paramsList.put("msgtype", API.VOICE_MESSAGE);
             String voice_filename = sdf_time.format(new Date())+"_"+message.get(API.MESSAGE_FROM_TAG)+".amr";
             String voice_account = message.get(API.MESSAGE_TO_TAG);
-            String voice_dirPath = getDirName("voices", voice_account);
+            String voice_dirPath = getDirName("voice", voice_account);
             if(uploadMediaFile(message, voice_filename, voice_dirPath, API.CONTENT_TYPE_IMAGE)){
                 message.put("VoiceUrl", voice_dirPath+voice_filename);
                 log.info("New image message: "+message.toString());

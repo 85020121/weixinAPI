@@ -1,7 +1,7 @@
 <%@ page language="java" contentType="text/html; charset=UTF-8"
 	pageEncoding="UTF-8"%>
 <%@ taglib prefix="c" uri="http://java.sun.com/jsp/jstl/core"%>
-<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN" "http://www.w3.org/TR/html4/loose.dtd">
+<!DOCTYPE html>
 <html>
 <head>
 
@@ -12,7 +12,6 @@
 <script src="//ajax.googleapis.com/ajax/libs/dojo/1.9.1/dojo/dojo.js"></script>
 <script type="text/javascript"
 	src="http://code.jquery.com/jquery-1.11.0.min.js"></script>
-
 
 <script>
 	dojo.require("dojo.on");
@@ -47,10 +46,31 @@
           });
     }
 	
+    // 进入聊天室
+    function enterChatRoom() {
+        var xhrArgs = {
+                url : "/weChatAdapter/client/"+dojo.cookie("MOCK_CLIENT_ID")+"/chatroom",
+                handleAs : "json",
+                load : function(data) {
+                	console.log("Rommlist:"+data);
+                	if(data!=null){
+                		   for(var i=0; i<data.length;i++){
+                			   createRoomTab(data[i]);
+                		   }
+                	}
+                	getMessage();
+                },
+                error : function(error) {
+                	getMessage();
+                }
+            }
+            dojo.xhrGet(xhrArgs);
+    }
+	
     // 尝试加入房间
     function enterRoom(room) {
         var xhrArgs = {
-                url : "http://localhost:8080/weChatAdapter/client/"+dojo.cookie("MOCK_CLIENT_ID")+"/enter_room",
+                url : "/weChatAdapter/client/"+dojo.cookie("MOCK_CLIENT_ID")+"/enter_room",
                 postData : dojo.toJson({"roomId" : room}),
                 handleAs : "text",
                 load : function(data) {
@@ -64,7 +84,7 @@
 	// 尝试退出房间
 	function exitRoom(room) {
 		var xhrArgs = {
-	            url : "http://localhost:8080/weChatAdapter/client/"+dojo.cookie("MOCK_CLIENT_ID")+"/exit_room",
+	            url : "/weChatAdapter/client/"+dojo.cookie("MOCK_CLIENT_ID")+"/exit_room",
 	            postData : dojo.toJson({"roomId" : room}),
 	            handleAs : "text",
 	            load : function(data) {
@@ -79,7 +99,7 @@
 	function ackInvitation(isAccepted){
 		console.log(isAccepted);
 		var xhrArgs = {
-                url : "http://localhost:8080/weChatAdapter/client/"+dojo.cookie("MOCK_CLIENT_ID")+"/ackInvitation",
+                url : "/weChatAdapter/client/"+dojo.cookie("MOCK_CLIENT_ID")+"/ackInvitation",
                 handleAs : "text",
                 postData : dojo.toJson({"roomId" : dojo.byId("invitationRoomId").innerHTML,
                     "agreed":isAccepted
@@ -97,34 +117,64 @@
 	// 接收消息，并根据消息类型修改客户端聊天窗口
 	function getMessage() {
 	var xhrArgs = {
-			url : "http://localhost:8080/weChatAdapter/client/getMessages",
+			url : "/weChatAdapter/client/getMessages",
 			handleAs : "json",
 			load : function(data) {
+				console.log("Data: "+data);
+				var room = data.roomId;
+                var chatBoardId = room+"chatboard";
 				if(data.msgtype == "invitation"){
 					dojo.byId("invitationSender").innerHTML = data.sender + " 邀请你加入房间：";
-                    dojo.byId("invitationRoomId").innerHTML = data.roomId;
+                    dojo.byId("invitationRoomId").innerHTML = room;
 					ShowMessage(180,100);
 				} else if(data.msgtype == "enteredRoom"){
-					console.log("Entered in to room: "+data.roomId);
-					createRoomTab(data.roomId);
+					console.log("Entered in to room: "+room);
+					if(dojo.cookie("MOCK_CLIENT_ID") == data.sender) {
+						   createRoomTab(data.roomId);
+					} else {
+						var addToBoard = "<div class='sysmsg'>系统消息: "+data.sender+" 进入房间</div>";
+		                  require(["dojo/dom-construct"], function(domConstruct){
+	                          domConstruct.place(addToBoard, chatBoardId);
+	                        });
+	                    dojo.byId(chatBoardId).scrollTop = dojo.byId(chatBoardId).scrollHeight;
+	                    //text += '\r\n' + data.date + ' ' + data.sender + '：' + data.content;
+	                    //dojo.byId(room+"chatboard").innerHTML = text;
+	                    var receiverTabId = room+"contentPaneId";
+	                    if(chatboardTab.selectedChildWidget.id != receiverTabId){
+	                        newMessageRemaind(receiverTabId);
+	                    }
+					}
 				} else if(data.msgtype == "exitedRoom"){
-                    console.log("Exited from room: "+data.roomId);
-                    var roomContentPane = dijit.byId(data.roomId+"contentPaneId");
-                    chatboardTab.removeChild(roomContentPane);
-                    roomContentPane.destroy();
+                    console.log("Exited from room: "+room);
+                    if(dojo.cookie("MOCK_CLIENT_ID") == data.sender) {
+                        var roomContentPane = dijit.byId(room+"contentPaneId");
+                        chatboardTab.removeChild(roomContentPane);
+                        roomContentPane.destroy();
+                    } else {
+                        var addToBoard = "<div class='sysmsg'>系统消息: "+data.sender+" 离开房间</div>";
+                        require(["dojo/dom-construct"], function(domConstruct){
+                            domConstruct.place(addToBoard, chatBoardId);
+                          });
+                      dojo.byId(chatBoardId).scrollTop = dojo.byId(chatBoardId).scrollHeight;
+                      var receiverTabId = room+"contentPaneId";
+                      if(chatboardTab.selectedChildWidget.id != receiverTabId){
+                          newMessageRemaind(receiverTabId);
+                      }
+                    }
                 } else {
                 	var messageContentDiv;
                 	if(data.msgtype == "image") {
-                		messageContentDiv = "<img width='240' src='ftp://bowen:waiwai@127.0.0.1"+data.content+"' />";
+                		messageContentDiv = "<img width='240' src='http://10.4.62.41:8370"+data.content.replace("/weixin","")+"' />";
                 	} else if(data.msgtype == "voice"){
-                		
+                		var d = new Date();
+                		var uid = d.getMinutes()+d.getSeconds();
+                		messageContentDiv = "<input type='button' value='点击播放' onclick='return play(\""+uid+"\",\"ftp://Administrator:Ky6241@10.4.62.41"+data.content+"\");'/>";
+                		messageContentDiv += "<div id='"+uid+"vlcplayerholder' style='visibility:hedden;'/>";
                 	} else {
                 		messageContentDiv = data.content;
                 	}
-                	
-					console.info("data: "+ data.roomId + ' ' + data.date + ' ' + data.sender + '：' + messageContentDiv);
-					var room = data.roomId;
-					var chatBoardId = room+"chatboard";
+					console.log("data: "+ room + ' ' + data.date + ' ' + data.sender + '：' + messageContentDiv);
+					
 					var row;
 					if(dojo.cookie("MOCK_CLIENT_ID") == data.sender){
 						row = "<div class='chatItem me'><div class='cloud cloudText'><div class='cloudBody'><div class='cloudContent'>";
@@ -160,10 +210,11 @@
 
 	// 发送消息
 	function postMessage(room) {
-
-		console.log("event:"+room);
+	    if(dojo.byId(room+"messageInput").value==""){
+	    	return;
+	    }
 			var xhrArgs = {
-				url : "msg",
+				url : "/weChatAdapter/client/"+dojo.cookie("MOCK_CLIENT_ID")+"/msg",
 				postData : dojo.toJson({"content" : dojo.byId(room+"messageInput").value,
 				                        "roomId" : room,
 			                            "msgtype" : "text",
@@ -197,13 +248,16 @@
 		            id : roomId+"contentPaneId",
 		            onClose : function() {
 		            // confirm() returns true or false, so return that.
-		            var close =  confirm("Do you really want to Close this?");
-		            if(close){
+		              var close =  confirm("Do you really want to Close this?");
+		              if(close){
 		            	exitRoom(roomId);
-		            	return false;
-		            } else {
+		            	chatboardTab.removeChild(this);
+		            	this.destroy();
+		            	return true;
+		              } else {
 		            	console.log("Not close");
-		            }
+		            	return false;
+		              }
 		            }
 		        });
 		    closablePane.domNode.setAttribute("widgetId", roomId);
@@ -230,26 +284,17 @@
 	}
 
 	dojo.ready(function() {
-		//postMessage();
-		getMessage();
-		//ShowMessage(200,100);
-		window.onbeforeunload = exitRoom;
-		
+		//getMessage();
+		//window.onbeforeunload = exitRoom;
+		enterChatRoom();
 		dojo.parser.parse();
-        createRoomTab("room0");
-        createRoomTab("room1");
-        //console.log(dijit.byId("room0").controlButton.domNode);
-        //dojo.style(dijit.byId("room0contentPaneId").controlButton.domNode,{background-color:"red"});
-        //dijit.byId("room0contentPaneId").controlButton.attr("style", "color: #9B7725;");
-        //console.log("list: "+chatboardTab.tablist.pane2button["room0contentPaneId"]);
-        //newMessageRemaind("room0contentPaneId");
-        //chatboardTab.removeChild(dijit.byId("room0contentPaneId"));
+        //createRoomTab("room1");
         dojo.aspect.after(chatboardTab, "selectChild", function (event) {
             console.log("You selected ", chatboardTab.selectedChildWidget.id);
             dijit.byId(chatboardTab.selectedChildWidget.id).controlButton.attr("style", "color: black;");
        });
     });
-</script>
+</script> 
 </head>
 <body class="claro">
     <div style="height: 200px;">
@@ -257,14 +302,12 @@
         
 	   </div>
     </div>
-	
-</div>
-	
-	
+    
 	<div id="invitation">
 	    <div><span id="invitationSender"></span><span id="invitationRoomId"></span></div>
         <a id="refuse" class="closeInvation chatSend" onclick='ackInvitation("false")' href="javascript:void(0);">拒绝</a>
         <a id="accept" class="closeInvation chatSend" onclick='ackInvitation("true")' href="javascript:void(0);">接受</a>
     </div>
+    
 </body>
 </html>
