@@ -10,7 +10,8 @@ import com.hesong.smartbus.client.PackInfo;
 
 public class JsonrpcHandlerRunner implements Runnable {
     
-    public static Map<String, BlockingQueue<String>> ackRetQueue = new ConcurrentHashMap<String, BlockingQueue<String>>();
+    public static Map<String, BlockingQueue<String>> loginAckRetQueue = new ConcurrentHashMap<String, BlockingQueue<String>>();
+    public static Map<String, BlockingQueue<Object>> getRoomsRetQueue = new ConcurrentHashMap<String, BlockingQueue<Object>>();
 
     private BlockingQueue<PackInfo> messageQueue;
     private BlockingQueue<PackInfo> responseQueue;
@@ -65,16 +66,13 @@ public class JsonrpcHandlerRunner implements Runnable {
         while (true) {
             try {
                 PackInfo pack = getMessageQueue().take();
-                SmartbusExecutor.SmartbusLog
-                        .info("New message in queue, handling...: "
-                                + pack.toString());
                 String response = handler.handle(pack.getText());
                 if (response != null) {
                     pack.setText(response);
                     responseQueue.put(pack);
                 }
             } catch (InterruptedException e) {
-                SmartbusExecutor.SmartbusLog.info("MessageQueue exception: "
+                SmartbusExecutor.SmartbusLog.error("BlockingQueue exception: "
                         + e.toString());
             }
         }

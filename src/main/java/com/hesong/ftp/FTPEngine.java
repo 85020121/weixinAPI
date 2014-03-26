@@ -37,22 +37,11 @@ public class FTPEngine {
                 if (FTPReply.isPositiveCompletion(ftp.mkd(pathNames[i]))) {
                     ftp.changeWorkingDirectory(pathNames[i]);
                 } else {
-                    FTPLogger.info("Make dir failed with path: " + pathNames[i]);
+                    FTPLogger.error("Make dir failed with path: " + pathNames[i]);
                     return false;
                 }
             }
         }
-//        if (!ftp.changeWorkingDirectory(path)) {
-//            if (FTPReply.isPositiveCompletion(ftp.mkd(path))) {
-//                ftp.changeWorkingDirectory(path);
-//            } else {
-//                FTPLogger.info("Make dir failed with path: " + path);
-//                return false;
-//            }
-//        }
-
-        FTPLogger.info("Destination directory: "
-                + ftp.printWorkingDirectory());
         return true;
     }
 
@@ -81,7 +70,7 @@ public class FTPEngine {
         AttachmentPuller.copy(input, output);
 
         if (!ftp.completePendingCommand()) {
-            FTPLogger.info("File transfer failed.");
+            FTPLogger.error("File transfer failed, file name: "+filename);
             // TO DO
             // ftp.logout();
             // ftp.disconnect();
@@ -91,10 +80,10 @@ public class FTPEngine {
         return true;
     }
 
-    public static boolean uploadFile(String url, int port, String username,
+    public static boolean uploadFile(String host, int port, String username,
             String password, String path, String filename, InputStream input)
             throws IOException {
-        FTPClient ftp = FTPConnectionFactory.getFTPClientConnection(url, port,
+        FTPClient ftp = FTPConnectionFactory.getFTPClientConnection(host, port,
                 username, password);
         if (ftp == null)
             return false;
@@ -103,5 +92,17 @@ public class FTPEngine {
         return success;
     }
     
+    public static boolean downloadFile(FTPClient ftp, OutputStream output,
+            String filename) throws IOException {
+        // FTP协议里面，规定文件名编码为iso-8859-1，所以目录名或文件名需要转码
+        String isoFileName = new String(filename.getBytes("UTF-8"),"ISO-8859-1");
+        ftp.retrieveFile(isoFileName, output);
+
+        if (!ftp.completePendingCommand()) {
+            FTPLogger.error("File transfer failed, file name: "+filename);
+            return false;
+        }
+        return true;
+    }
 
 }

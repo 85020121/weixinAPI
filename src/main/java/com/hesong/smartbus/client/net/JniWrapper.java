@@ -159,8 +159,6 @@ public class JniWrapper {
             byte local_clientid, byte src_unit_id, byte src_unit_client_id,
             byte src_unit_client_type, byte dest_unit_id,
             byte dest_unit_client_id, byte dest_unit_client_type, String txt) {
-        System.out.println("Recv clientId = " + dest_unit_client_id);
-        //Client inst = instances.get(dest_unit_client_id);
         
         PackInfo head = new PackInfo((byte) arg, cmd, cmdtype, src_unit_id,
                 src_unit_client_id, src_unit_client_type, dest_unit_id,
@@ -168,26 +166,11 @@ public class JniWrapper {
         if (CLIENT != null) {
             CLIENT.getCallbacks().onReceiveText(head, txt);
             try {
-                log.info("JniWrapper put packInfo into message queue.");
                 messageQueue.put(head);
-                log.info("In message: "+(++count));
             } catch (InterruptedException e) {
-                log.info("JniWrapper put message queue exception: "+e.toString());
+                log.error("JniWrapper put message queue exception: "+e.toString());
+                log.error("Message head: "+ head.toString());
             }
-//            try {
-//                // JsonNode jo = new ObjectMapper().readValue(txt,
-//                // JsonNode.class);
-//                JsonrpcHandler handle = new JsonrpcHandler(
-//                        new WeChatMethodSet());
-//                String response = handle.handle(txt);
-//                System.out.println(response);
-//                inst.sendText(cmd, cmdtype, (int) src_unit_id,
-//                        (int) src_unit_client_id, (int) src_unit_client_type,
-//                        response);
-//            } catch (IOException | SendDataError e) {
-//                // TODO Auto-generated catch block
-//                e.printStackTrace();
-//            }
         }
     }
 

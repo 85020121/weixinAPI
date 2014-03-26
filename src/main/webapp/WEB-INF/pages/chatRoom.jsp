@@ -7,11 +7,16 @@
 
 <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
 <link rel="stylesheet" href="<c:url value='/resources/css/chatTab.css'/>" />
+<link rel="stylesheet" href="<c:url value='/resources/css/emoji184f03.css'/>" />
+<link rel="stylesheet" href="<c:url value='/resources/css/qqemoji.css'/>" />
     <link rel="stylesheet" href="<c:url value='/resources/js/libs/dojo/1.9.1/dijit/themes/claro/claro.css'/>" />
+
+<script src="<c:url value='/resources/js/libs/dojo/1.9.1/dojo/dojo.js'/>"></script>    
+<script src="<c:url value='/resources/js/jquery-1.11.0.min.js'/>"></script>    
 <script src="<c:url value='/resources/js/vlcPlayer.js'/>"></script>    
-<script src="//ajax.googleapis.com/ajax/libs/dojo/1.9.1/dojo/dojo.js"></script>
-<script type="text/javascript"
-	src="http://code.jquery.com/jquery-1.11.0.min.js"></script>
+<script src="<c:url value='/resources/js/qqemoji.js'/>"></script>  
+<script src="<c:url value='/resources/js/upclick-min.js'/>"></script>    
+<script src="<c:url value='/resources/js/guid.js'/>"></script>    
 
 <script>
 	dojo.require("dojo.on");
@@ -24,10 +29,11 @@
     dojo.require("dijit.layout.TabContainer");
     dojo.require("dijit.layout.ContentPane");
     dojo.require("dijit.registry");
+    dojo.require("dijit.form.Textarea");
     
     
 	// 弹出/收起邀请提示框
-    function ShowMessage(widht,height) {
+     function ShowMessage(widht,height) {
         var TopY=0;//初始化元素距父元素的距离
         $("#invitation").css("width",widht+"px").css("height",height+"px");//设置消息框的大小
         $("#invitation").slideDown(1000);//弹出
@@ -44,6 +50,36 @@
              $("#invitation").css("top", $(window).scrollTop() + $(window).height() - $("#invitation").height());//当滚动条滚动的时候始终在屏幕的右下角
              TopY=$("#invitation").offset().top;//当滚动条滚动的时候随时设置元素距父原素距离
           });
+    } 
+	
+	function relogin() {
+        var xhrArgs = {
+                url : "/weChatAdapter/client/"+dojo.cookie("MOCK_CLIENT_ID")+"/relogin",
+                handleAs : "text",
+                load : function(data) {
+                    setTimeout(function() {
+                      relogin();
+                       }, 30000);
+                },
+                error : function(error) {
+                	setTimeout(function() {
+                        relogin();
+                         }, 12000);
+                }
+            }
+            dojo.xhrGet(xhrArgs);
+    }
+    
+    function logout() {
+        var xhrArgs = {
+                url : "/weChatAdapter/client/"+dojo.cookie("MOCK_CLIENT_ID")+"/logout",
+                handleAs : "text",
+                load : function(data) {
+                },
+                error : function(error) {
+                }
+            }
+            dojo.xhrGet(xhrArgs);
     }
 	
     // 进入聊天室
@@ -58,10 +94,8 @@
                 			   createRoomTab(data[i]);
                 		   }
                 	}
-                	getMessage();
                 },
                 error : function(error) {
-                	getMessage();
                 }
             }
             dojo.xhrGet(xhrArgs);
@@ -120,17 +154,19 @@
 			url : "/weChatAdapter/client/getMessages",
 			handleAs : "json",
 			load : function(data) {
-				console.log("Data: "+data);
-				var room = data.roomId;
-                var chatBoardId = room+"chatboard";
+				console.log("Msttype: "+data.msgtype);
+				var room =  data.roomId;
+				var escaped_room = escape(room);
+                var chatBoardId = escaped_room+"chatboard";
 				if(data.msgtype == "invitation"){
 					dojo.byId("invitationSender").innerHTML = data.sender + " 邀请你加入房间：";
                     dojo.byId("invitationRoomId").innerHTML = room;
 					ShowMessage(180,100);
+					//ackInvitation(true);
 				} else if(data.msgtype == "enteredRoom"){
 					console.log("Entered in to room: "+room);
 					if(dojo.cookie("MOCK_CLIENT_ID") == data.sender) {
-						   createRoomTab(data.roomId);
+						   createRoomTab(room);
 					} else {
 						var addToBoard = "<div class='sysmsg'>系统消息: "+data.sender+" 进入房间</div>";
 		                  require(["dojo/dom-construct"], function(domConstruct){
@@ -139,7 +175,7 @@
 	                    dojo.byId(chatBoardId).scrollTop = dojo.byId(chatBoardId).scrollHeight;
 	                    //text += '\r\n' + data.date + ' ' + data.sender + '：' + data.content;
 	                    //dojo.byId(room+"chatboard").innerHTML = text;
-	                    var receiverTabId = room+"contentPaneId";
+	                    var receiverTabId = escaped_room+"contentPaneId";
 	                    if(chatboardTab.selectedChildWidget.id != receiverTabId){
 	                        newMessageRemaind(receiverTabId);
 	                    }
@@ -147,7 +183,7 @@
 				} else if(data.msgtype == "exitedRoom"){
                     console.log("Exited from room: "+room);
                     if(dojo.cookie("MOCK_CLIENT_ID") == data.sender) {
-                        var roomContentPane = dijit.byId(room+"contentPaneId");
+                        var roomContentPane = dijit.byId(escaped_room+"contentPaneId");
                         chatboardTab.removeChild(roomContentPane);
                         roomContentPane.destroy();
                     } else {
@@ -156,11 +192,22 @@
                             domConstruct.place(addToBoard, chatBoardId);
                           });
                       dojo.byId(chatBoardId).scrollTop = dojo.byId(chatBoardId).scrollHeight;
-                      var receiverTabId = room+"contentPaneId";
+                      var receiverTabId = escaped_room+"contentPaneId";
                       if(chatboardTab.selectedChildWidget.id != receiverTabId){
                           newMessageRemaind(receiverTabId);
                       }
                     }
+                } else if(data.msgtype == "disposeRoom"){
+                    console.log("Room disposed: "+room);
+                        var addToBoard = "<div class='sysmsg'>系统消息: 该房间会话已结束</div>";
+                        require(["dojo/dom-construct"], function(domConstruct){
+                        domConstruct.place(addToBoard, chatBoardId);
+                        });
+                        dojo.byId(chatBoardId).scrollTop = dojo.byId(chatBoardId).scrollHeight;
+                      var receiverTabId = escaped_room+"contentPaneId";
+                      if(chatboardTab.selectedChildWidget.id != receiverTabId){
+                          newMessageRemaind(receiverTabId);
+                      }
                 } else {
                 	var messageContentDiv;
                 	if(data.msgtype == "image") {
@@ -168,12 +215,11 @@
                 	} else if(data.msgtype == "voice"){
                 		var d = new Date();
                 		var uid = d.getMinutes()+d.getSeconds();
-                		messageContentDiv = "<input type='button' value='点击播放' onclick='return play(\""+uid+"\",\"ftp://Administrator:Ky6241@10.4.62.41"+data.content+"\");'/>";
-                		messageContentDiv += "<div id='"+uid+"vlcplayerholder' style='visibility:hedden;'/>";
+                		messageContentDiv = "<input type='button' value='播放语音' onclick='return play(\"ftp://Administrator:Ky6241@10.4.62.41"+data.content+"\");'/>";
                 	} else {
-                		messageContentDiv = data.content;
+                		messageContentDiv = parse_content(data.content);
                 	}
-					console.log("data: "+ room + ' ' + data.date + ' ' + data.sender + '：' + messageContentDiv);
+					console.log("data: "+ data.roomId + ' ' + data.date + ' ' + data.sender + '：' + messageContentDiv);
 					
 					var row;
 					if(dojo.cookie("MOCK_CLIENT_ID") == data.sender){
@@ -187,10 +233,10 @@
 					require(["dojo/dom-construct"], function(domConstruct){
 						  domConstruct.place(row, chatBoardId);
 						});
-					dojo.byId(room+"chatboard").scrollTop = dojo.byId(room+"chatboard").scrollHeight;
+					dojo.byId(chatBoardId).scrollTop = dojo.byId(chatBoardId).scrollHeight;
 					//text += '\r\n' + data.date + ' ' + data.sender + '：' + data.content;
 					//dojo.byId(room+"chatboard").innerHTML = text;
-					var receiverTabId = room+"contentPaneId";
+					var receiverTabId = escaped_room+"contentPaneId";
 					if(chatboardTab.selectedChildWidget.id != receiverTabId){
 						newMessageRemaind(receiverTabId);
 					}
@@ -210,12 +256,13 @@
 
 	// 发送消息
 	function postMessage(room) {
-	    if(dojo.byId(room+"messageInput").value==""){
+		var input = dojo.byId(escape(room+"messageInput"));
+	    if(input.value==""){
 	    	return;
 	    }
 			var xhrArgs = {
 				url : "/weChatAdapter/client/"+dojo.cookie("MOCK_CLIENT_ID")+"/msg",
-				postData : dojo.toJson({"content" : dojo.byId(room+"messageInput").value,
+				postData : dojo.toJson({"content" : input.value,
 				                        "roomId" : room,
 			                            "msgtype" : "text",
 			                            "sender" : dojo.cookie("MOCK_CLIENT_ID")
@@ -229,30 +276,41 @@
 				}
 			}
 			var deferred = dojo.xhrPost(xhrArgs);
-		
+			input.value = "";
 	}
 	
 	// 创建聊天窗口，设置房间名
 	function createRoomTab(roomId){
 		  var d = new Date();
-		  var chatContent = "<div id='"+roomId+"chatboard' style='height:250px; border:1px solid black; overflow:auto; margin-bottom;background-color: #EFF3F7;'>";
+		  var escaped_roomId = escape(roomId);
+		  
+/*           var script = "<script type='text/javascript'>";
+          script += "var uploader = document.getElementById('uploader');console('uploder:'+uploader)";
+          script += "upclick({element: uploader,action: '/path_to/you_server_script.php', onstart:function(filename){alert('Start upload: '+filename);},";
+          script += "oncomplete:function(response_data){alert(response_data);}});";
+          script += "<\/script>"; */
+		  
+		  var chatContent = "<div id='"+escaped_roomId+"chatboard' style='height:250px; border:1px solid black; overflow:auto; margin-bottom;background-color: #EFF3F7;'>";
 		  chatContent += "<div class='time'> <span class='timeBg left'></span> "+d.getHours()+":"+d.getMinutes()+" <span class='timeBg right'></span></div></div>";
 		    chatContent += "<div id='chat_editor' class='chatOperator lightBorder'>";
-		    chatContent += "<div class='inputArea'><textarea type='text' id='"+roomId+"messageInput' class='chatInput lightBorder'></textarea>";
-		    chatContent += "<a href='javascript:;' class='chatSend' onclick='postMessage(\""+roomId+"\")' id='"+roomId+"sendMessage'><b>发送</b></a></div></div>"
+		    chatContent += "<div class='inputArea'><div class='attach'><a href='javascript:;' class='emotion func expression' title='选择表情'></a>"
+		    chatContent += "<a href='javascript:;' id='"+escaped_roomId+"uploader' class='func file' style='position:relative;display:block;margin:0;' title='图片文件'></a>";
+		    chatContent += "</div><input type='text' id='"+escaped_roomId+"messageInput' class='chatInput lightBorder'></input>";
+		    chatContent += "<a href='javascript:;' class='chatSend' onclick='postMessage(\""+roomId+"\")' id='"+escaped_roomId+"sendMessage'><b>发送</b></a></div></div>"
 
+		    
 		    var closablePane = new dijit.layout.ContentPane({
-		            title : roomId,
+		            title : "房间"+room_count,
 		            closable : true,
 		            content : chatContent,
-		            id : roomId+"contentPaneId",
+		            id : escaped_roomId+"contentPaneId",
 		            onClose : function() {
 		            // confirm() returns true or false, so return that.
 		              var close =  confirm("Do you really want to Close this?");
 		              if(close){
 		            	exitRoom(roomId);
-		            	chatboardTab.removeChild(this);
-		            	this.destroy();
+		            	//chatboardTab.removeChild(this);
+		            	//this.destroy();
 		            	return true;
 		              } else {
 		            	console.log("Not close");
@@ -260,8 +318,11 @@
 		              }
 		            }
 		        });
-		    closablePane.domNode.setAttribute("widgetId", roomId);
+		    room_count++;
+		    closablePane.domNode.setAttribute("widgetId", escaped_roomId);
 		    chatboardTab.addChild(closablePane);
+	          $('.emotion').qqFace();
+	          uploadImage(escaped_roomId+'uploader');
 	}
 	
 	function newMessageRemaind(tabId){
@@ -282,21 +343,74 @@
         }, 3000);
 
 	}
+	
+	function parseEmojiToChName(i){
+	    var emoji = qqemoji_ch[i];
+	    if(emoji==null)return;
+	    var inputAreaId = chatboardTab.selectedChildWidget.id.replace("contentPaneId","messageInput");
+	    //var text = $(inputAreaId).val(); // 
+	    var text = dojo.byId(inputAreaId).value;
+	    dojo.byId(inputAreaId).value = text+emoji;
+	}
+	
+	  function uploadImage(uploaderId){
+	   console.log('uploaderId:'+uploaderId);
+	   var uploader = document.getElementById(uploaderId);
+	   var chatboardId = uploaderId.replace("uploader","chatboard");
+	   var account = dojo.cookie("MOCK_CLIENT_ID");
+	   var guid;
+	   console.log("uploader:"+uploader);
+	   upclick(
+	     {
+	      element: uploader,
+	      action: '/weChatAdapter/client/'+account+'/upload', 
+	      action_params : {"roomId":unescape(uploaderId).replace("uploader","")},
+	      onstart:
+	        function(filename)
+	        {
+	          guid = get_guid();
+	          console.log('Start upload: '+filename);
+	          var row = "<div class='chatItem me'><div class='cloud cloudText'><div class='cloudBody'><div class='cloudContent'>";
+              row += "<pre id='"+guid+"'style='white-space:pre-wrap'><img src='../../resources/images/loading.gif' /></pre></div></div></div></div>";
+              require(["dojo/dom-construct"], function(domConstruct){
+                  domConstruct.place(row, chatboardId);
+                });
+            dojo.byId(chatboardId).scrollTop = dojo.byId(chatboardId).scrollHeight;
+	        },
+	      oncomplete:
+	        function(response_data) 
+	        {
+	    	  console.log("response_data"+response_data);
+	          if(response_data=="Failed"){
+	        	  dojo.byId(guid).innerHTML = "<span style='color:red'>发送图片失败</span>";
+	          } else {
+	        	  dojo.byId(guid).innerHTML = "<img width='240' src='http://10.4.62.41:8370"+response_data.replace("/weixin","")+"' />";
+	          }
+	        }
+	     });
+	  }
 
 	dojo.ready(function() {
-		//getMessage();
+		room_count = 1;
+		getMessage();
 		//window.onbeforeunload = exitRoom;
 		enterChatRoom();
 		dojo.parser.parse();
-        //createRoomTab("room1");
+        //createRoomTab("tmp");
         dojo.aspect.after(chatboardTab, "selectChild", function (event) {
             console.log("You selected ", chatboardTab.selectedChildWidget.id);
             dijit.byId(chatboardTab.selectedChildWidget.id).controlButton.attr("style", "color: black;");
        });
+        setTimeout(function(){
+        	relogin();
+        }, 20000);
+        
     });
 </script> 
+
 </head>
 <body class="claro">
+
     <div style="height: 200px;">
         <div data-dojo-id="chatboardTab" data-dojo-type="dijit/layout/TabContainer" style="width: 600px;height: 100px;" doLayout="false">
         
@@ -309,5 +423,7 @@
         <a id="accept" class="closeInvation chatSend" onclick='ackInvitation("true")' href="javascript:void(0);">接受</a>
     </div>
     
+    
+    <div id="vlcplayerholder" style="visibility:hedden;position:absolute;left:-500px;right:-500px"/>
 </body>
 </html>

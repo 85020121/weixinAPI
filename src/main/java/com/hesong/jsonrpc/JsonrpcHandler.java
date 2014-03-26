@@ -17,7 +17,6 @@ import net.sf.json.JSONSerializer;
 import org.apache.log4j.Logger;
 
 import com.hesong.weChatAdapter.runner.JsonrpcHandlerRunner;
-import com.hesong.weChatAdapter.runner.SmartbusExecutor;
 
 public class JsonrpcHandler {
     private static Logger log = Logger.getLogger(JsonrpcHandler.class);
@@ -38,7 +37,6 @@ public class JsonrpcHandler {
     }
 
     public String handle(String jsonrpc) {
-        log.info("Handle json: " + jsonrpc);
         JSONObject node = null;
         String id = null;
         String jsonrpcVesion = null;
@@ -59,16 +57,30 @@ public class JsonrpcHandler {
 
         // return
         if (node.has("result") || node.has("error")) {
-            log.info("Result message: "+node.toString());
-            if (JsonrpcHandlerRunner.ackRetQueue.containsKey(id)) {
+            // Login ret
+            if (JsonrpcHandlerRunner.loginAckRetQueue.containsKey(id)) {
                 String ret = node.has("result")?"OK":"Failed";
                 try {
-                    JsonrpcHandlerRunner.ackRetQueue.get(id).put(ret);
-                    log.info("ACK RETURN: "+ret);
+                    JsonrpcHandlerRunner.loginAckRetQueue.get(id).put(ret);
                 } catch (InterruptedException e) {
                     // TODO Auto-generated catch block
                     e.printStackTrace();
-                    log.error("Put result to ackRetQueue error: "+e.toString());
+                    log.error("Put result to loginAckRetQueue error: "+e.toString());
+                }
+            }
+            
+            // GetAgentRooms ret
+            if (JsonrpcHandlerRunner.getRoomsRetQueue.containsKey(id)) {
+                Object ret = node.has("result")?node.get("result"):null;
+                if (ret != null) {
+                    try {
+                        JsonrpcHandlerRunner.getRoomsRetQueue.get(id).put(ret);
+                    } catch (InterruptedException e) {
+                        // TODO Auto-generated catch block
+                        e.printStackTrace();
+                        log.error("Put result to getRoomsRetQueue error: "
+                                + e.toString());
+                    }
                 }
             }
             return null;
@@ -76,14 +88,14 @@ public class JsonrpcHandler {
         
         // Invalide JSONRPC 
         if (!node.has("jsonrpc") || !node.has("method")) {
-            log.info("Invalide JSONRPC: "+node.toString());
+            log.error("Invalide JSONRPC: "+node.toString());
             return createErrorResponse("2.0", id, 7001, "Check your json content.", null);
         }
         methodName = node.getString("method");
         params = node.getJSONArray("params");
 
-        log.info("Json: " + jsonrpcVesion + " " + methodName + " " + id + " "
-                + params);
+//        log.info("Json: " + jsonrpcVesion + " " + methodName + " " + id + " "
+//                + params);
 
         int paramCount = (params != null) ? params.size() : 0;
 
@@ -229,14 +241,12 @@ public class JsonrpcHandler {
     private JSONObject invoke(Method m, List<Object> params)
             throws IllegalAccessException, IllegalArgumentException,
             InvocationTargetException {
-        log.info("In invoke");
         // convert the parameters
         Object[] convertedParams = new Object[params.size()];
         Type[] parameterTypes = m.getGenericParameterTypes();
         for (int i = 0; i < parameterTypes.length; i++) {
             if (params.get(i).toString() == "null") {
                 convertedParams[i] = null;
-                log.info("null " + i);
                 continue;
             }
             convertedParams[i] = params.get(i).toString();
@@ -246,7 +256,6 @@ public class JsonrpcHandler {
         }
 
         // invoke the method
-        log.info("Invoking the method...");
         Object result;
         result = m.invoke(handler, convertedParams);
         return (m.getGenericReturnType() != null) ? (JSONObject) result : null;

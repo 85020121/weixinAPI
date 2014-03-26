@@ -51,7 +51,7 @@ public class AccountDaoImpl extends HibernateDaoSupport implements AccountDao {
             log.info("Account size: "+list.size());
             return list;
         } catch (Exception e) {
-            log.info("Get account list failed, caused by: "+e.toString());
+            log.error("Get account list failed, caused by: "+e.toString());
             e.printStackTrace();
         }
         return new ArrayList();

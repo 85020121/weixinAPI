@@ -117,4 +117,13 @@ public class WeChatTest {
         String dir = MessageManager.getDirName("image", "bowen");
         FTPEngine.uploadFile(ftp, dir, filename, in);
     }
+    
+    @Test
+    public void postTest(){
+        String request = API.UPLOAD_IMAGE_REQUEST_URL.replace("ACCESS_TOKEN", "k9vE8s1gSnfkK0U_rkr7p6YmeNZQVeXT749jGqJaD7DfwgqysNRNYqwjb9s6GwGOtpS6bLHuIFrbfTasECLkwfij_Uy7YPGraDnuAR1WJwNJLPMFQSAoqHsHqHc6sPznHdmzQ9ZaOsZo2SQv3zBDtw");
+        InputStream in = WeChatHttpsUtil.httpGetInputStream("http://10.4.62.41:8370/image/send/10013/2014-03-24/16-36-55_9450853.jpg", "image");
+        JSONObject jo = WeChatHttpsUtil.httpPostFile(request, in);
+        System.out.println("Res:"+jo.toString());
+        
+    }
 }

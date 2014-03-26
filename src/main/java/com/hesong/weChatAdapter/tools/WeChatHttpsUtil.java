@@ -1,6 +1,11 @@
 package com.hesong.weChatAdapter.tools;
 
 import java.io.BufferedReader;
+import java.io.DataInputStream;
+import java.io.DataOutputStream;
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.OutputStream;
@@ -18,7 +23,9 @@ import javax.net.ssl.TrustManager;
 import net.sf.json.JSONObject;
 
 import org.apache.log4j.Logger;
+import org.springframework.web.multipart.MultipartFile;
 
+import com.hesong.ftp.AttachmentPuller;
 import com.hesong.weChatAdapter.model.AccessToken;
 
 public class WeChatHttpsUtil {
@@ -92,7 +99,6 @@ public class WeChatHttpsUtil {
         StringBuffer buffer = new StringBuffer();
         InputStream in = null;
         try {
-            log.info("Post content: "+outputStr);
             URL url = new URL(requestUrl);
             URLConnection httpUrlConct = url.openConnection();
 
@@ -126,7 +132,7 @@ public class WeChatHttpsUtil {
 //                return getErrorMsg(8001, "Request refused.");
 //            }
         } catch(SocketTimeoutException se){
-            log.info("Connection time out.");
+            log.error("Connection time out.");
             return getErrorMsg(9001, "HTTP connection timeout.");
         }catch (Exception e) {
             e.printStackTrace();
@@ -148,10 +154,9 @@ public class WeChatHttpsUtil {
             connection.setRequestMethod("GET");
             connection.setRequestProperty("Connection", "Keep-Alive");
             //connection.setRequestProperty("Content-type", contentType);
-            log.info("headers: "+connection.getHeaderFields().toString());
             return connection.getInputStream();
         } catch (Exception e) {
-            // TODO: handle exception
+            log.error("httpGetInputStream exception: "+e.toString());
             return null;
         }
     }
@@ -167,7 +172,6 @@ public class WeChatHttpsUtil {
             try {
                 token = new AccessToken(appid, appSecret,
                         jo.getString("access_token"), jo.getInt("expires_in"));
-                log.info(token.toString());
             } catch (Exception e) {
                 log.error("Get token failed, errorcode:{"
                         + jo.getInt("errcode") + "} errormsg:{"
@@ -177,6 +181,69 @@ public class WeChatHttpsUtil {
         }
 
         return token;
+    }
+    
+    public static JSONObject httpPostFile(String requestUrl, InputStream input) {
+        StringBuffer buffer = new StringBuffer();
+        InputStream in = null;
+        try {
+            URL url = new URL(requestUrl);
+            HttpURLConnection httpUrlConct = (HttpURLConnection)url.openConnection();
+
+            httpUrlConct.setDoInput(true);
+            httpUrlConct.setDoOutput(true);
+            httpUrlConct.setUseCaches(false);
+            httpUrlConct.setReadTimeout(0); // 0 to infini
+            httpUrlConct.setRequestMethod("POST");
+            httpUrlConct.setRequestProperty("Connection", "Keep-Alive");
+            
+            String BOUNDARY = "----------" + System.currentTimeMillis();
+            httpUrlConct.setRequestProperty("Content-Type", "multipart/form-data; boundary="+ BOUNDARY);
+            
+            StringBuilder sb = new StringBuilder();
+            sb.append("--"); // 必须多两道线
+            sb.append(BOUNDARY);
+            sb.append("\r\n");
+            sb.append("Content-Disposition: form-data;name=\"file\";filename=\""
+            + "aa.jpg" + "\"\r\n");
+            sb.append("Content-Type:application/octet-stream\r\n\r\n");
+
+            byte[] head = sb.toString().getBytes("utf-8");
+            
+            OutputStream out = httpUrlConct.getOutputStream();
+            out.write(head);
+            int bytes = 0;
+            byte[] bufferOut = new byte[1024];
+            while ((bytes = input.read(bufferOut)) != -1) {
+            out.write(bufferOut, 0, bytes);
+            }
+            input.close();
+            byte[] foot = ("\r\n--" + BOUNDARY + "--\r\n").getBytes("utf-8");// 定义最后数据分隔线
+            out.write(foot);
+            out.flush();
+            out.close();
+            in = httpUrlConct.getInputStream();
+            
+            InputStreamReader inputReader = new InputStreamReader(in, "UTF-8");
+            BufferedReader bufferedReader = new BufferedReader(inputReader);
+
+            String str = null;
+            while ((str = bufferedReader.readLine()) != null) {
+                buffer.append(str);
+            }
+            bufferedReader.close();
+            inputReader.close();
+            
+            return JSONObject.fromObject(buffer.toString());
+        } catch(SocketTimeoutException se){
+            log.error("Connection time out.");
+            return getErrorMsg(9001, "HTTP connection timeout.");
+        }catch (Exception e) {
+            e.printStackTrace();
+            log.error("Http request error: " + e.toString());
+            return getErrorMsg(9009, "Http request error: " + e.toString());
+        }
+        
     }
     
     public static JSONObject getErrorMsg(int errcode, String errmsg) {

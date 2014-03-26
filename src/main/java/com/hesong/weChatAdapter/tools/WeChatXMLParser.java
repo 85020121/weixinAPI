@@ -14,6 +14,7 @@ import org.dom4j.DocumentException;
 import org.dom4j.Element;
 import org.dom4j.io.SAXReader;
 
+import com.hesong.weChatAdapter.context.ContextPreloader;
 import com.thoughtworks.xstream.XStream;
 import com.thoughtworks.xstream.core.util.QuickWriter;
 import com.thoughtworks.xstream.io.HierarchicalStreamWriter;
@@ -49,13 +50,13 @@ public class WeChatXMLParser {
     public static Map<String, String> parseXML(HttpServletRequest request)
             throws IOException, DocumentException {
         Map<String, String> messageMap = new HashMap<String, String>();
-
+        
         InputStream input = request.getInputStream();
 
         SAXReader reader = new SAXReader();
         Document doc = reader.read(input);
         Element root = doc.getRootElement();
-
+        ContextPreloader.ContextLog.info("Doc: "+doc.asXML());
         for (Element e : (List<Element>) root.elements()) {
             messageMap.put(e.getName(), e.getText());
         }

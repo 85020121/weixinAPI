@@ -28,10 +28,6 @@ public class MessageController {
 
     private static Logger log = Logger.getLogger(MessageController.class);
     
-    public void show(){
-        System.out.println("show");
-    }
-
     @RequestMapping(method = RequestMethod.GET)
     public void checkSignature(HttpServletRequest request,
             HttpServletResponse response) throws IOException {
@@ -59,7 +55,6 @@ public class MessageController {
             HttpServletResponse response) {
         // request.setCharacterEncoding("UTF-8");
         // response.setCharacterEncoding("UTF-8");
-        log.info("In receiveMessage...");
         
         try {
             PrintWriter out = response.getWriter();
@@ -70,7 +65,7 @@ public class MessageController {
             out = null;
 
         } catch (IOException | DocumentException e) {
-            log.info("HttpServletResponse getWriter() exception: "
+            log.error("HttpServletResponse getWriter() exception: "
                     + e.toString());
         }
 
