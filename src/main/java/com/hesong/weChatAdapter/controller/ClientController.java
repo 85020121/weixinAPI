@@ -58,13 +58,14 @@ public class ClientController {
     private final Map<String, Set<String>> roomList = new ConcurrentHashMap<String, Set<String>>();
 
 
+    //@ResponseBody
     @RequestMapping(value = "/{account}/login", method = RequestMethod.GET)
     public String login(@PathVariable String account, HttpSession session, HttpServletResponse response) {
         
-//        response.addCookie(new Cookie("MOCK_CLIENT_ID", account));
-//        session.setAttribute("MOCK_CLIENT_ID", account);
-//        roomList.put(account, new HashSet<String>());
-//        roomList.get(account).add("tmp");
+        response.addCookie(new Cookie("MOCK_CLIENT_ID", account));
+        session.setAttribute("MOCK_CLIENT_ID", account);
+        roomList.put(account, new HashSet<String>());
+        roomList.get(account).add("tmp");
         // JSONRPC PARAMS
         Map<String, Object> paramsList = new HashMap<String, Object>();
         paramsList.put("imtype", "weixin");
@@ -93,7 +94,7 @@ public class ClientController {
             JsonrpcHandlerRunner.loginAckRetQueue.remove(id);
             
             if (ret == null) {
-                log.error("NO LOGIN ACK RETURN.");
+                log.error("NO LOGIN ACK RETURN for account: "+account);
                 return "chatRoom";
             }
             if (ret.equals("OK")) {
@@ -144,7 +145,7 @@ public class ClientController {
             JsonrpcHandlerRunner.loginAckRetQueue.remove(id);
             
             if (ret == null) {
-                log.error("NO RELOGIN ACK RETURN.");
+                log.error("NO RELOGIN ACK RETURN for account: "+account);
                 return "failed";
             }
             if (ret.equals("OK")) {

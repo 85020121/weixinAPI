@@ -14,12 +14,33 @@ import com.hesong.weChatAdapter.model.AccessToken;
 import com.hesong.weChatAdapter.tools.API;
 import com.hesong.weChatAdapter.tools.WeChatHttpsUtil;
 
+/**
+ * 供JsonRPC调用的微信方法集
+ * 
+ * @author Bowen
+ * 
+ */
 public class WeChatMethodSet {
-    
+
     private static int TIMEOUT = 120000;
-    
+
     private static Logger log = Logger.getLogger(WeChatMethodSet.class);
-    
+
+    /**
+     * 发送维系客服消息
+     * 
+     * @param account
+     *            微信公共号，向虚拟客户端发送消息是该值可为null
+     * @param fromuser
+     *            消息发送方，向真实客户端发送消息时该值可为null
+     * @param touser
+     *            消息接收方，真实客户端的openID或者虚拟客户端ID
+     * @param room
+     *            接收消息的房间ID
+     * @param msgcontent
+     *            消息内容
+     * @return 消息发送状态回馈，该返回值为JSONObject，errcode为0时表示消息发送成功，反之查看错误消息errmsg
+     */
     public JSONObject SendImMessage(String account, String fromuser,
             String touser, String room, String msgcontent) {
         log.info("SendImMessage have been called, send: " + msgcontent);
@@ -28,7 +49,7 @@ public class WeChatMethodSet {
             return createErrorMsg(9922, "Check your json content: "
                     + msgcontent);
         }
-        
+
         // 给虚拟客户端发送消息
         if (account == null) {
             JSONObject tmp = new JSONObject();
@@ -37,13 +58,13 @@ public class WeChatMethodSet {
             String msgtype = null;
             if (jo.has("msgtype")) {
                 msgtype = jo.getString("msgtype");
-                JSONObject msgDetail = (JSONObject)jo.get(msgtype);
+                JSONObject msgDetail = (JSONObject) jo.get(msgtype);
                 if (msgtype.equals(API.TEXT_MESSAGE)) {
                     tmp.put("content", msgDetail.get("content"));
                 } else if (msgtype.equals(API.IMAGE_MESSAGE)) {
                     tmp.put("content", jo.getString("media_id"));
                 }
-            }else if (jo.has("MsgType")){
+            } else if (jo.has("MsgType")) {
                 msgtype = jo.getString("MsgType");
                 if (msgtype.equals("text")) {
                     tmp.put("content", jo.getString("Content"));
@@ -54,8 +75,10 @@ public class WeChatMethodSet {
                 }
             }
             tmp.put("msgtype", msgtype);
-            
-            JSONObject result = WeChatHttpsUtil.httpPostRequest(API.SEND_MESSAGE_REQUEST_URL.replace("TOUSER", touser), tmp.toString(), TIMEOUT);
+
+            JSONObject result = WeChatHttpsUtil.httpPostRequest(
+                    API.SEND_MESSAGE_REQUEST_URL.replace("TOUSER", touser),
+                    tmp.toString(), TIMEOUT);
             return result;
         }
 
@@ -64,24 +87,31 @@ public class WeChatMethodSet {
         String token = getAccessToken(account);
         if (token != null) {
             // Image message
-            if (jo.containsKey("msgtype") && jo.getString("msgtype").equals(API.IMAGE_MESSAGE)) {
+            if (jo.containsKey("msgtype")
+                    && jo.getString("msgtype").equals(API.IMAGE_MESSAGE)) {
                 JSONObject imageContent = jo.getJSONObject(API.IMAGE_MESSAGE);
                 String image_url = imageContent.getString("media_id");
-                image_url = API.FTP_HTTP_ADDRESS + image_url.replace("/weixin", "");
-                InputStream input = WeChatHttpsUtil.httpGetInputStream(image_url, "image");
-                
-                String postUrl = API.UPLOAD_IMAGE_REQUEST_URL.replace("ACCESS_TOKEN", token);
-                JSONObject mediaIDContent = WeChatHttpsUtil.httpPostFile(postUrl, input);
-                if(mediaIDContent.containsKey("media_id")){
-                    imageContent.put("media_id", mediaIDContent.getString("media_id"));
+                image_url = API.FTP_HTTP_ADDRESS
+                        + image_url.replace("/weixin", "");
+                InputStream input = WeChatHttpsUtil.httpGetInputStream(
+                        image_url, "image");
+
+                String postUrl = API.UPLOAD_IMAGE_REQUEST_URL.replace(
+                        "ACCESS_TOKEN", token);
+                JSONObject mediaIDContent = WeChatHttpsUtil.httpPostFile(
+                        postUrl, input);
+                if (mediaIDContent.containsKey("media_id")) {
+                    imageContent.put("media_id",
+                            mediaIDContent.getString("media_id"));
                     jo.put(API.IMAGE_MESSAGE, imageContent);
                     log.info("Send image msg: " + jo.toString());
                 } else {
-                    return createErrorMsg(mediaIDContent.getInt("errcode"), mediaIDContent.getString("errmsg"));
+                    return createErrorMsg(mediaIDContent.getInt("errcode"),
+                            mediaIDContent.getString("errmsg"));
                 }
-                
+
             }
-            
+
             return MessageManager.sendMessage(jo.toString(), token);
         } else {
             return createErrorMsg(9911, "Invalide WeChat account: " + account);
@@ -137,6 +167,17 @@ public class WeChatMethodSet {
     // return jo;
     // }
 
+    /**
+     * 微信公共号菜单管理
+     * 
+     * @param account
+     *            公共号ID
+     * @param action
+     *            创建菜单、读取菜单和删除菜单三个动作，对应值为create、get和delete
+     * @param menucontent
+     *            菜单内容，动作为取回菜单和删除菜单时该值可为null
+     * @return 对应各个动作的返回值
+     */
     public JSONObject ManageMenu(String account, String action,
             String menucontent) {
         String token = getAccessToken(account);
@@ -146,6 +187,24 @@ public class WeChatMethodSet {
         return MessageManager.manageMenu(token, action, menucontent);
     }
 
+    /**
+     * 邀请虚拟客户端加入会话房间
+     * 
+     * @param account
+     * @param from_user
+     *            邀请方
+     * @param room_id
+     *            房间ID
+     * @param to_user
+     *            被邀请方，虚拟客户端账号
+     * @param txt
+     *            邀请消息，可为null
+     * @param data
+     * @param expire
+     *            邀请超时时间
+     * @param option
+     * @return
+     */
     public JSONObject Invited(String account, String from_user, String room_id,
             String to_user, String txt, String data, String expire,
             String option) {
@@ -169,11 +228,25 @@ public class WeChatMethodSet {
         post.put("toUser", toUser);
         post.put("roomId", room_id);
         int timeout = Integer.parseInt(expire);
-        JSONObject response = WeChatHttpsUtil.httpPostRequest(API.INVITE_REQUEST_URL.replace("ACCOUNT", toUser), post.toString(), timeout);
+        JSONObject response = WeChatHttpsUtil.httpPostRequest(
+                API.INVITE_REQUEST_URL.replace("ACCOUNT", toUser),
+                post.toString(), timeout);
         return response;
     }
-    
-    public JSONObject EnteredRoom(String to_account, String to_user, String cause_account, String cause_user, String room_id, String txt){
+
+    /**
+     * 提示虚拟客户端已被加入会话房间
+     * 
+     * @param to_account
+     * @param to_user
+     * @param cause_account
+     * @param cause_user
+     * @param room_id
+     * @param txt
+     * @return
+     */
+    public JSONObject EnteredRoom(String to_account, String to_user,
+            String cause_account, String cause_user, String room_id, String txt) {
         log.info("EnteredRoom have been called.");
         String toUser = null;
         try {
@@ -192,12 +265,15 @@ public class WeChatMethodSet {
         JSONObject post = new JSONObject();
         post.put("roomId", room_id);
         post.put("sender", causeUser);
-        JSONObject response = WeChatHttpsUtil.httpPostRequest(API.ENTER_ROOM_REQUEST_URL.replace("ACCOUNT", toUser), post.toString(), 0);
+        JSONObject response = WeChatHttpsUtil.httpPostRequest(
+                API.ENTER_ROOM_REQUEST_URL.replace("ACCOUNT", toUser),
+                post.toString(), 0);
         return response;
     }
-    
-    public JSONObject ExitedRoom(String to_account, String to_user, String cause_account, String cause_user, String room_id, String txt){
-        log.info("ExitedRoom have been called, room: "+room_id);
+
+    public JSONObject ExitedRoom(String to_account, String to_user,
+            String cause_account, String cause_user, String room_id, String txt) {
+        log.info("ExitedRoom have been called, room: " + room_id);
         String toUser = null;
         try {
             JSONObject tmp = getJsonContent(to_user);
@@ -215,12 +291,24 @@ public class WeChatMethodSet {
         JSONObject post = new JSONObject();
         post.put("roomId", room_id);
         post.put("sender", causeUser);
-        JSONObject response = WeChatHttpsUtil.httpPostRequest(API.EXIT_ROOM_REQUEST_URL.replace("ACCOUNT", toUser), post.toString(), 0);
+        JSONObject response = WeChatHttpsUtil.httpPostRequest(
+                API.EXIT_ROOM_REQUEST_URL.replace("ACCOUNT", toUser),
+                post.toString(), 0);
         return response;
     }
-    
-    public JSONObject RoomDisposed(String to_account, String to_user, String room_id, String txt) {
-        log.info("RoomDisposed have been called, room: "+room_id);
+
+    /**
+     * 提示虚拟客户端房间被解散
+     * 
+     * @param to_account
+     * @param to_user
+     * @param room_id
+     * @param txt
+     * @return
+     */
+    public JSONObject RoomDisposed(String to_account, String to_user,
+            String room_id, String txt) {
+        log.info("RoomDisposed have been called, room: " + room_id);
         String toUser = null;
         try {
             JSONObject tmp = getJsonContent(to_user);
@@ -230,18 +318,26 @@ public class WeChatMethodSet {
         }
         JSONObject post = new JSONObject();
         post.put("roomId", room_id);
-        JSONObject response = WeChatHttpsUtil.httpPostRequest(API.DISPOSE_ROOM_REQUEST_URL.replace("ACCOUNT", toUser), post.toString(), 0);
+        JSONObject response = WeChatHttpsUtil.httpPostRequest(
+                API.DISPOSE_ROOM_REQUEST_URL.replace("ACCOUNT", toUser),
+                post.toString(), 0);
         return response;
     }
 
-
     private JSONObject createErrorMsg(int errcode, String errmsg) {
-        JSONObject jo = new JSONObject(); 
+        JSONObject jo = new JSONObject();
         jo.put("errcode", errcode);
         jo.put("errmsg", errmsg);
         return jo;
     }
 
+    /**
+     * 取回ACCESS TOKEN
+     * 
+     * @param account
+     *            微信公共号
+     * @return ACCESS TOKEN
+     */
     public static String getAccessToken(String account) {
         AccessToken ac = ContextPreloader.Account_Map.get(account);
         if (ac == null) {
@@ -262,8 +358,9 @@ public class WeChatMethodSet {
             return null;
         }
     }
-    
-    public static JSONObject createJsonrpcRequest(String method, String id, Map<String, Object> paramsList){
+
+    public static JSONObject createJsonrpcRequest(String method, String id,
+            Map<String, Object> paramsList) {
         JSONObject jsonrpc = new JSONObject();
         jsonrpc.put("jsonrpc", "2.0");
         jsonrpc.put("method", method);

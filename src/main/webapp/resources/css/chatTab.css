@@ -349,9 +349,10 @@ background: url(../images/button_chat1832d7.png) no-repeat 0 0;
 text-decoration: none;
 }
 
-.inputArea .attach a.file:link, .chatPanel .inputArea .attach a.file:visited {
-background-position: 0px -34px;
-}
+.inputArea .attach a.file:link, 
+.inputArea .attach a.file:visited { background-position:0px -34px;}
+.inputArea .attach a.file:hover {background-position: -31px -34px;}
+.inputArea .attach a.file:active { background-position:-64px -34px;}
 
 
 .inputArea .attach a.expression:link,

@@ -61,9 +61,8 @@ public class AccountDaoImpl extends HibernateDaoSupport implements AccountDao {
     @SuppressWarnings("rawtypes")
     @Override
     public List findByAcctype(String acctype) {
-        List list = getHibernateTemplate().find(
-                "from Account a where a.acctype=?", acctype);
-        return list.size() > 0 ? list : null;
+            List list = getHibernateTemplate().find(
+                    "from Account a where a.acctype=?", acctype);
+            return list.size() > 0 ? list : null;
     }
-
 }

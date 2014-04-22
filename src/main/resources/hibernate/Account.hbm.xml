@@ -3,8 +3,8 @@
 "http://hibernate.sourceforge.net/hibernate-mapping-3.0.dtd">
 
 <hibernate-mapping>
-	<class name="com.hesong.weChatAdapter.account.Account" table="cc_mgr_t_imacc"
-		catalog="hssmart">
+     <class name="com.hesong.weChatAdapter.account.Account" table="cc_mgr_t_imacc"
+        catalog="hssmart">
 
 		<id name="id" type="string">
 			<column name="id" length="50" not-null="true" />

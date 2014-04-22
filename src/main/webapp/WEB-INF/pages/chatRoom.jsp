@@ -396,7 +396,7 @@
 		//window.onbeforeunload = exitRoom;
 		enterChatRoom();
 		dojo.parser.parse();
-        //createRoomTab("tmp");
+        createRoomTab("tmp");
         dojo.aspect.after(chatboardTab, "selectChild", function (event) {
             console.log("You selected ", chatboardTab.selectedChildWidget.id);
             dijit.byId(chatboardTab.selectedChildWidget.id).controlButton.attr("style", "color: black;");

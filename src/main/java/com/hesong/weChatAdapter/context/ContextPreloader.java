@@ -42,60 +42,93 @@ public class ContextPreloader extends HttpServlet{
     public static int srctClientId;
     
     static{
+
         ApplicationContext ctx = AppContext.getApplicationContext();
         File f = new File(getSettingFilePath(ctx));
-        Map<String, String> setting = null;
+        Map<String, String> smartbus_setting = null;
+        Map<String, String> ftp_setting = null;
         if (f.exists()){
             SAXReader reader = new SAXReader();
-            setting = new HashMap<String, String>();
+            smartbus_setting = new HashMap<String, String>();
+            ftp_setting = new HashMap<String, String>();
             try {
+                
                 Document document = reader.read(f);
                 Element rootElmt = document.getRootElement();
-                setting.put("host", rootElmt.elementText("host"));
-                setting.put("port", rootElmt.elementText("port"));
-                setting.put("unitid", rootElmt.elementText("unitid"));
-                setting.put("clientid", rootElmt.elementText("clientid"));
-                setting.put("destunitid", rootElmt.elementText("destunitid"));
-                setting.put("destclientid", rootElmt.elementText("destclientid"));
-                ContextLog.info("Setting: "+setting.toString());
+                
+               Element smartbusElmt = rootElmt.element("smartbus");
+                smartbus_setting.put("host", smartbusElmt.elementText("host"));
+                smartbus_setting.put("port", smartbusElmt.elementText("port"));
+                smartbus_setting.put("unitid", smartbusElmt.elementText("unitid"));
+                smartbus_setting.put("clientid", smartbusElmt.elementText("clientid"));
+                smartbus_setting.put("destunitid", smartbusElmt.elementText("destunitid"));
+                smartbus_setting.put("destclientid", smartbusElmt.elementText("destclientid"));
+                ContextLog.info("Smartbus setting: "+smartbus_setting.toString());
+                
+                Element ftpElmt = rootElmt.element("ftp");
+                ftp_setting.put("host", ftpElmt.elementText("host"));
+                ftp_setting.put("username", ftpElmt.elementText("username"));
+                ftp_setting.put("password", ftpElmt.elementText("password"));
+                ContextLog.info("FTP setting: "+ftp_setting.toString());
+
             } catch (Exception e) {
-                setting = null;
+                smartbus_setting = null;
                 e.printStackTrace();
             }
-        }
-        if (setting != null) {
-            srcUnitId = Byte.parseByte(setting.get("unitid"));
-            srctClientId = Byte.parseByte(setting.get("clientid"));
-            SmartbusExecutor.execute(Byte.parseByte(setting.get("unitid")), Byte.parseByte(setting.get("clientid")), setting.get("host"), Short.parseShort(setting.get("port")));
-            destUnitId = Integer.parseInt(setting.get("destunitid"));
-            destClientId = Integer.parseInt(setting.get("destclientid"));
         } else {
+            ContextLog.error("Setting file not exist.");
+        }
+        
+        // Set smartbus connection
+        if (smartbus_setting != null) {
+            srcUnitId = Byte.parseByte(smartbus_setting.get("unitid"));
+            srctClientId = Byte.parseByte(smartbus_setting.get("clientid"));
+            //SmartbusExecutor.execute(Byte.parseByte(smartbus_setting.get("unitid")), Byte.parseByte(smartbus_setting.get("clientid")), smartbus_setting.get("host"), Short.parseShort(smartbus_setting.get("port")));
+            destUnitId = Integer.parseInt(smartbus_setting.get("destunitid"));
+            destClientId = Integer.parseInt(smartbus_setting.get("destclientid"));
+        } else {
+            ContextLog.info("Default smartbus.");
             SmartbusExecutor.execute((byte)33, (byte)33, "10.4.62.45", (short)8089);
             destUnitId = 0;
             destClientId = 14;
         }
+        
         AccountBo accountBo = (AccountBo) ctx.getBean("accountBo");
         @SuppressWarnings("unchecked")
         List<Account> list = (List<Account>) accountBo.findByAcctype(API.TOKEN);
-        for (Account account : list) {
-            try {
-                JSONObject jo = JSONObject.fromObject(account.getAccdata());
-                Account_Map.put(account.getAccname(), WeChatHttpsUtil.getAccessToken(jo.getString("appid"), jo.getString("appsecret")));
-            } catch (Exception e) {
-                continue;
+
+        if (list != null) {
+            for (Account account : list) {
+                try {
+                    JSONObject jo = JSONObject.fromObject(account.getAccdata());
+                    Account_Map.put(account.getAccname(), WeChatHttpsUtil.getAccessToken(jo.getString("appid"), jo.getString("appsecret")));
+                } catch (Exception e) {
+                    continue;
+                }
+                
             }
-            
+            ContextLog.info("Account_Map:"+Account_Map.toString());
+            try {
+                new UpdateAccessTokenRunner().task();
+            } catch (IOException | SchedulerException e) {
+                ContextLog.error(e.toString());
+            }
+        } else {
+            ContextLog.error("No account object present in database.");
         }
-        ContextLog.info("Account_Map:"+Account_Map.toString());
+
+        // Init default FTP connection
         try {
-            new UpdateAccessTokenRunner().task();
-        } catch (IOException | SchedulerException e) {
-            ContextLog.error(e.toString());
-        }
-        
-        try {
-            FTPConnectionFactory.initDefualtFTPclientConnection("10.4.62.41", 21,
-                    "Administrator", "Ky6241");
+            if (ftp_setting != null) {
+                FTPConnectionFactory.initDefualtFTPclientConnection(
+                        ftp_setting.get("host"), 21,
+                        ftp_setting.get("username"),
+                        ftp_setting.get("password"));
+            } else {
+                ContextLog.info("Default ftp.");
+                FTPConnectionFactory.initDefualtFTPclientConnection(
+                        "10.4.62.41", 21, "Administrator", "Ky6241");
+            }
         } catch (IOException e) {
             // TODO Auto-generated catch block
             e.printStackTrace();
@@ -113,7 +146,7 @@ public class ContextPreloader extends HttpServlet{
             return null;
         }
         // fileName = fileName + "\\WEB-INF\\classes\\properties\\setting.xml";
-        fileName = fileName + "\\setting.xml";
+        fileName = fileName + "/setting.xml";
         return fileName;
     }
 

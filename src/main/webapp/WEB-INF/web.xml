@@ -56,5 +56,9 @@
       org.springframework.web.context.ContextLoaderListener
     </listener-class>
   </listener>
+  
+  <listener> 
+   <listener-class>com.hesong.weChatAdapter.context.ContextListener</listener-class> 
+  </listener> 
 
 </web-app>

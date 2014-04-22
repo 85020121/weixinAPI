@@ -1,11 +1,6 @@
 package com.hesong.weChatAdapter.tools;
 
 import java.io.BufferedReader;
-import java.io.DataInputStream;
-import java.io.DataOutputStream;
-import java.io.File;
-import java.io.FileInputStream;
-import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.OutputStream;
@@ -23,9 +18,6 @@ import javax.net.ssl.TrustManager;
 import net.sf.json.JSONObject;
 
 import org.apache.log4j.Logger;
-import org.springframework.web.multipart.MultipartFile;
-
-import com.hesong.ftp.AttachmentPuller;
 import com.hesong.weChatAdapter.model.AccessToken;
 
 public class WeChatHttpsUtil {

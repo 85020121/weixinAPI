@@ -2,21 +2,24 @@ package weChatAdapter;
 
 import static org.junit.Assert.*;
 
+import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.OutputStream;
 import java.util.Date;
 
+import net.coobird.thumbnailator.Thumbnails;
 import net.sf.json.JSONObject;
 
 import org.apache.commons.net.ftp.FTPClient;
 import org.junit.Test;
 
+import com.hesong.ftp.AttachmentPuller;
 import com.hesong.ftp.FTPConnectionFactory;
 import com.hesong.ftp.FTPEngine;
 import com.hesong.jsonrpc.JsonrpcHandler;
 import com.hesong.jsonrpc.WeChatMethodSet;
 import com.hesong.weChatAdapter.manager.MessageManager;
-import com.hesong.weChatAdapter.message.request.TextMessage;
 import com.hesong.weChatAdapter.tools.API;
 import com.hesong.weChatAdapter.tools.SignatureChecker;
 import com.hesong.weChatAdapter.tools.WeChatHttpsUtil;
@@ -38,19 +41,6 @@ public class WeChatTest {
 
     }
 
-    @Test
-    public void xmlTest() {
-        TextMessage msg = new TextMessage();
-        msg.setContent("Test");
-        msg.setCreateTime(new Date().getTime());
-        msg.setFromUserName("asfas");
-        msg.setMsgId((long) 112233);
-        msg.setMsgType("text");
-        msg.setToUserName("vvvvv");
-
-        WeChatXMLParser.xstream.alias("xml", msg.getClass());
-        System.out.println(WeChatXMLParser.xstream.toXML(msg));
-    }
 
     @Test
     public void sendMsgTest() {
@@ -125,5 +115,27 @@ public class WeChatTest {
         JSONObject jo = WeChatHttpsUtil.httpPostFile(request, in);
         System.out.println("Res:"+jo.toString());
         
+    }
+    
+    @Test
+    public void thumbnailTest() throws IOException{
+        File f = new File("D:\\test.JPG");
+        System.out.println("Length : "+f.length());
+        FTPClient ftp = FTPConnectionFactory.getFTPClientConnection("127.0.0.1", 21, "bowen",
+              "waiwai");
+        ftp.changeToParentDirectory();
+        float scale = 120000f/f.length();
+        OutputStream output = ftp.storeFileStream("/test.jpg");
+
+        try {
+            Thumbnails.of(f).scale(0.9).toOutputStream(output);
+        } catch (IOException e) {
+            // TODO Auto-generated catch block
+            e.printStackTrace();
+        }
+//        if (!ftp.completePendingCommand()) {
+//            System.out.println("File transfer failed");
+//        }
+
     }
 }

@@ -71,10 +71,6 @@ public class FTPEngine {
 
         if (!ftp.completePendingCommand()) {
             FTPLogger.error("File transfer failed, file name: "+filename);
-            // TO DO
-            // ftp.logout();
-            // ftp.disconnect();
-            // System.exit(1);
             return false;
         }
         return true;
