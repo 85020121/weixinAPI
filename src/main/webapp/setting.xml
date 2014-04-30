@@ -1,16 +1,16 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <setting>
 	<smartbus>
-		<host>10.4.62.45</host>
+		<host>183.61.81.71</host>
 		<port>8089</port>
-		<unitid>33</unitid>
-		<clientid>33</clientid>
+		<unitid>30</unitid>
+		<clientid>30</clientid>
 		<destunitid>0</destunitid>
-		<destclientid>10</destclientid>
+		<destclientid>14</destclientid>
 	</smartbus>
 	<ftp>
-	    <host>127.0.0.1</host>
-	    <username>bowen</username>
-	    <password>waiwai</password>
+	    <host>183.61.81.71</host>
+	    <username>root</username>
+	    <password>3*)(@faso</password>
 	</ftp>
 </setting>

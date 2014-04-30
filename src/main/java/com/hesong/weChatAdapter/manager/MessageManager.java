@@ -106,6 +106,7 @@ public class MessageManager {
         jo.put("params", paramsList);
         PackInfo pack = new PackInfo((byte)ContextPreloader.destUnitId, (byte)ContextPreloader.destClientId, (byte)ContextPreloader.srcUnitId, (byte)ContextPreloader.srctClientId, jo.toString());
         try {
+            log.info("Put pack to SmartbusExecutor.responseQueue");
             SmartbusExecutor.responseQueue.put(pack);
         } catch (InterruptedException e) {
             log.error("Puc packinfo into response queue failed: " + e.toString());
@@ -177,7 +178,7 @@ public class MessageManager {
     
     public static String getDirName(String type, String account) {
         String attachmtDirName = String.format(
-                "/weixin/%s/%s/%s/",
+                "weixin/%s/%s/%s/",
                 type, account, sdf_today.format(new Date()));
         return attachmtDirName;
     }
@@ -189,6 +190,7 @@ public class MessageManager {
     
     private static boolean uploadMediaFile(Map<String, String> message, String filename, String dirPath, String type){
         try {
+            log.info("Ftp path: "+dirPath);
             String mediaId = message.get(API.MESSAGE_MEDIA_ID_TAG);
             String account = message.get(API.MESSAGE_TO_TAG);
             FTPClient ftp = FTPConnectionFactory.getDefaultFTPConnection();

@@ -60,6 +60,6 @@ public class API {
     public static String CONTENT_TYPE_IMAGE = "image/*";
     public static String CONTENT_TYPE_VOICE = "audio/amr";
 
-    public static String FTP_HTTP_ADDRESS = "http://10.4.62.41:8370";
+    public static String FTP_HTTP_ADDRESS = "http://183.61.81.71/..";
     
 }

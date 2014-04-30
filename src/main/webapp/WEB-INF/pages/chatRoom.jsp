@@ -211,11 +211,11 @@
                 } else {
                 	var messageContentDiv;
                 	if(data.msgtype == "image") {
-                		messageContentDiv = "<img width='240' src='http://10.4.62.41:8370"+data.content.replace("/weixin","")+"' />";
+                		messageContentDiv = "<img width='240' src='ftp://root:3*)(%40faso@183.61.81.71/../"+data.content.replace("/weixin","")+"' />";
                 	} else if(data.msgtype == "voice"){
                 		var d = new Date();
                 		var uid = d.getMinutes()+d.getSeconds();
-                		messageContentDiv = "<input type='button' value='播放语音' onclick='return play(\"ftp://Administrator:Ky6241@10.4.62.41"+data.content+"\");'/>";
+                		messageContentDiv = "<input type='button' value='播放语音' onclick='return play(\"ftp://root:3*)(%40faso@183.61.81.71/../"+data.content+"\");'/>";
                 	} else {
                 		messageContentDiv = parse_content(data.content);
                 	}
@@ -384,7 +384,7 @@
 	          if(response_data=="Failed"){
 	        	  dojo.byId(guid).innerHTML = "<span style='color:red'>发送图片失败</span>";
 	          } else {
-	        	  dojo.byId(guid).innerHTML = "<img width='240' src='http://10.4.62.41:8370"+response_data.replace("/weixin","")+"' />";
+	        	  dojo.byId(guid).innerHTML = "<img width='240' src='ftp://root:3*)(%40faso@183.61.81.71/../"+response_data.replace("/weixin","")+"' />";
 	          }
 	        }
 	     });

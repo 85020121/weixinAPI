@@ -36,8 +36,8 @@ public class WeChatTest {
 
     @Test
     public void getTokenTest() {
-        System.out.println(WeChatHttpsUtil.getAccessToken(API.APPID,
-                API.APP_SECRET));
+        System.out.println(WeChatHttpsUtil.getAccessToken("wx735e58e85eb3614a",
+                "d21d943d536c383c9e60053ff15996c2"));
 
     }
 
@@ -51,12 +51,16 @@ public class WeChatTest {
 
     @Test
     public void manageMenuTest() {
-        JsonrpcHandler handler = new JsonrpcHandler(new WeChatMethodSet());
-        String get = "{\"jsonrpc\": \"2.0\", \"method\": \"ManageMenu\", \"params\": [\"account\",\"get\", null], \"id\": 2}";
-        String create = "{\"jsonrpc\": \"2.0\", \"method\": \"ManageMenu\", \"params\": [\"account\",\"create\",{ \"button\":[ { \"type\":\"click\", \"name\":\"今日歌曲\", \"key\":\"V1001_TODAY_MUSIC\" }, { \"type\":\"click\", \"name\":\"歌手简介\", \"key\":\"V1001_TODAY_SINGER\" }, { \"name\":\"菜单\", \"sub_button\":[ { \"type\":\"view\", \"name\":\"搜索\", \"url\":\"http://www.soso.com/\" }, { \"type\":\"view\", \"name\":\"视频\", \"url\":\"http://v.qq.com/\" }, { \"type\":\"click\", \"name\":\"赞一下我们\", \"key\":\"V1001_GOOD\" }] }] } ], \"id\": 2}";
-        String delete = "{\"jsonrpc\": \"2.0\", \"method\": \"ManageMenu\", \"params\": [\"account\",\"delete\", null], \"id\": 2}";
-        System.out.println(handler.handle(create));
-        System.out.println(handler.handle(get));
+//        JsonrpcHandler handler = new JsonrpcHandler(new WeChatMethodSet());
+//        String get = "{\"jsonrpc\": \"2.0\", \"method\": \"ManageMenu\", \"params\": [\"account\",\"get\", null], \"id\": 2}";
+//        String create = "{\"jsonrpc\": \"2.0\", \"method\": \"ManageMenu\", \"params\": [\"account\",\"create\",{ \"button\":[ { \"type\":\"click\", \"name\":\"人工服务\", \"key\":\"RG_001\" }, { \"type\":\"click\", \"name\":\"歌手简介\", \"key\":\"V1001_TODAY_SINGER\" }, { \"name\":\"菜单\", \"sub_button\":[ { \"type\":\"view\", \"name\":\"搜索\", \"url\":\"http://www.soso.com/\" }, { \"type\":\"view\", \"name\":\"视频\", \"url\":\"http://v.qq.com/\" }, { \"type\":\"click\", \"name\":\"赞一下我们\", \"key\":\"V1001_GOOD\" }] }] } ], \"id\": 2}";
+//        String delete = "{\"jsonrpc\": \"2.0\", \"method\": \"ManageMenu\", \"params\": [\"account\",\"delete\", null], \"id\": 2}";
+        String token = "hun4a7id0VYP1aEKskh8nOLTfQEQcsgVbUMoCDDGJ5OMUwEKz-j2Ltz68iQ21afg";
+        //        System.out.println(handler.handle(create));
+//        System.out.println(handler.handle(get));
+        String create = "{ \"button\":[ { \"type\":\"click\", \"name\":\"人工服务\", \"key\":\"RG_001\" }, { \"type\":\"click\", \"name\":\"歌手简介\", \"key\":\"V1001_TODAY_SINGER\" }, { \"name\":\"菜单\", \"sub_button\":[ { \"type\":\"view\", \"name\":\"搜索\", \"url\":\"http://www.soso.com/\" }, { \"type\":\"view\", \"name\":\"视频\", \"url\":\"http://v.qq.com/\" }, { \"type\":\"click\", \"name\":\"赞一下我们\", \"key\":\"V1001_GOOD\" }] }] }";
+
+        System.out.println(MessageManager.manageMenu(token, "create", create));
     }
     
     @Test

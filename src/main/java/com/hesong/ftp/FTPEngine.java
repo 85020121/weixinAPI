@@ -66,7 +66,14 @@ public class FTPEngine {
         
         // FTP协议里面，规定文件名编码为iso-8859-1，所以目录名或文件名需要转码
         String isoFileName = new String(filename.getBytes("UTF-8"),"ISO-8859-1");
+        
+        FTPLogger.info("Current path: "+ftp.printWorkingDirectory());
+        FTPLogger.info("isoFileName: "+isoFileName);
         OutputStream output = ftp.storeFileStream(isoFileName);
+        if (output == null) {
+            FTPLogger.info("storeFileStream return null: "+ftp.getReplyCode());
+            return false;
+        }
         AttachmentPuller.copy(input, output);
 
         if (!ftp.completePendingCommand()) {

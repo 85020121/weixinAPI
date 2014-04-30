@@ -83,7 +83,7 @@ public class ContextPreloader extends HttpServlet{
         if (smartbus_setting != null) {
             srcUnitId = Byte.parseByte(smartbus_setting.get("unitid"));
             srctClientId = Byte.parseByte(smartbus_setting.get("clientid"));
-            //SmartbusExecutor.execute(Byte.parseByte(smartbus_setting.get("unitid")), Byte.parseByte(smartbus_setting.get("clientid")), smartbus_setting.get("host"), Short.parseShort(smartbus_setting.get("port")));
+            SmartbusExecutor.execute(Byte.parseByte(smartbus_setting.get("unitid")), Byte.parseByte(smartbus_setting.get("clientid")), smartbus_setting.get("host"), Short.parseShort(smartbus_setting.get("port")));
             destUnitId = Integer.parseInt(smartbus_setting.get("destunitid"));
             destClientId = Integer.parseInt(smartbus_setting.get("destclientid"));
         } else {

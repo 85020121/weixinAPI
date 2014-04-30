@@ -62,10 +62,10 @@ public class ClientController {
     @RequestMapping(value = "/{account}/login", method = RequestMethod.GET)
     public String login(@PathVariable String account, HttpSession session, HttpServletResponse response) {
         
-        response.addCookie(new Cookie("MOCK_CLIENT_ID", account));
-        session.setAttribute("MOCK_CLIENT_ID", account);
-        roomList.put(account, new HashSet<String>());
-        roomList.get(account).add("tmp");
+//        response.addCookie(new Cookie("MOCK_CLIENT_ID", account));
+//        session.setAttribute("MOCK_CLIENT_ID", account);
+//        roomList.put(account, new HashSet<String>());
+//        roomList.get(account).add("tmp");
         // JSONRPC PARAMS
         Map<String, Object> paramsList = new HashMap<String, Object>();
         paramsList.put("imtype", "weixin");
