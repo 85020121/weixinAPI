@@ -1,9 +1,7 @@
 package com.hesong.weixinAPI.core;
 
 import java.io.InputStream;
-import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.BlockingQueue;
@@ -14,7 +12,7 @@ import org.apache.log4j.Logger;
 
 import com.hesong.sugarCRM.SugarCRMCaller;
 import com.hesong.weixinAPI.context.ContextPreloader;
-import com.hesong.weixinAPI.model.Staff;
+import com.hesong.weixinAPI.model.StaffSessionInfo;
 import com.hesong.weixinAPI.tools.API;
 import com.hesong.weixinAPI.tools.WeChatHttpsUtil;
 
@@ -27,7 +25,7 @@ public class MessageRouter implements Runnable {
     private BlockingQueue<Map<String, String>> messageQueue;
     private BlockingQueue<Map<String, String>> messageToSendQueue;
     
-    public static List<Staff> activeStaffList = new ArrayList<Staff>();
+    public static Map<String, StaffSessionInfo> activeStaffMap = new HashMap<String, StaffSessionInfo>();
     
     public MessageRouter(BlockingQueue<Map<String, String>> messageQueue,
             BlockingQueue<Map<String, String>> messageToSendQueue) {
@@ -164,7 +162,33 @@ public class MessageRouter implements Runnable {
                             String url = "<a href=\"http://www.clouduc.cn/crm/mobile/weixin/prospectsDetail.php?openid="+ContextPreloader.clientAccount.getToUser() + "\" >点击查看用户信息</a>";
                             user_info.put("content", url);
                             jo.put(API.TEXT_MESSAGE, user_info);
-                        } else{
+                        } 
+                        // Check in
+                        else if (event_key.equals("CHECK_IN")) {
+                            String account = message.get(API.MESSAGE_TO_TAG);
+                            String openid = message.get(API.MESSAGE_FROM_TAG);
+                            StaffSessionInfo s = new StaffSessionInfo(account, openid);
+                            activeStaffMap.put(openid, s);
+                            log.info("Add staff to list: "+s.toString());
+                        } 
+                        // Check out
+                        else if (event_key.equals("CHECK_OUT")) {
+                            activeStaffMap.remove(message.get(API.MESSAGE_FROM_TAG));
+                            log.info("Remove staff id="+message.get(API.MESSAGE_FROM_TAG)+" from list.");
+                        } 
+                        // Staff Service
+                        else if (event_key.equals("STAFF_SERVICE")) {
+                            for (StaffSessionInfo s : activeStaffMap.values()) {
+                                JSONObject request = new JSONObject();
+                                request.put("msgtype", API.TEXT_MESSAGE);
+                                jo.put("touser", s.getOpenid());
+                                JSONObject content = new JSONObject();
+                                String url = "";
+                                content.put("content", url);
+                                String sToken = ContextPreloader.Account_Map.get(s.getAccount()).getToken();
+                            }
+                        } 
+                        else{
                             return;
                         }
                     } else {

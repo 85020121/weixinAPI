@@ -45,13 +45,13 @@ public class JobRunner {
         // Check Session Available Job
         String checkCronExpression = "0/20 * * * * ?";
         JobDetail session_job = JobBuilder
-                .newJob(UpdateAccessTokenJob.class)
+                .newJob(CheckSessionAvailableJob.class)
                 .withIdentity("CheckSessionAvailableJob",
                         CheckSessionAvailableJob.CHECK_SESSION_GROUP).build();
         Trigger session_trigger = newTrigger()
                 .withIdentity("CheckSessionAvailableJob",
                         CheckSessionAvailableJob.CHECK_SESSION_GROUP)
-                .withSchedule(cronSchedule(checkCronExpression)).forJob(job).build();
+                .withSchedule(cronSchedule(checkCronExpression)).forJob(session_job).build();
 
         scheduler = new StdSchedulerFactory("quartz.properties").getScheduler();
         // Add job to scheduler

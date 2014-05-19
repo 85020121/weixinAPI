@@ -24,5 +24,9 @@ public class Staff {
     public void setIdMap(Map<String, String> idMap) {
         this.idMap = idMap;
     }
+    @Override
+    public String toString() {
+        return "Staff [openChannel=" + openChannel + ", idMap=" + idMap + "]";
+    }
     
 }

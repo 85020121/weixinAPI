@@ -23,7 +23,7 @@ public class CheckSessionAvailableJob implements Job {
     @Override
     public void execute(JobExecutionContext context)
             throws JobExecutionException {
-
+        log.info("Check");
         for (String client_openid : sessionMap.keySet()) {
             StaffSessionInfo staff = sessionMap.get(client_openid);
             if ((new Date().getTime() - staff.getLastReceived().getTime()) > 20000) {
