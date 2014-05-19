@@ -1,0 +1,8 @@
+bin/*
+target/*
+.project
+.classpath
+.settings/*
+doc/*
+*.log
+src/main/webapp/resources/*
