@@ -110,6 +110,17 @@ public class SugarCRMCaller {
         }
         return ret;
     }
+	
+	public boolean isKFOpenidBinded(String openid){
+        boolean ret = false;
+        String params = "{\"openid\":\""+openid+"\"}";
+        String json = call("isKFOpenidBinded",params);
+        JSONObject jsonObject = JSONObject.fromObject(json);
+        if(jsonObject.getBoolean("result")){
+            ret = true;
+        }
+        return ret;
+    }
 
 	/**
 	 * 构建一个{name:'weixin_c',value:'ogfGduA0yfPY_aET7do8GvE5Bm4w'}结构的json对像

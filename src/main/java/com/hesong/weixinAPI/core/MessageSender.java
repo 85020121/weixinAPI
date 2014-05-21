@@ -1,6 +1,5 @@
 package com.hesong.weixinAPI.core;
 
-import java.util.Map;
 import java.util.concurrent.BlockingQueue;
 
 import org.apache.log4j.Logger;
@@ -13,18 +12,18 @@ public class MessageSender implements Runnable {
     private static Logger log = Logger.getLogger(MessageSender.class);
     private static String SEND_MESSAGE_REQUEST_URL = "https://api.weixin.qq.com/cgi-bin/message/custom/send?access_token=";
 
-    private BlockingQueue<Map<String, String>> messageQueue;
+    private BlockingQueue<JSONObject> messageQueue;
     
-    public MessageSender(BlockingQueue<Map<String, String>> messageQueue) {
+    public MessageSender(BlockingQueue<JSONObject> messageQueue) {
         super();
         this.messageQueue = messageQueue;
     }
 
-    public BlockingQueue<Map<String, String>> getResponseQueue() {
+    public BlockingQueue<JSONObject> getResponseQueue() {
         return messageQueue;
     }
 
-    public void setResponseQueue(BlockingQueue<Map<String, String>> messageQueue) {
+    public void setResponseQueue(BlockingQueue<JSONObject> messageQueue) {
         this.messageQueue = messageQueue;
     }
 
@@ -33,13 +32,13 @@ public class MessageSender implements Runnable {
     public void run() {
         while(true){
             try {
-                Map<String, String> message = messageQueue.take();
+                JSONObject message = messageQueue.take();
                 log.info("Message to send: "+message.toString());
-                String access_token = (String)message.get("access_token");
-                String messageToSend = message.get("message");
+                String access_token = message.getString("access_token");
+                message.remove("access_token");
                 String request = SEND_MESSAGE_REQUEST_URL + access_token;
-                JSONObject ret = WeChatHttpsUtil.httpsRequest(request, "POST", messageToSend);
-                log.info("Send message ret: "+ret.toString());;
+                JSONObject ret = WeChatHttpsUtil.httpsRequest(request, "POST", message.toString());
+                log.info("Send message ret: "+ret.toString());
             } catch (Exception e) {
                 e.printStackTrace();
             }

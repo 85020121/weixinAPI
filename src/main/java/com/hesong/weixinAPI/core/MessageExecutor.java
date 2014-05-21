@@ -13,7 +13,7 @@ import org.apache.log4j.Logger;
 
 public class MessageExecutor {
     private static final int THREAD_POOL_SIZE = 10;
-    private static final int MAX_HANDLER_NUM = 10;
+    private static final int MAX_HANDLER_NUM = 6;
     private static ExecutorService pool = Executors
             .newFixedThreadPool(THREAD_POOL_SIZE);
     
@@ -21,7 +21,7 @@ public class MessageExecutor {
     
     public static BlockingQueue<Map<String, String>> messageQueue = new LinkedBlockingDeque<Map<String,String>>();
 
-    private static BlockingQueue<Map<String, String>> messageToSendQueue = new LinkedBlockingDeque<Map<String,String>>();
+    private static BlockingQueue<JSONObject> messageToSendQueue = new LinkedBlockingDeque<JSONObject>();
     public static BlockingQueue<JSONObject> groupMessagesQueue = new LinkedBlockingDeque<JSONObject>();
     public static BlockingQueue<JSONObject> activeMessagesQueue = new LinkedBlockingDeque<JSONObject>();
     
@@ -31,6 +31,8 @@ public class MessageExecutor {
             pool.execute(router);
             MessageSender sender = new MessageSender(messageToSendQueue);
             pool.execute(sender);
+        }
+        for (int i = 0; i < 2; i++) {
             GroupMessagesSender gourpSender = new GroupMessagesSender(groupMessagesQueue);
             ActiveMessagesSender activeSender = new ActiveMessagesSender(activeMessagesQueue);
             pool.execute(gourpSender);
