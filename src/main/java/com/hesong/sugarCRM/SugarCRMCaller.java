@@ -10,8 +10,8 @@ import net.sf.json.JSONArray;
 import net.sf.json.JSONObject;
 
 public class SugarCRMCaller {
-//    private String SUGAR_CRM_URL = "http://hesong.clouduc.cn/crm/service/v4/rest.php";
-    private String SUGAR_CRM_URL = "http://192.168.88.114/crm/service/v4/rest.php";
+    private String SUGAR_CRM_URL = "http://hesong.clouduc.cn/crm/service/v4/rest.php";
+//    private String SUGAR_CRM_URL = "http://192.168.88.114/crm/service/v4/rest.php";
 	
 	/**
 	 * 调用远程方法
@@ -98,6 +98,25 @@ public class SugarCRMCaller {
 		
 		return "0";
 	}
+	
+	/**
+     * 转换目标客户到潜在客户
+     * @param sessionid
+     * @param openid 目标客户的openid
+     * @return
+     */
+     public String convertProspectsToLeads(String sessionid,String openid){
+          boolean ret = false;
+          String params = "{\"session\":\""+sessionid+"\",\"$prospectsOpenid\":\""+openid+"\"}";
+          String json = call("convertProspectsToLeads",params);
+          JSONObject jsonObject = JSONObject.fromObject(json);
+          ret = jsonObject.getBoolean("success");
+          if(!ret)
+               return jsonObject.getString("msg");
+          else
+               return "success";
+         
+     }
 	
 	public boolean isOpenidBinded(String sessionid,String openid){
         boolean ret = false;
