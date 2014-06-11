@@ -1,32 +1,60 @@
 package com.hesong.weixinAPI.model;
 
-import java.util.HashMap;
-import java.util.Map;
+import java.util.List;
 
 public class Staff {
     
-    private int openChannel;
-    private Map<String, String> idMap;
-    public Staff() {
+    private String id;
+    private String name;
+    private String account;
+    private String work_num;
+    private List<StaffSessionInfo> sessionChannelList;
+    
+    
+    public Staff(String id, String name, String account, String work_num,
+            List<StaffSessionInfo> sessionChannelList) {
         super();
-        openChannel = 0;
-        idMap = new HashMap<String, String>();
+        this.id = id;
+        this.name = name;
+        this.account = account;
+        this.work_num = work_num;
+        this.sessionChannelList = sessionChannelList;
     }
-    public int getOpenChannel() {
-        return openChannel;
+    public String getId() {
+        return id;
     }
-    public void setOpenChannel(int openChannel) {
-        this.openChannel = openChannel;
+    public void setId(String id) {
+        this.id = id;
     }
-    public Map<String, String> getIdMap() {
-        return idMap;
+    public String getName() {
+        return name;
     }
-    public void setIdMap(Map<String, String> idMap) {
-        this.idMap = idMap;
+    public void setName(String name) {
+        this.name = name;
+    }
+    public String getAccount() {
+        return account;
+    }
+    public String getWork_num() {
+        return work_num;
+    }
+    public void setWork_num(String work_num) {
+        this.work_num = work_num;
+    }
+    public void setAccount(String account) {
+        this.account = account;
+    }
+    public List<StaffSessionInfo> getSessionChannelList() {
+        return sessionChannelList;
+    }
+    public void setSessionChannelList(List<StaffSessionInfo> sessionChannelList) {
+        this.sessionChannelList = sessionChannelList;
     }
     @Override
     public String toString() {
-        return "Staff [openChannel=" + openChannel + ", idMap=" + idMap + "]";
+        return "Staff [id=" + id + ", name=" + name + ", account=" + account
+                + ", work_num=" + work_num + ", sessionChannelList="
+                + sessionChannelList + "]";
     }
     
 }

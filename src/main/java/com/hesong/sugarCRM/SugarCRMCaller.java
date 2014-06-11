@@ -10,7 +10,7 @@ import net.sf.json.JSONArray;
 import net.sf.json.JSONObject;
 
 public class SugarCRMCaller {
-    private String SUGAR_CRM_URL = "http://hesong.clouduc.cn/crm/service/v4/rest.php";
+    private String SUGAR_CRM_URL = "http://www.clouduc.cn/crm/service/v4/rest.php";
 //    private String SUGAR_CRM_URL = "http://192.168.88.114/crm/service/v4/rest.php";
 	
 	/**

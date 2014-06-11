@@ -4,21 +4,38 @@ import java.util.Date;
 
 public class StaffSessionInfo {
 
+    private String session;
     private String account;
     private String openid;
-    private String staffid;
+    private String staffid; // Staff working num
+    private String name;
     private String client_openid;
     private String client_account;
     private String client_name;
     private boolean isBusy;
     private Date lastReceived;
-
-    public StaffSessionInfo(String account, String openid, String staffid) {
+    
+    public StaffSessionInfo(String account, String openid, String staffid,
+            String name) {
         super();
         this.account = account;
         this.openid = openid;
         this.staffid = staffid;
+        this.name = name;
         this.isBusy = false;
+    }
+    
+    public String getName() {
+        return name;
+    }
+    public void setName(String name) {
+        this.name = name;
+    }
+    public String getSession() {
+        return session;
+    }
+    public void setSession(String session) {
+        this.session = session;
     }
     public String getAccount() {
         return account;
@@ -69,11 +86,13 @@ public class StaffSessionInfo {
     public void setClient_name(String client_name) {
         this.client_name = client_name;
     }
+
     @Override
     public String toString() {
-        return "StaffSessionInfo [account=" + account + ", openid=" + openid
-                + ", staffid=" + staffid + ", client_openid=" + client_openid
-                + ", client_account=" + client_account + ", isBusy=" + isBusy
-                + ", lastReceived=" + lastReceived + "]";
+        return "StaffSessionInfo [session=" + session + ", account=" + account
+                + ", openid=" + openid + ", staffid=" + staffid
+                + ", client_openid=" + client_openid + ", client_account="
+                + client_account + ", client_name=" + client_name + ", isBusy="
+                + isBusy + ", lastReceived=" + lastReceived + "]";
     }
 }

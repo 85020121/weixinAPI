@@ -4,6 +4,7 @@ import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.UUID;
 
@@ -12,9 +13,9 @@ import net.sf.json.JSONObject;
 
 import org.apache.commons.net.ftp.FTPClient;
 import org.junit.Test;
-import org.omg.CORBA.DATA_CONVERSION;
 
 import com.hesong.ftp.FTPConnectionFactory;
+import com.hesong.sugarCRM.SugarCRMCaller;
 import com.hesong.weixinAPI.tools.API;
 import com.hesong.weixinAPI.tools.WeChatHttpsUtil;
 
@@ -63,5 +64,51 @@ public class WeChatTest {
             e.printStackTrace();
         }
         System.out.println(new Date().getTime() - d1.getTime());
+    }
+    
+    @Test
+    public void getQRcodeTest(){
+        String token = "YR-95efFKazBBttpfQD5Aiv4gqg7nR4VSfrUA1TwMWCYtMYbQXT2NJ9E2ClGkwF1fOoQK-i3pEEG-mPlG-Zkfw";
+        System.out.println(WeChatHttpsUtil.getQRCode(token, 1));
+    }
+    
+    @Test
+    public void recordTest(){
+        SimpleDateFormat time = new SimpleDateFormat(
+                "yyyy-MM-dd HH:mm:ss");
+        SugarCRMCaller crmCaller = new SugarCRMCaller();
+        String sessionid = crmCaller.login("admin",
+                "p@ssw0rd");
+        JSONObject session = new JSONObject();
+        session.put("session", "adasdasd121");
+        session.put("module_name", "chat_ChatHistory");
+        
+        JSONObject message = new JSONObject();
+        message.put("session_id", "testtttttt123");
+        message.put("sender_openid", "test");
+        message.put("sender_name", "test");
+        message.put("sender_type", "staff");
+        message.put("receiver_openid", "test");
+        message.put("receiver_name", "test");
+        message.put("receiver_type", "client");
+        message.put("content", "test");
+        message.put("time", time.format(new Date()));
+        message.put("message_type", "weixin");
+        
+        session.put("name_value_list", message);
+        
+        System.out.println(session.toString());
+        System.out.println(crmCaller.call("set_entry", session.toString()));
+    }
+    
+    @Test
+    public void sessionTest(){
+        SugarCRMCaller sc = new SugarCRMCaller();
+        String session = sc.login("admin",
+                "p@ssw0rd");
+        JSONObject rest = new JSONObject();
+        rest.put("session", "1234sadasd");
+        System.out.println(session);
+        System.out.println(sc.call("oauth_access", rest.toString()));
     }
 }

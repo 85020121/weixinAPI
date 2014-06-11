@@ -25,12 +25,14 @@ public class CheckSessionAvailableJob implements Job {
     public static ConcurrentMap<String, String> clientMap = new ConcurrentHashMap<String, String>();
     public static ConcurrentMap<String, StaffSessionInfo> sessionMap = new ConcurrentHashMap<String, StaffSessionInfo>();
     
+    private static long session_available_duration = 120000;
+    
     @Override
     public void execute(JobExecutionContext context)
             throws JobExecutionException {
         for (String client_openid : sessionMap.keySet()) {
             StaffSessionInfo staff = sessionMap.get(client_openid);
-            if (staff != null && (new Date().getTime() - staff.getLastReceived().getTime()) > 40000) {
+            if (staff != null && (new Date().getTime() - staff.getLastReceived().getTime()) > session_available_duration) {
                 log.info("Time out, remove client.");
                 
                 JSONObject message = new JSONObject();

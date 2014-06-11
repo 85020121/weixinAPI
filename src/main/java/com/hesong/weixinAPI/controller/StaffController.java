@@ -1,12 +1,19 @@
 package com.hesong.weixinAPI.controller;
 
+import java.util.ArrayList;
 import java.util.Date;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 
 import javax.servlet.http.HttpServletRequest;
 
+import net.sf.json.JSONArray;
 import net.sf.json.JSONObject;
+import net.sf.json.JSONSerializer;
 
 import org.apache.log4j.Logger;
+import org.codehaus.jackson.map.ObjectMapper;
 import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -16,6 +23,7 @@ import org.springframework.web.bind.annotation.ResponseBody;
 import com.hesong.weixinAPI.context.ContextPreloader;
 import com.hesong.weixinAPI.core.MessageRouter;
 import com.hesong.weixinAPI.job.CheckSessionAvailableJob;
+import com.hesong.weixinAPI.model.Staff;
 import com.hesong.weixinAPI.model.StaffSessionInfo;
 import com.hesong.weixinAPI.tools.WeChatHttpsUtil;
 
@@ -75,10 +83,10 @@ public class StaffController {
     
     @ResponseBody
     @RequestMapping(value = "/{openid}/checkin/{staffid}", method = RequestMethod.GET)
-    public int checkin(@PathVariable String openid, @PathVariable String staffid, HttpServletRequest request) {
+    public int checkin_old(@PathVariable String openid, @PathVariable String staffid, HttpServletRequest request) {
         log.info("Checked in: " + openid + " staff_id: " + staffid);
         String account = "gh_0221936c0c16";
-        StaffSessionInfo s = new StaffSessionInfo(account, openid, staffid);
+        StaffSessionInfo s = new StaffSessionInfo(account, openid, staffid, "");
         MessageRouter.activeStaffMap.put(openid, s);
         String text = "登入成功";
         String token = ContextPreloader.Account_Map.get(account).getToken();
@@ -98,5 +106,49 @@ public class StaffController {
         }
         log.info("Add staff to list: " + s.toString());
         return 200;
+    }
+    
+    @ResponseBody
+    @RequestMapping(value = "/{staff_uuid}/checkin", method = RequestMethod.GET)
+    public int checkin(@PathVariable String openid, @PathVariable String staff_uuid, HttpServletRequest request) {
+        log.info("Checked in staff_id: " + staff_uuid);
+        ObjectMapper mapper = new ObjectMapper();
+        try {
+            JSONObject staff_info = (JSONObject) JSONSerializer.toJSON(mapper
+                    .readValue(request.getInputStream(), Map.class));
+            String account = staff_info.getString("account");
+            
+            Map<String, Staff> staff_map = null;
+            if (MessageRouter.mulClientStaffMap.containsKey(account)) {
+                staff_map = MessageRouter.mulClientStaffMap.get(account);
+                if (staff_map.containsKey(staff_uuid)) {
+                    log.info("Staff already checked in, working num: " + staff_uuid);
+                    return 200;
+                }
+            } else {
+                staff_map = new HashMap<String, Staff>();
+                MessageRouter.mulClientStaffMap.put(account, staff_map);
+            }
+            
+            // Create staff
+            String staff_working_num = staff_info.getString("staffid");
+            String staff_name = staff_info.getString("staff_name");
+            JSONArray channel_list = staff_info.getJSONArray("channels");
+            List<StaffSessionInfo> sessionChannelList = new ArrayList<StaffSessionInfo>();
+            for (int i = 0; i < channel_list.size(); i++) {
+                JSONObject channel = channel_list.getJSONObject(i);
+                String staff_account = channel.getString("account");
+                String staff_openid = channel.getString("openid");
+                StaffSessionInfo s = new StaffSessionInfo(staff_account, staff_openid, staff_working_num, staff_name);
+                sessionChannelList.add(s);
+            }
+            Staff staff = new Staff(staff_uuid, staff_name, account, staff_working_num, sessionChannelList);
+            log.info("Staff checked in: " + staff.toString());
+            return 200;
+        } catch (Exception e) {
+            log.error("Staff checkin failed, staff_uuid = " + staff_uuid + ", caused by: " + e.toString());
+            return 404;
+        }
+        
     }
 }

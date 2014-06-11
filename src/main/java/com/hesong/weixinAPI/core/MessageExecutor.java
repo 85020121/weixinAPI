@@ -24,19 +24,22 @@ public class MessageExecutor {
     private static BlockingQueue<JSONObject> messageToSendQueue = new LinkedBlockingDeque<JSONObject>();
     public static BlockingQueue<JSONObject> groupMessagesQueue = new LinkedBlockingDeque<JSONObject>();
     public static BlockingQueue<JSONObject> activeMessagesQueue = new LinkedBlockingDeque<JSONObject>();
+    private static BlockingQueue<JSONObject> messageToRecordQueue = new LinkedBlockingDeque<JSONObject>();
     
     public static void execute(){
         for (int i = 0; i < MAX_HANDLER_NUM; i++) {
-            MessageRouter router = new MessageRouter(messageQueue, messageToSendQueue);
+            MessageRouter router = new MessageRouter(messageQueue, messageToSendQueue, messageToRecordQueue);
             pool.execute(router);
             MessageSender sender = new MessageSender(messageToSendQueue);
             pool.execute(sender);
-        }
-        for (int i = 0; i < 2; i++) {
+            MessageRecorder recorder = new MessageRecorder(messageToRecordQueue);
+            pool.execute(recorder);
+            
             GroupMessagesSender gourpSender = new GroupMessagesSender(groupMessagesQueue);
             ActiveMessagesSender activeSender = new ActiveMessagesSender(activeMessagesQueue);
             pool.execute(gourpSender);
             pool.execute(activeSender);
+            
         }
         log.info("MessageExecutor executed.");
     }

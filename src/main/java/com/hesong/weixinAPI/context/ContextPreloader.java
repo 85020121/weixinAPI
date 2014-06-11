@@ -2,6 +2,7 @@ package com.hesong.weixinAPI.context;
 
 import java.io.File;
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -38,11 +39,12 @@ public class ContextPreloader extends HttpServlet{
     
     public static Map<String, AccessToken> Account_Map = new ConcurrentHashMap<String, AccessToken>();
     public static AccountToUser clientAccount = new AccountToUser("gh_9558b878e5e59", "odr2pt6Sv6gD-es8E1APa58p_S40");
-    public static AccountToUser serviceAccount = new AccountToUser("gh_0221936c0c16", "ogfGduPXSO4Jmz6LMs3ic8WRsl5I");
+    public static List<String> staffAccountList = new ArrayList<String>();
     public static boolean isServiceAvailable = true;
     
     static{
-
+        staffAccountList.add("gh_0221936c0c16");
+        
         ApplicationContext ctx = AppContext.getApplicationContext();
         File f = new File(getSettingFilePath(ctx));
         Map<String, String> ftp_setting = null;

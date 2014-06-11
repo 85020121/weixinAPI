@@ -24,8 +24,9 @@ import com.hesong.weixinAPI.model.AccessToken;
 public class WeChatHttpsUtil {
     private static Logger log = Logger.getLogger(WeChatHttpsUtil.class);
 
-    public final static String access_token_url = "https://api.weixin.qq.com/cgi-bin/token?grant_type=client_credential&appid=APPID&secret=APPSECRET";
-
+    public final static String ACCESS_TOKEN_URL = "https://api.weixin.qq.com/cgi-bin/token?grant_type=client_credential&appid=APPID&secret=APPSECRET";
+    public final static String GET_QRCODE_URL = "https://api.weixin.qq.com/cgi-bin/qrcode/create?access_token=";
+    
     public static JSONObject httpsRequest(String requestUrl,
             String requestMethod, String outputStr) {
         JSONObject jsonObject = null;
@@ -157,7 +158,7 @@ public class WeChatHttpsUtil {
     public static AccessToken getAccessToken(String appid, String appSecret) {
         AccessToken token = null;
 
-        String requestUrl = access_token_url.replace("APPID", appid).replace(
+        String requestUrl = ACCESS_TOKEN_URL.replace("APPID", appid).replace(
                 "APPSECRET", appSecret);
         JSONObject jo = httpsRequest(requestUrl, "GET", null);
 
@@ -237,6 +238,24 @@ public class WeChatHttpsUtil {
             return getErrorMsg(9009, "Http request error: " + e.toString());
         }
         
+    }
+    
+    public static String getQRCode(String token, int scene_id) {
+        JSONObject request = new JSONObject();
+        request.put("action_name", "QR_LIMIT_SCENE");
+        JSONObject scene = new JSONObject();
+        scene.put("scene_id", scene_id);
+        JSONObject action_info = new JSONObject();
+        action_info.put("scene", scene);
+        request.put("action_info", action_info);
+        String url = GET_QRCODE_URL + token;
+        
+        JSONObject ret = httpPostRequest(url, request.toString(), 0);
+        if (ret.containsKey("ticket")) {
+            return ret.getString("ticket");
+        }
+        log.error("Get QR code failed: " + ret.toString()); 
+        return null;
     }
     
     public static JSONObject getErrorMsg(int errcode, String errmsg) {
