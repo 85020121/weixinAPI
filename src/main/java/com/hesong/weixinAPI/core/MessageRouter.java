@@ -6,6 +6,7 @@ import java.util.Date;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedList;
+import java.util.List;
 import java.util.Map;
 import java.util.Queue;
 import java.util.Set;
@@ -21,7 +22,9 @@ import org.apache.log4j.Logger;
 import com.hesong.sugarCRM.HttpClientUtil;
 import com.hesong.sugarCRM.SugarCRMCaller;
 import com.hesong.weixinAPI.context.ContextPreloader;
+import com.hesong.weixinAPI.job.CheckLeavingMessageJob;
 import com.hesong.weixinAPI.job.CheckSessionAvailableJob;
+import com.hesong.weixinAPI.model.LeavingMessageClient;
 import com.hesong.weixinAPI.model.Staff;
 import com.hesong.weixinAPI.model.StaffSessionInfo;
 import com.hesong.weixinAPI.model.WaitingClient;
@@ -36,16 +39,19 @@ public class MessageRouter implements Runnable {
             "yyyy-MM-dd HH:mm:ss");
     
     private static String USER_INFO_URL = "https://api.weixin.qq.com/cgi-bin/user/info?access_token=ACCESS_TOKEN&openid=OPENID&lang=zh_CN";
-
+    private static String QRCODE_URL = "https://mp.weixin.qq.com/cgi-bin/showqrcode?ticket=";
+    private static String GET_QRCODE_TICKETS_URL = "http://www.clouduc.cn/sua/rest/n/tenant/codetokens";
+    
     private BlockingQueue<Map<String, String>> messageQueue;
     private BlockingQueue<JSONObject> messageToSendQueue;
-    private BlockingQueue<JSONObject> messageToRecordQueue;
+    private BlockingQueue<JSONObject> suaRequestToExecuteQueue;
     
     public static Map<String, Map<String, Staff>> mulClientStaffMap = new HashMap<String, Map<String, Staff>>();
     public static Map<String, StaffSessionInfo> activeStaffMap = new HashMap<String, StaffSessionInfo>();
     public static Queue<WaitingClient> waitingList = new LinkedList<WaitingClient>();
     public static Set<String>  waitingListIDs= new HashSet<String>();
-
+    public static Map<String, JSONObject> staffIdList = new HashMap<String, JSONObject>();
+    
     @Override
     public void run() {
 
@@ -86,6 +92,12 @@ public class MessageRouter implements Runnable {
                         case "CHECK_CLIENT_NUM":  // 查看等待客户数量
                             checkClientNum(message);
                             break;
+                        case "GET_ORCODE":
+                            getQRCode(message);
+                            break;
+                        case "LEAVE_MESSAGE":
+                            leaveMessage(message);
+                            break;
                         default:
                             break;
                         }
@@ -125,7 +137,14 @@ public class MessageRouter implements Runnable {
     private void textMessage(Map<String, String> message) {
         String to_account = message.get(API.MESSAGE_TO_TAG);
         String from_openid = message.get(API.MESSAGE_FROM_TAG);
-        if (to_account.equals(ContextPreloader.clientAccount.getAccount())) {
+        
+        // Leaving message
+        if (CheckLeavingMessageJob.leavingMessageClientList.containsKey(from_openid)) {
+            recordLeaveMessage(message);
+            return;
+        }
+        
+        if (!ContextPreloader.staffAccountList.contains(to_account)) {
             // Message from client
             if (CheckSessionAvailableJob.clientMap.containsKey(from_openid)) {
                 StaffSessionInfo s = CheckSessionAvailableJob.sessionMap.get(from_openid);
@@ -151,9 +170,9 @@ public class MessageRouter implements Runnable {
         }
         
         log.info("This is not an available session.");
-        String token = ContextPreloader.Account_Map.get(to_account).getToken();
-        String content = "欢迎使用和声云服务,您可以使用人工服务与和声MM对话[微笑]";
-        sendMessage(from_openid, token, content, API.TEXT_MESSAGE);
+//        String token = ContextPreloader.Account_Map.get(to_account).getToken();
+//        String content = "欢迎使用和声云服务,您可以使用人工服务与客服MM对话[微笑]";
+//        sendMessage(from_openid, token, content, API.TEXT_MESSAGE);
     }
     
     private void imageMessage(Map<String, String> message) {
@@ -162,7 +181,7 @@ public class MessageRouter implements Runnable {
         String img_openid = message.get(API.MESSAGE_FROM_TAG);
         String img_toToken = "";
         String img_to_openid = "";
-        if (img_account.equals(ContextPreloader.clientAccount.getAccount())) {
+        if (!ContextPreloader.staffAccountList.contains(img_account)) {
             // Message from client
             if (CheckSessionAvailableJob.clientMap.containsKey(img_openid)) {
                 StaffSessionInfo s = CheckSessionAvailableJob.sessionMap.get(img_openid);
@@ -193,7 +212,7 @@ public class MessageRouter implements Runnable {
         String voice_Token = ContextPreloader.Account_Map.get(voice_account).getToken();
         String voice_toToken = "";
         String voice_to_openid = "";
-        if (voice_account.equals(ContextPreloader.clientAccount.getAccount())) {
+        if (!ContextPreloader.staffAccountList.contains(voice_account)) {
             // Message from client
             if (CheckSessionAvailableJob.clientMap.containsKey(voice_openid)) {
                 StaffSessionInfo s = CheckSessionAvailableJob.sessionMap.get(voice_openid);
@@ -225,8 +244,7 @@ public class MessageRouter implements Runnable {
             String toToken = ContextPreloader.Account_Map.get(account).getToken();
             String openid =  message.get(API.MESSAGE_FROM_TAG);
             // String content = "欢迎使用和声云，<a href=\"https://open.weixin.qq.com/connect/oauth2/authorize?appid=wx735e58e85eb3614a&redirect_uri=http://www.clouduc.cn/crm/mobile/auth/index.php&response_type=code&scope=snsapi_base&state=123#wechat_redirect\">点击绑定</a>获得CRM账户[微笑]";
-            String content = "欢迎使用和声云客服,系统正在为您绑定,请耐心等待...[微笑]";
-            sendMessage(openid, toToken, content, API.TEXT_MESSAGE);
+            
             
             if (message.containsKey(API.MESSAGE_EVENT_KEY_TAG)) {
                 String qrscene = message.get(API.MESSAGE_EVENT_KEY_TAG);
@@ -239,9 +257,25 @@ public class MessageRouter implements Runnable {
                     log.error("Get client info failed: "+user_info.toString());
                 } else {
                     log.info("Client info: " + user_info.toString());
-                    String sua_url = String.format("http://www.clouduc.cn/sua/rest/n/kf/register?userinfo=%s&tenantid=%s&weixin_public_id=%s", user_info.toString(), scene_id, account);
-                    JSONObject ret = (JSONObject) JSONSerializer.toJSON(HttpClientUtil.httpGet(sua_url));
-                    log.info("Staff register: "+ ret.toString());
+                    try {
+//                        String sua_url = String.format("http://www.clouduc.cn/sua/rest/n/kf/register?userinfo=%s&tenantid=%s&weixin_public_id=%s", user_info.toString(), scene_id, account);
+                        String sua_url = "http://www.clouduc.cn/sua/rest/n/kf/register";
+
+                        Map<String, String> params = new HashMap<String, String>();
+                        params.put("userinfo", user_info.toString());
+                        params.put("tenantid", scene_id);
+                        params.put("weixin_public_id", account);
+                        JSONObject ret = (JSONObject) JSONSerializer.toJSON(HttpClientUtil.httpPost(sua_url, params));
+                        log.info("Staff register: "+ ret.toString());
+                        
+                        String content = "欢迎使用和声云客服,系统正在为您绑定,请耐心等待...[微笑]";
+                        sendMessage(openid, toToken, content, API.TEXT_MESSAGE);
+                    } catch (Exception e) {
+                        e.printStackTrace();
+                        log.error("CRM registe failed: "+e.toString());
+                        
+                        // TODO Send error message to client
+                    }
                     
                 }
             }
@@ -310,13 +344,26 @@ public class MessageRouter implements Runnable {
     }
     
     private void checkout(Map<String, String> message) {
-        StaffSessionInfo s = activeStaffMap.get(message.get(API.MESSAGE_FROM_TAG));
-        if (s != null) {
-            String content = "登出成功";
-            String sToken = ContextPreloader.Account_Map.get(s.getAccount()).getToken();
-            sendMessage(s.getOpenid(), sToken, content, API.TEXT_MESSAGE);
-            activeStaffMap.remove(message.get(API.MESSAGE_FROM_TAG));
-            log.info("Staff id="+message.get(API.MESSAGE_FROM_TAG)+" checked out.");
+        String openid = message.get(API.MESSAGE_TO_TAG);
+        JSONObject staff_account_id = staffIdList.get(openid);
+        if (null != staff_account_id) {
+            String staff_account = staff_account_id.getString("account");
+            String staff_id = staff_account_id.getString("staffid"); 
+            Map<String, Staff> staff_map = mulClientStaffMap.get(staff_account);
+            Staff staff = staff_map.get(staff_id);
+            List<StaffSessionInfo> sessionList = staff.getSessionChannelList();
+            for (StaffSessionInfo s : sessionList) {
+                if (s.isBusy()) {
+                    // Remaind client that staff is leaving.
+                    String token = ContextPreloader.Account_Map.get(s.getClient_account()).getToken();
+                    String text = "对不起，客服MM有急事下线了,会话已结束。您可以使用留言功能,客服MM将会在第一时间给您回复[微笑]";
+                    sendMessage(s.getClient_openid(), token, text, "text");
+                }
+            }
+            staff_map.remove(staff_id);
+            if (staff_map.isEmpty()) {
+                mulClientStaffMap.remove(staff_account);
+            }
         }
     }
     
@@ -325,13 +372,23 @@ public class MessageRouter implements Runnable {
         String client_account = message.get(API.MESSAGE_TO_TAG);
         String cToken = ContextPreloader.Account_Map.get(client_account).getToken();
         
+        JSONObject crmRequest = new JSONObject();
+        crmRequest.put("method", "convertProspectsToLeads");
+        crmRequest.put("$prospectsOpenid", client_openid);
+        try {
+            getSuaRequestToExecuteQueue().put(crmRequest);
+        } catch (InterruptedException e) {
+            log.error("Put convertProspectsToLeads request to queue failed: " + e.toString());
+            e.printStackTrace();
+        }
+        
         if (CheckSessionAvailableJob.clientMap.containsKey(client_openid)) {
             sendMessage(client_openid, cToken, "您已经接通人工服务!", API.TEXT_MESSAGE);
             return;
         }
         String content = "正在为您接通人工服务,请稍等...";
-        if (activeStaffMap.size() == 0) {
-            content = "暂时没有空闲客服,请稍后再试!";
+        if (!mulClientStaffMap.containsKey(client_account) && mulClientStaffMap.get(client_account).isEmpty()) {
+            content = "暂时没有空闲客服,请稍后再试!您可以使用留言功能，客服MM将第一时间给您回复[微笑]";
             sendMessage(client_openid, cToken, content, API.TEXT_MESSAGE);
             return;
         }
@@ -360,20 +417,27 @@ public class MessageRouter implements Runnable {
         waitingListIDs.add(client_openid);
         
         // Broadcast client request to all staffs
-        for (StaffSessionInfo s : activeStaffMap.values()) {
-            if (!s.isBusy()) {
-                int num = waitingList.size();
-                //String url = String.format("客户:%s,寻求人工对话服务,<a href=\"http://www.clouduc.cn/wx/staff/takeSession?clientid=%s&account=%s&clientname=%s&staffid=%s\">点击抢单接入会话</a>", client_name, client_openid,client_account, client_name, s.getOpenid());
-                String url = String.format("有%d个客户寻求人工服务,请点击抢单按钮接通会话.", num);
-                String sToken = ContextPreloader.Account_Map.get(s.getAccount()).getToken();
-                sendMessage(s.getOpenid(), sToken, url, API.TEXT_MESSAGE);
+        boolean isAllBusy = true;
+        for (Staff staff : mulClientStaffMap.get(client_account).values()) {
+            for (StaffSessionInfo s : staff.getSessionChannelList()) {
+                if (!s.isBusy()) {
+                    isAllBusy = false;
+                    int num = waitingList.size();
+                    //String url = String.format("客户:%s,寻求人工对话服务,<a href=\"http://www.clouduc.cn/wx/staff/takeSession?clientid=%s&account=%s&clientname=%s&staffid=%s\">点击抢单接入会话</a>", client_name, client_openid,client_account, client_name, s.getOpenid());
+                    String text = String.format("有%d个客户寻求人工服务,请点击抢单按钮接通会话.", num);
+                    String sToken = ContextPreloader.Account_Map.get(s.getAccount()).getToken();
+                    sendMessage(s.getOpenid(), sToken, text, API.TEXT_MESSAGE);
+                    break; // Only one message for each staff
+                }
             }
         }
         
-        SugarCRMCaller crmCaller = new SugarCRMCaller();
-        String session = crmCaller.login("admin", "p@ssw0rd");
-        String ret = crmCaller.convertProspectsToLeads(session, client_openid);
-        log.info("Convert Prospects To Leads: " + ret);
+        if (isAllBusy) {
+            String text = "暂时没有空闲客服,请稍后再试!您可以使用留言功能，客服MM将第一时间给您回复[微笑]";
+            sendMessage(client_openid, cToken, text, API.TEXT_MESSAGE);
+            return;
+        }
+        
     }
     
     private void endSession(Map<String, String> message) {
@@ -451,6 +515,87 @@ public class MessageRouter implements Runnable {
         sendMessage(staff_openid, sToken, content, API.TEXT_MESSAGE);
     }
     
+    private void getQRCode(Map<String, String> message) {
+        String openid = message.get(API.MESSAGE_FROM_TAG);
+        String account = message.get(API.MESSAGE_TO_TAG);
+        String token = ContextPreloader.Account_Map.get(account).getToken();
+        
+        String url = String.format("%s?openid=%s", GET_QRCODE_TICKETS_URL, openid);
+        String qrcodeList = HttpClientUtil.httpGet(url);
+        JSONObject qrcode_ret = (JSONObject) JSONSerializer.toJSON(qrcodeList);
+        log.info("Get QRCode requst return: " + qrcode_ret.toString());
+        boolean isSuccessed = qrcode_ret.getBoolean("success");
+        if (!isSuccessed) {
+            log.error("Get QRCode list failed: " + qrcode_ret.toString());
+            sendMessage(openid, token, "获取二维码失败,请确定您的账户已经通过审核.", "text");
+            return;
+        }
+        
+        JSONArray qrcode_list = qrcode_ret.getJSONArray("tokens");
+        JSONArray articles = new JSONArray();
+        JSONObject first_article = new JSONObject();
+        first_article.put("picurl", "http://hesong.net/images/logo.png");
+        first_article.put("title", "和声云客服");
+        articles.add(first_article);
+        String title = "客服通道";
+        for (int i = 1; i <= qrcode_list.size(); i++) {
+            JSONObject article = new JSONObject();
+            article.put("title", title + i);
+            String qrUrl = QRCODE_URL + qrcode_list.getString(i-1);
+            article.put("picurl", qrUrl);
+            article.put("url", qrUrl);
+            articles.add(article);
+        }
+        
+        JSONObject news = new JSONObject();
+        news.put("articles", articles);
+        
+        JSONObject qr_message = new JSONObject();
+        qr_message.put("touser", openid);
+        qr_message.put("msgtype", "news");
+        qr_message.put("news", news);
+        qr_message.put("access_token", token);
+        try {
+            getMessageToSendQueue().put(qr_message);
+        } catch (InterruptedException e) {
+            log.error("Put message to queue error: "+e.toString());
+        }
+    }
+    
+    private void leaveMessage(Map<String, String> message) {
+        try {
+            String openid = message.get(API.MESSAGE_FROM_TAG);
+            String account = message.get(API.MESSAGE_TO_TAG);
+            String token = ContextPreloader.Account_Map.get(
+                    message.get(API.MESSAGE_TO_TAG)).getToken();
+            if (CheckLeavingMessageJob.leavingMessageClientList
+                    .containsKey(openid)) {
+                String content = "您正在使用留言功能,赶紧发送您的留言吧!";
+                sendMessage(openid, token, content, API.TEXT_MESSAGE);
+                return;
+            }
+            String content = "欢迎使用在线留言服务,和声云客服MM将会在第一时间处理您的留言。请您在五分钟内完成留言,发送END(大小写不限)结束留言,否则系统将在五分钟后自动结束您的留言请求!";
+            sendMessage(openid, token, content, API.TEXT_MESSAGE);
+
+            String url = USER_INFO_URL.replace("ACCESS_TOKEN", token).replace(
+                    "OPENID", openid);
+            JSONObject user_info = WeChatHttpsUtil.httpsRequest(url, "GET",
+                    null);
+            if (user_info.containsKey("errcode")) {
+                log.error("Get client info failed: " + user_info.toString());
+            } else {
+                String client_name = user_info.getString("nickname");
+                String headimgurl = user_info.getString("headimgurl");
+                LeavingMessageClient c = new LeavingMessageClient(account,
+                        openid, client_name, headimgurl);
+                CheckLeavingMessageJob.leavingMessageClientList.put(openid, c);
+            }
+        } catch (Exception e) {
+            log.error("Request to leave message failed: " + e.toString());
+            e.printStackTrace();
+        }
+    }
+    
     private void sendMessage(String openid, String token, String text, String type) {
         JSONObject message = new JSONObject();
         message.put("msgtype", type);
@@ -472,7 +617,7 @@ public class MessageRouter implements Runnable {
         }
     }
     
-    public void recordMessage(StaffSessionInfo s, Map<String, String> message, String type, boolean isClient) {
+    private void recordMessage(StaffSessionInfo s, Map<String, String> message, String type, boolean isClient) {
         JSONObject messageToRecord = new JSONObject();
         messageToRecord.put("session_id", s.getSession());
         messageToRecord.put("content", message.get(API.MESSAGE_CONTENT_TAG));
@@ -500,12 +645,62 @@ public class MessageRouter implements Runnable {
             messageToRecord.put("receiver_public_account", s.getAccount());
         }
         
-        messageToRecord.put("module_name", "chat_history");
+        JSONObject json_request = new JSONObject();
+        json_request.put("session", "hold");
+        json_request.put("module_name", "chat_history");
+        json_request.put("name_value_list", messageToRecord.toString());
+        json_request.put("method", "set_entry");
         
         try {
-            getMessageToRecordQueue().put(messageToRecord);
+            getSuaRequestToExecuteQueue().put(json_request);
         } catch (InterruptedException e) {
             log.error("Put message to record queue failed: " + e.toString());
+            e.printStackTrace();
+        }
+    }
+    
+    private void recordLeaveMessage(Map<String, String> message) {
+        String openid = message.get(API.MESSAGE_FROM_TAG);
+        String account = message.get(API.MESSAGE_TO_TAG);
+        String type = message.get(API.MESSAGE_TYPE_TAG);
+        String content = message.get(API.MESSAGE_CONTENT_TAG);
+        if (type.equalsIgnoreCase(API.TEXT_MESSAGE)) {
+            if (content.equalsIgnoreCase("end")) {
+                // End of leaving message
+                CheckLeavingMessageJob.leavingMessageClientList.remove(openid);
+                String text = "感谢您使用在线留言服务,客服MM将在第一时间回复您的消息!";
+                String token = ContextPreloader.Account_Map.get(account).getToken();
+                sendMessage(openid, token, text, API.TEXT_MESSAGE);
+            }
+        } else {
+            // Only recording text message for now
+            return;
+        }
+        
+        LeavingMessageClient c = CheckLeavingMessageJob.leavingMessageClientList.get(openid);
+        
+        JSONObject messageToLeave = new JSONObject();
+        messageToLeave.put("messager_id", openid);
+        messageToLeave.put("messager_name", c.getName());
+        messageToLeave.put("messager_photo", c.getHeadimgurl());
+        messageToLeave.put("messager_public_account", account);
+        messageToLeave.put("content", content);
+        messageToLeave.put("time", TIME_FORMAT.format(new Date()));
+        messageToLeave.put("message_status", "0");
+        messageToLeave.put("type", type);
+        messageToLeave.put("source", "wx");
+        messageToLeave.put("message_group_id", c.getUuid());
+        
+        JSONObject json_request = new JSONObject();
+        json_request.put("session", "hold");
+        json_request.put("module_name", "chat_message");
+        json_request.put("name_value_list", messageToLeave.toString());
+        json_request.put("method", "set_entry");
+        
+        try {
+            getSuaRequestToExecuteQueue().put(json_request);
+        } catch (InterruptedException e) {
+            log.error("Put leaving message to record queue failed: " + e.toString());
             e.printStackTrace();
         }
     }
@@ -513,11 +708,11 @@ public class MessageRouter implements Runnable {
     
     public MessageRouter(BlockingQueue<Map<String, String>> messageQueue,
             BlockingQueue<JSONObject> messageToSendQueue,
-            BlockingQueue<JSONObject> messageToRecordQueue) {
+            BlockingQueue<JSONObject> suaRequestToExecuteQueue) {
         super();
         this.messageQueue = messageQueue;
         this.messageToSendQueue = messageToSendQueue;
-        this.messageToRecordQueue = messageToRecordQueue;
+        this.suaRequestToExecuteQueue = suaRequestToExecuteQueue;
     }
 
     public BlockingQueue<Map<String, String>> getMessageQueue() {
@@ -537,13 +732,14 @@ public class MessageRouter implements Runnable {
         this.messageToSendQueue = messageToSendQueue;
     }
 
-    public BlockingQueue<JSONObject> getMessageToRecordQueue() {
-        return messageToRecordQueue;
+    public BlockingQueue<JSONObject> getSuaRequestToExecuteQueue() {
+        return suaRequestToExecuteQueue;
     }
 
-    public void setMessageToRecordQueue(
-            BlockingQueue<JSONObject> messageToRecordQueue) {
-        this.messageToRecordQueue = messageToRecordQueue;
+    public void setSuaRequestToExecuteQueue(
+            BlockingQueue<JSONObject> suaRequestToExecuteQueue) {
+        this.suaRequestToExecuteQueue = suaRequestToExecuteQueue;
     }
+
     
 }

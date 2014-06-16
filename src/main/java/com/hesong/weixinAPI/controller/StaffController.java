@@ -141,8 +141,13 @@ public class StaffController {
                 String staff_openid = channel.getString("openid");
                 StaffSessionInfo s = new StaffSessionInfo(staff_account, staff_openid, staff_working_num, staff_name);
                 sessionChannelList.add(s);
+                JSONObject staff_account_id = new JSONObject();
+                staff_account_id.put("account", staff_account);
+                staff_account_id.put("staffid", staff_uuid);
+                MessageRouter.staffIdList.put(staff_openid, staff_account_id);
             }
             Staff staff = new Staff(staff_uuid, staff_name, account, staff_working_num, sessionChannelList);
+            staff_map.put(staff_uuid, staff);
             log.info("Staff checked in: " + staff.toString());
             return 200;
         } catch (Exception e) {

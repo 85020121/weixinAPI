@@ -1,0 +1,65 @@
+package com.hesong.weixinAPI.model;
+
+import java.util.Date;
+import java.util.UUID;
+
+public class LeavingMessageClient {
+    private String account;
+    private String openid;
+    private String name;
+    private String headimgurl;
+    private String uuid;
+    private long date;
+    public LeavingMessageClient(String account, String openid, String name, String headimgurl) {
+        super();
+        this.account = account;
+        this.openid = openid;
+        this.name = name;
+        this.headimgurl = headimgurl.substring(0, headimgurl.length()-1) + "46";
+        this.date = new Date().getTime();
+        this.uuid = UUID.randomUUID().toString();
+    }
+    public String getAccount() {
+        return account;
+    }
+    public void setAccount(String account) {
+        this.account = account;
+    }
+    public String getOpenid() {
+        return openid;
+    }
+    public void setOpenid(String openid) {
+        this.openid = openid;
+    }
+    public String getName() {
+        return name;
+    }
+    public void setName(String name) {
+        this.name = name;
+    }
+    public long getDate() {
+        return date;
+    }
+    public void setDate(long date) {
+        this.date = date;
+    }
+    public String getUuid() {
+        return uuid;
+    }
+    public void setUuid(String uuid) {
+        this.uuid = uuid;
+    }
+    public String getHeadimgurl() {
+        return headimgurl;
+    }
+    public void setHeadimgurl(String headimgurl) {
+        this.headimgurl = headimgurl;
+    }
+    @Override
+    public String toString() {
+        return "LeavingMessageClient [account=" + account + ", openid="
+                + openid + ", name=" + name + ", headimgurl=" + headimgurl
+                + ", uuid=" + uuid + ", date=" + date + "]";
+    }
+    
+}

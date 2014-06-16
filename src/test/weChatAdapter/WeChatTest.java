@@ -111,4 +111,11 @@ public class WeChatTest {
         System.out.println(session);
         System.out.println(sc.call("oauth_access", rest.toString()));
     }
+    
+    @Test
+    public void messageTest(){
+        SugarCRMCaller s = new SugarCRMCaller();
+        String session = s.login("admin", "p@ssw0rd");
+        s.getChatMessageForWX(session);
+    }
 }

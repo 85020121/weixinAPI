@@ -140,6 +140,23 @@ public class SugarCRMCaller {
         }
         return ret;
     }
+	
+	/**
+     * 微信机器人获取未处理留言
+     * @param sessionid
+     */
+    public void getChatMessageForWX(String sessionid){
+        String params = "{\"session\":\""+sessionid+"\",\"module_name\":\"chat_message\",\"query\":\"message_status='0'\",\"order_by\":\"time\",\"offset\":0,\"select_fields\":[\"id\",\"message_group_id\"],\"max_results\":1,\"deleted\":0,\"favorites\":false}";
+        String result = call("get_entry_list",params);
+        String message_group_id = null;
+        if(result!=null && !result.equals("")){
+            JSONObject jsonObj =JSONObject.fromObject(result);
+            JSONArray list  = jsonObj.getJSONArray("entry_list");
+            JSONObject jsonObjs = list.getJSONObject(0);
+            message_group_id = (String)jsonObjs.getJSONObject("name_value_list").getJSONObject("message_group_id").get("value");
+        }
+        System.out.println(message_group_id);   
+    }
 
 	/**
 	 * 构建一个{name:'weixin_c',value:'ogfGduA0yfPY_aET7do8GvE5Bm4w'}结构的json对像

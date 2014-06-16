@@ -39,8 +39,6 @@ public class JobRunner {
                 .withSchedule(cronSchedule(cronExpression)).forJob(job).build();
 
         scheduler = new StdSchedulerFactory("quartz.properties").getScheduler();
-        // Add job to scheduler
-        scheduler.scheduleJob(job, trigger);
         
         // Check Session Available Job
         String checkCronExpression = "0/20 * * * * ?";
@@ -52,10 +50,23 @@ public class JobRunner {
                 .withIdentity("CheckSessionAvailableJob",
                         CheckSessionAvailableJob.CHECK_SESSION_GROUP)
                 .withSchedule(cronSchedule(checkCronExpression)).forJob(session_job).build();
+        
+        // Check Leaving Message Duration Job
+        String checkLeaveMessageCronExpression = "0/30 * * * * ?";
+        JobDetail leave_message_job = JobBuilder
+                .newJob(CheckLeavingMessageJob.class)
+                .withIdentity("CheckLeavingMessageJob",
+                        CheckLeavingMessageJob.CHECK_LEAVING_MESSAGE_GROUP).build();
+        Trigger leave_message_trigger = newTrigger()
+                .withIdentity("CheckLeavingMessageJob",
+                        CheckLeavingMessageJob.CHECK_LEAVING_MESSAGE_GROUP)
+                .withSchedule(cronSchedule(checkLeaveMessageCronExpression)).forJob(leave_message_job).build();
 
         scheduler = new StdSchedulerFactory("quartz.properties").getScheduler();
-        // Add job to scheduler
+        // Add jobs to scheduler
+        scheduler.scheduleJob(job, trigger);
         scheduler.scheduleJob(session_job, session_trigger);
+        scheduler.scheduleJob(leave_message_job, leave_message_trigger);
 
         scheduler.start();
         ContextPreloader.ContextLog.info("Start Job Runner.");

@@ -25,7 +25,6 @@ import com.hesong.weixinAPI.account.AccountBo;
 import com.hesong.weixinAPI.core.MessageExecutor;
 import com.hesong.weixinAPI.job.JobRunner;
 import com.hesong.weixinAPI.model.AccessToken;
-import com.hesong.weixinAPI.model.AccountToUser;
 import com.hesong.weixinAPI.tools.WeChatHttpsUtil;
 
 public class ContextPreloader extends HttpServlet{
@@ -38,12 +37,13 @@ public class ContextPreloader extends HttpServlet{
     public static Logger ContextLog = Logger.getLogger(ContextPreloader.class);
     
     public static Map<String, AccessToken> Account_Map = new ConcurrentHashMap<String, AccessToken>();
-    public static AccountToUser clientAccount = new AccountToUser("gh_9558b878e5e59", "odr2pt6Sv6gD-es8E1APa58p_S40");
     public static List<String> staffAccountList = new ArrayList<String>();
-    public static boolean isServiceAvailable = true;
+    public final static String HESONG_ACCOUNT = "gh_be994485fbce";
     
     static{
+        // Staff service account
         staffAccountList.add("gh_0221936c0c16");
+        staffAccountList.add("gh_510fe6f15310");
         
         ApplicationContext ctx = AppContext.getApplicationContext();
         File f = new File(getSettingFilePath(ctx));
