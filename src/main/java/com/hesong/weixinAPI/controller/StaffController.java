@@ -81,58 +81,62 @@ public class StaffController {
         return "Build session success, go back!";
     }
     
-    @ResponseBody
-    @RequestMapping(value = "/{openid}/checkin/{staffid}", method = RequestMethod.GET)
-    public int checkin_old(@PathVariable String openid, @PathVariable String staffid, HttpServletRequest request) {
-        log.info("Checked in: " + openid + " staff_id: " + staffid);
-        String account = "gh_0221936c0c16";
-        StaffSessionInfo s = new StaffSessionInfo(account, openid, staffid, "");
-        MessageRouter.activeStaffMap.put(openid, s);
-        String text = "登入成功";
-        String token = ContextPreloader.Account_Map.get(account).getToken();
-        JSONObject message = new JSONObject();
-        message.put("msgtype", "text");
-        message.put("touser", openid);
-        JSONObject content = new JSONObject();
-        content.put("content", text);
-        message.put("text", content);
-        try {
-            String url = SEND_MESSAGE_REQUEST_URL + token;
-            JSONObject ret = WeChatHttpsUtil.httpsRequest(url, "POST",
-                    message.toString());
-            log.info("Send message ret: " + ret.toString());
-        } catch (Exception e) {
-            log.error("Send message error: " + e.toString());
-        }
-        log.info("Add staff to list: " + s.toString());
-        return 200;
-    }
+//    @ResponseBody
+//    @RequestMapping(value = "/{openid}/checkin/{staffid}", method = RequestMethod.GET)
+//    public int checkin_old(@PathVariable String openid, @PathVariable String staffid, HttpServletRequest request) {
+//        log.info("Checked in: " + openid + " staff_id: " + staffid);
+//        String account = "gh_0221936c0c16";
+//        StaffSessionInfo s = new StaffSessionInfo(account, openid, staffid, "");
+//        MessageRouter.activeStaffMap.put(openid, s);
+//        String text = "登入成功";
+//        String token = ContextPreloader.Account_Map.get(account).getToken();
+//        JSONObject message = new JSONObject();
+//        message.put("msgtype", "text");
+//        message.put("touser", openid);
+//        JSONObject content = new JSONObject();
+//        content.put("content", text);
+//        message.put("text", content);
+//        try {
+//            String url = SEND_MESSAGE_REQUEST_URL + token;
+//            JSONObject ret = WeChatHttpsUtil.httpsRequest(url, "POST",
+//                    message.toString());
+//            log.info("Send message ret: " + ret.toString());
+//        } catch (Exception e) {
+//            log.error("Send message error: " + e.toString());
+//        }
+//        log.info("Add staff to list: " + s.toString());
+//        return 200;
+//    }
     
     @ResponseBody
-    @RequestMapping(value = "/{staff_uuid}/checkin", method = RequestMethod.GET)
-    public int checkin(@PathVariable String openid, @PathVariable String staff_uuid, HttpServletRequest request) {
+    @RequestMapping(value = "/{staff_uuid}/checkin", method = RequestMethod.POST)
+    public int checkin(@PathVariable String staff_uuid, HttpServletRequest request) {
         log.info("Checked in staff_id: " + staff_uuid);
         ObjectMapper mapper = new ObjectMapper();
         try {
             JSONObject staff_info = (JSONObject) JSONSerializer.toJSON(mapper
                     .readValue(request.getInputStream(), Map.class));
-            String account = staff_info.getString("account");
+            String wx_account = staff_info.getString("wx_account");
+            String tanentUn = staff_info.getString("tanentUn");
             
             Map<String, Staff> staff_map = null;
-            if (MessageRouter.mulClientStaffMap.containsKey(account)) {
-                staff_map = MessageRouter.mulClientStaffMap.get(account);
+            if (MessageRouter.mulClientStaffMap.containsKey(tanentUn)) {
+                staff_map = MessageRouter.mulClientStaffMap.get(tanentUn);
                 if (staff_map.containsKey(staff_uuid)) {
                     log.info("Staff already checked in, working num: " + staff_uuid);
                     return 200;
                 }
             } else {
                 staff_map = new HashMap<String, Staff>();
-                MessageRouter.mulClientStaffMap.put(account, staff_map);
+                MessageRouter.mulClientStaffMap.put(tanentUn, staff_map);
             }
             
             // Create staff
             String staff_working_num = staff_info.getString("staffid");
             String staff_name = staff_info.getString("staff_name");
+            
+            MessageRouter.account_tanentUn.put(wx_account, tanentUn);
+            
             JSONArray channel_list = staff_info.getJSONArray("channels");
             List<StaffSessionInfo> sessionChannelList = new ArrayList<StaffSessionInfo>();
             for (int i = 0; i < channel_list.size(); i++) {
@@ -140,13 +144,15 @@ public class StaffController {
                 String staff_account = channel.getString("account");
                 String staff_openid = channel.getString("openid");
                 StaffSessionInfo s = new StaffSessionInfo(staff_account, staff_openid, staff_working_num, staff_name);
+                MessageRouter.activeStaffMap.put(staff_openid, s);
                 sessionChannelList.add(s);
                 JSONObject staff_account_id = new JSONObject();
-                staff_account_id.put("account", staff_account);
+                staff_account_id.put("wx_account", staff_account);
                 staff_account_id.put("staffid", staff_uuid);
+                staff_account_id.put("tanentUn", tanentUn);
                 MessageRouter.staffIdList.put(staff_openid, staff_account_id);
             }
-            Staff staff = new Staff(staff_uuid, staff_name, account, staff_working_num, sessionChannelList);
+            Staff staff = new Staff(staff_uuid, staff_name, tanentUn, wx_account, staff_working_num, sessionChannelList);
             staff_map.put(staff_uuid, staff);
             log.info("Staff checked in: " + staff.toString());
             return 200;

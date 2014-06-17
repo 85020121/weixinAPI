@@ -13,6 +13,8 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestMethod;
 import org.springframework.web.bind.annotation.ResponseBody;
 
+import com.hesong.weixinAPI.core.MessageRouter;
+
 
 @Controller
 @RequestMapping("/channel")
@@ -26,11 +28,18 @@ public class ChannelController {
         try {
             JSONObject json = (JSONObject) JSONSerializer.toJSON(mapper
                     .readValue(request.getInputStream(), Map.class));
+            String tanentUn = json.getString("tanentUn");
             String user_id = json.getString("user_id");
             String user_name = json.getString("user_name");
             String content = json.getString("content");
             String msgtype = json.getString("msgtype");
             JSONObject returnparams = json.getJSONObject("returnparams");
+            
+            if (null == tanentUn || !MessageRouter.mulClientStaffMap.containsKey(tanentUn) || MessageRouter.mulClientStaffMap.get(tanentUn).isEmpty()) {
+                // TODO No available staff
+            } else {
+                
+            }
             return 200;
         } catch (Exception e) {
             e.printStackTrace();

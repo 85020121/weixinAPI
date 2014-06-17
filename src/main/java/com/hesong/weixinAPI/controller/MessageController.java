@@ -2,12 +2,14 @@ package com.hesong.weixinAPI.controller;
 
 import java.io.IOException;
 import java.io.PrintWriter;
+import java.util.Map;
 
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
 import org.apache.log4j.Logger;
 import org.springframework.stereotype.Controller;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestMethod;
 
@@ -58,8 +60,27 @@ public class MessageController {
         try {
             PrintWriter out = response.getWriter();
             out.print("");
-            // TODO: add message to queue
             MessageExecutor.messageQueue.put(WeChatXMLParser.parseXML(request));
+            out.close();
+            out = null;
+
+        } catch (Exception e) {
+            log.error("HttpServletResponse getWriter() exception: "
+                    + e.toString());
+        }
+
+    }
+    
+    @RequestMapping(value = "/{tanentUn}/clientMessage", method = RequestMethod.POST)
+    public void receiveClientMessage(@PathVariable String tanentUn, HttpServletRequest request,
+            HttpServletResponse response) {
+        
+        try {
+            PrintWriter out = response.getWriter();
+            out.print("");
+            Map<String, String> message = WeChatXMLParser.parseXML(request);
+            message.put("tanentUn", tanentUn);
+            MessageExecutor.messageQueue.put(message);
             out.close();
             out = null;
 

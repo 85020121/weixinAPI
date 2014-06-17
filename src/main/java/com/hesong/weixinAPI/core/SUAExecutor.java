@@ -25,11 +25,12 @@ public class SUAExecutor implements Runnable {
                 String method = message.getString("method");
                 message.remove("method");
                 message.put("session", session);
-                log.info("Message to record: " + message.toString());
+                log.info("Message to execute: " + message.toString());
                 String r = caller.call(method, message.toString());
-                JSONObject rj = (JSONObject) JSONSerializer.toJSON(r);
-                if (!rj.containsKey("id")) {
-                    log.warn("Session_id expired, renew one.");
+                log.info("Executed message return: " + r);
+                JSONObject rj = JSONObject.fromObject(r);
+                if (rj.containsKey("success") && !rj.getBoolean("success")) {
+                    log.warn("Session_id expired, renew one. Error message: " + rj.getString("msg"));
                     session = caller.login("admin", "p@ssw0rd");
                     log.info("Session_id renewed: " + session);
                     message.put("session", session);
@@ -37,7 +38,7 @@ public class SUAExecutor implements Runnable {
                     rj = (JSONObject) JSONSerializer.toJSON(r);
                 }
             } catch (Exception e) {
-                log.error("Record message failed: " + e.toString());
+                log.error("Execute message failed: " + e.toString());
                 e.printStackTrace();
             }
         }

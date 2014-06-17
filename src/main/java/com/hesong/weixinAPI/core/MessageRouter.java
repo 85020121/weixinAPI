@@ -51,6 +51,7 @@ public class MessageRouter implements Runnable {
     public static Queue<WaitingClient> waitingList = new LinkedList<WaitingClient>();
     public static Set<String>  waitingListIDs= new HashSet<String>();
     public static Map<String, JSONObject> staffIdList = new HashMap<String, JSONObject>();
+    public static Map<String, String> account_tanentUn = new HashMap<String, String>();
     
     @Override
     public void run() {
@@ -153,7 +154,7 @@ public class MessageRouter implements Runnable {
                     String content = String.format("%s: %s", s.getClient_name(), message.get(API.MESSAGE_CONTENT_TAG));
                     sendMessage(s.getOpenid(), sToken, content, API.TEXT_MESSAGE);
                     s.setLastReceived(new Date());
-                    recordMessage(s, message, API.TEXT_MESSAGE, true);
+                    recordMessage(s, message, API.TEXT_MESSAGE, "wx", true);
                 }
                 return;
             }
@@ -165,6 +166,7 @@ public class MessageRouter implements Runnable {
                 String content = String.format("客服%s: %s", s.getStaffid(), message.get(API.MESSAGE_CONTENT_TAG));
                 sendMessage(s.getClient_openid(), cToken, content, API.TEXT_MESSAGE);
                 s.setLastReceived(new Date());
+                recordMessage(s, message, API.TEXT_MESSAGE, "wx", false);
                 return;
             }
         }
@@ -245,12 +247,11 @@ public class MessageRouter implements Runnable {
             String openid =  message.get(API.MESSAGE_FROM_TAG);
             // String content = "欢迎使用和声云，<a href=\"https://open.weixin.qq.com/connect/oauth2/authorize?appid=wx735e58e85eb3614a&redirect_uri=http://www.clouduc.cn/crm/mobile/auth/index.php&response_type=code&scope=snsapi_base&state=123#wechat_redirect\">点击绑定</a>获得CRM账户[微笑]";
             
-            
             if (message.containsKey(API.MESSAGE_EVENT_KEY_TAG)) {
                 String qrscene = message.get(API.MESSAGE_EVENT_KEY_TAG);
                 String scene_id = qrscene.replace("qrscene_", "");
                 log.info("qrscene is: " + qrscene + " id = " + scene_id);
-                // TODO Send to CRM
+                // Send to CRM
                 String url = USER_INFO_URL.replace("ACCESS_TOKEN", toToken).replace("OPENID", openid);
                 JSONObject user_info = WeChatHttpsUtil.httpsRequest(url, "GET", null);
                 if (user_info.containsKey("errcode")) {
@@ -313,10 +314,16 @@ public class MessageRouter implements Runnable {
             // Insert client info to SugerCRM
             String url = USER_INFO_URL.replace("ACCESS_TOKEN", toToken).replace("OPENID", openid);
             JSONObject user_info = WeChatHttpsUtil.httpsRequest(url, "GET", null);
+            String tanentUn = message.get("tanentUn");
+            // TODO 
+            if (null == tanentUn) {
+                tanentUn = "null";
+            }
             if (user_info.containsKey("errcode")) {
                 log.error("Get client info failed: "+user_info.toString());
             } else {
                 log.info("Client info: " + user_info.toString());
+                user_info.put("tenant_code", tanentUn);
                 SugarCRMCaller crmCaller = new SugarCRMCaller();
                 String session = crmCaller.login("admin",
                         "p@ssw0rd");
@@ -347,9 +354,10 @@ public class MessageRouter implements Runnable {
         String openid = message.get(API.MESSAGE_TO_TAG);
         JSONObject staff_account_id = staffIdList.get(openid);
         if (null != staff_account_id) {
-            String staff_account = staff_account_id.getString("account");
+            String wx_account = staff_account_id.getString("wx_account");
+            String tanentUn = account_tanentUn.get(wx_account);
             String staff_id = staff_account_id.getString("staffid"); 
-            Map<String, Staff> staff_map = mulClientStaffMap.get(staff_account);
+            Map<String, Staff> staff_map = mulClientStaffMap.get(tanentUn);
             Staff staff = staff_map.get(staff_id);
             List<StaffSessionInfo> sessionList = staff.getSessionChannelList();
             for (StaffSessionInfo s : sessionList) {
@@ -361,8 +369,10 @@ public class MessageRouter implements Runnable {
                 }
             }
             staff_map.remove(staff_id);
+            staffIdList.remove(openid);
             if (staff_map.isEmpty()) {
-                mulClientStaffMap.remove(staff_account);
+                mulClientStaffMap.remove(tanentUn);
+                account_tanentUn.remove(wx_account);
             }
         }
     }
@@ -370,6 +380,7 @@ public class MessageRouter implements Runnable {
     private void staffService(Map<String, String> message) {
         String client_openid = message.get(API.MESSAGE_FROM_TAG);
         String client_account = message.get(API.MESSAGE_TO_TAG);
+        String tanentUn = account_tanentUn.get(client_account);
         String cToken = ContextPreloader.Account_Map.get(client_account).getToken();
         
         JSONObject crmRequest = new JSONObject();
@@ -387,7 +398,7 @@ public class MessageRouter implements Runnable {
             return;
         }
         String content = "正在为您接通人工服务,请稍等...";
-        if (!mulClientStaffMap.containsKey(client_account) && mulClientStaffMap.get(client_account).isEmpty()) {
+        if (null == tanentUn || !mulClientStaffMap.containsKey(tanentUn) || mulClientStaffMap.get(tanentUn).isEmpty()) {
             content = "暂时没有空闲客服,请稍后再试!您可以使用留言功能，客服MM将第一时间给您回复[微笑]";
             sendMessage(client_openid, cToken, content, API.TEXT_MESSAGE);
             return;
@@ -418,7 +429,7 @@ public class MessageRouter implements Runnable {
         
         // Broadcast client request to all staffs
         boolean isAllBusy = true;
-        for (Staff staff : mulClientStaffMap.get(client_account).values()) {
+        for (Staff staff : mulClientStaffMap.get(tanentUn).values()) {
             for (StaffSessionInfo s : staff.getSessionChannelList()) {
                 if (!s.isBusy()) {
                     isAllBusy = false;
@@ -617,12 +628,12 @@ public class MessageRouter implements Runnable {
         }
     }
     
-    private void recordMessage(StaffSessionInfo s, Map<String, String> message, String type, boolean isClient) {
+    private void recordMessage(StaffSessionInfo s, Map<String, String> message, String type, String source, boolean isClient) {
         JSONObject messageToRecord = new JSONObject();
         messageToRecord.put("session_id", s.getSession());
         messageToRecord.put("content", message.get(API.MESSAGE_CONTENT_TAG));
         messageToRecord.put("message_type", type);
-        messageToRecord.put("message_source", "wx");
+        messageToRecord.put("message_source", source);
         Date d = new Date(Long.parseLong(message.get("CreateTime")));
         messageToRecord.put("time", TIME_FORMAT.format(d));
         if (isClient) {
@@ -647,9 +658,9 @@ public class MessageRouter implements Runnable {
         
         JSONObject json_request = new JSONObject();
         json_request.put("session", "hold");
-        json_request.put("module_name", "chat_history");
+//        json_request.put("module_name", "save_chat_history");
         json_request.put("name_value_list", messageToRecord.toString());
-        json_request.put("method", "set_entry");
+        json_request.put("method", "saveChatHistory");
         
         try {
             getSuaRequestToExecuteQueue().put(json_request);
@@ -704,7 +715,6 @@ public class MessageRouter implements Runnable {
             e.printStackTrace();
         }
     }
-    
     
     public MessageRouter(BlockingQueue<Map<String, String>> messageQueue,
             BlockingQueue<JSONObject> messageToSendQueue,

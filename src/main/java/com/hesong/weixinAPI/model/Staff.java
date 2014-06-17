@@ -6,55 +6,75 @@ public class Staff {
     
     private String id;
     private String name;
-    private String account;
+    private String tanentUn;
+    private String wx_account;
     private String work_num;
     private List<StaffSessionInfo> sessionChannelList;
     
-    
-    public Staff(String id, String name, String account, String work_num,
-            List<StaffSessionInfo> sessionChannelList) {
+    public Staff(String id, String name, String tanentUn, String wx_account,
+            String work_num, List<StaffSessionInfo> sessionChannelList) {
         super();
         this.id = id;
         this.name = name;
-        this.account = account;
+        this.tanentUn = tanentUn;
+        this.wx_account = wx_account;
         this.work_num = work_num;
         this.sessionChannelList = sessionChannelList;
     }
+
     public String getId() {
         return id;
     }
+
     public void setId(String id) {
         this.id = id;
     }
+
     public String getName() {
         return name;
     }
+
     public void setName(String name) {
         this.name = name;
     }
-    public String getAccount() {
-        return account;
+
+    public String getTanentUn() {
+        return tanentUn;
     }
+
+    public void setTanentUn(String tanentUn) {
+        this.tanentUn = tanentUn;
+    }
+
+    public String getWx_account() {
+        return wx_account;
+    }
+
+    public void setWx_account(String wx_account) {
+        this.wx_account = wx_account;
+    }
+
     public String getWork_num() {
         return work_num;
     }
+
     public void setWork_num(String work_num) {
         this.work_num = work_num;
     }
-    public void setAccount(String account) {
-        this.account = account;
-    }
+
     public List<StaffSessionInfo> getSessionChannelList() {
         return sessionChannelList;
     }
+
     public void setSessionChannelList(List<StaffSessionInfo> sessionChannelList) {
         this.sessionChannelList = sessionChannelList;
     }
+
     @Override
     public String toString() {
-        return "Staff [id=" + id + ", name=" + name + ", account=" + account
-                + ", work_num=" + work_num + ", sessionChannelList="
-                + sessionChannelList + "]";
+        return "Staff [id=" + id + ", name=" + name + ", tanentUn=" + tanentUn
+                + ", wx_account=" + wx_account + ", work_num=" + work_num
+                + ", sessionChannelList=" + sessionChannelList + "]";
     }
     
 }
