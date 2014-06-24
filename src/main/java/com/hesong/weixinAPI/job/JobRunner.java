@@ -40,8 +40,8 @@ public class JobRunner {
 
         scheduler = new StdSchedulerFactory("quartz.properties").getScheduler();
         
-        // Check Session Available Job
-        String checkCronExpression = "0/20 * * * * ?";
+        // Check Weixin Session Available Job
+        String checkCronExpression = "0/30 * * * * ?";
         JobDetail session_job = JobBuilder
                 .newJob(CheckSessionAvailableJob.class)
                 .withIdentity("CheckSessionAvailableJob",
@@ -50,6 +50,16 @@ public class JobRunner {
                 .withIdentity("CheckSessionAvailableJob",
                         CheckSessionAvailableJob.CHECK_SESSION_GROUP)
                 .withSchedule(cronSchedule(checkCronExpression)).forJob(session_job).build();
+        
+        // Check Weibo Session Available Job
+        JobDetail weibo_session_job = JobBuilder
+                .newJob(CheckWeiboSessionAvailableJob.class)
+                .withIdentity("CheckWeiboSessionAvailableJob",
+                        CheckWeiboSessionAvailableJob.CHECK_SESSION_GROUP).build();
+        Trigger weibo_session_trigger = newTrigger()
+                .withIdentity("CheckWeiboSessionAvailableJob",
+                        CheckWeiboSessionAvailableJob.CHECK_SESSION_GROUP)
+                .withSchedule(cronSchedule(checkCronExpression)).forJob(weibo_session_job).build();
         
         // Check Leaving Message Duration Job
         String checkLeaveMessageCronExpression = "0/30 * * * * ?";
@@ -61,12 +71,25 @@ public class JobRunner {
                 .withIdentity("CheckLeavingMessageJob",
                         CheckLeavingMessageJob.CHECK_LEAVING_MESSAGE_GROUP)
                 .withSchedule(cronSchedule(checkLeaveMessageCronExpression)).forJob(leave_message_job).build();
+        
+     // Get Leaved Message Job
+        String getLeavedMessageCronExpression = "0/30 * * * * ?";
+        JobDetail get_leaved_message_job = JobBuilder
+                .newJob(GetLeavedMessageJob.class)
+                .withIdentity("GetLeavedMessageJob",
+                        GetLeavedMessageJob.GET_LEAVED_MESSAGE_GROUP).build();
+        Trigger get_leaved_message_trigger = newTrigger()
+                .withIdentity("GetLeavedMessageJob",
+                        GetLeavedMessageJob.GET_LEAVED_MESSAGE_GROUP)
+                .withSchedule(cronSchedule(getLeavedMessageCronExpression)).forJob(get_leaved_message_job).build();
 
         scheduler = new StdSchedulerFactory("quartz.properties").getScheduler();
         // Add jobs to scheduler
         scheduler.scheduleJob(job, trigger);
         scheduler.scheduleJob(session_job, session_trigger);
+        scheduler.scheduleJob(weibo_session_job, weibo_session_trigger);
         scheduler.scheduleJob(leave_message_job, leave_message_trigger);
+        scheduler.scheduleJob(get_leaved_message_job, get_leaved_message_trigger);
 
         scheduler.start();
         ContextPreloader.ContextLog.info("Start Job Runner.");

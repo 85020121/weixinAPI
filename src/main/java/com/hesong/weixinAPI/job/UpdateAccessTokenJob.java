@@ -23,7 +23,7 @@ public class UpdateAccessTokenJob implements Job {
 
         for(String key: ContextPreloader.Account_Map.keySet()){
             AccessToken ac = ContextPreloader.Account_Map.get(key);
-            ac = WeChatHttpsUtil.getAccessToken(ac.getAppid(), ac.getAppSecret());
+            ac = WeChatHttpsUtil.getAccessToken(ac);
             if (ac == null) {
                 ContextPreloader.ContextLog.error("Get Access_Token failed for account: "+key);
                 continue;

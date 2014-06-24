@@ -1,7 +1,9 @@
 package com.hesong.weixinAPI.core;
 
 import java.io.InputStream;
-import java.text.SimpleDateFormat;
+import java.io.UnsupportedEncodingException;
+import java.net.URLEncoder;
+import java.util.ArrayList;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -24,6 +26,8 @@ import com.hesong.sugarCRM.SugarCRMCaller;
 import com.hesong.weixinAPI.context.ContextPreloader;
 import com.hesong.weixinAPI.job.CheckLeavingMessageJob;
 import com.hesong.weixinAPI.job.CheckSessionAvailableJob;
+import com.hesong.weixinAPI.job.CheckWeiboSessionAvailableJob;
+import com.hesong.weixinAPI.model.AccessToken;
 import com.hesong.weixinAPI.model.LeavingMessageClient;
 import com.hesong.weixinAPI.model.Staff;
 import com.hesong.weixinAPI.model.StaffSessionInfo;
@@ -35,23 +39,21 @@ public class MessageRouter implements Runnable {
 
     private static Logger log = Logger.getLogger(MessageRouter.class);
     
-    public static SimpleDateFormat TIME_FORMAT = new SimpleDateFormat(
-            "yyyy-MM-dd HH:mm:ss");
-    
     private static String USER_INFO_URL = "https://api.weixin.qq.com/cgi-bin/user/info?access_token=ACCESS_TOKEN&openid=OPENID&lang=zh_CN";
     private static String QRCODE_URL = "https://mp.weixin.qq.com/cgi-bin/showqrcode?ticket=";
     private static String GET_QRCODE_TICKETS_URL = "http://www.clouduc.cn/sua/rest/n/tenant/codetokens";
+    private static String CHECKIN_URL = "http://www.clouduc.cn/sua/rest/n/tenant/kfCheckInInfo?openid=";
     
     private BlockingQueue<Map<String, String>> messageQueue;
     private BlockingQueue<JSONObject> messageToSendQueue;
     private BlockingQueue<JSONObject> suaRequestToExecuteQueue;
     
-    public static Map<String, Map<String, Staff>> mulClientStaffMap = new HashMap<String, Map<String, Staff>>();
-    public static Map<String, StaffSessionInfo> activeStaffMap = new HashMap<String, StaffSessionInfo>();
+    public static Map<String, Map<String, Staff>> mulClientStaffMap = new HashMap<String, Map<String, Staff>>();  // <tenantUn, <staff_uuid, staff>>
+    public static Map<String, StaffSessionInfo> activeStaffMap = new HashMap<String, StaffSessionInfo>();   // <Staff openid, StaffSessionInfo>
     public static Queue<WaitingClient> waitingList = new LinkedList<WaitingClient>();
     public static Set<String>  waitingListIDs= new HashSet<String>();
     public static Map<String, JSONObject> staffIdList = new HashMap<String, JSONObject>();
-    public static Map<String, String> account_tanentUn = new HashMap<String, String>();
+    public static Map<String, Queue<JSONObject>> leavedMessageMap = new HashMap<String, Queue<JSONObject>>();  // <tenantUn, Queue>
     
     @Override
     public void run() {
@@ -73,10 +75,15 @@ public class MessageRouter implements Runnable {
                     String event = message.get(API.MESSAGE_EVENT_TAG);
                     if (event.equals("subscribe")) {
                         subscribe(message);
+                    } else if (event.equals("SCAN")) {
+                        scan(message);
                     } else if (event.equalsIgnoreCase("click")) {
                         switch (message.get(API.MESSAGE_EVENT_KEY_TAG)) {
                         case "CLIENT_INFO":  // 获取用户详情
                             clientInfo(message);
+                            break;
+                        case "CHECK_IN":    // 坐席登入
+                            checkin(message);
                             break;
                         case "CHECK_OUT":    // 坐席登出
                             checkout(message);
@@ -90,6 +97,9 @@ public class MessageRouter implements Runnable {
                         case "TAKE_CLIENT":
                             takeClient(message);  // 抢接
                             break;
+                        case "GET_MESSAGE":
+                            getMessage(message);  // 获取留言
+                            break;
                         case "CHECK_CLIENT_NUM":  // 查看等待客户数量
                             checkClientNum(message);
                             break;
@@ -98,6 +108,12 @@ public class MessageRouter implements Runnable {
                             break;
                         case "LEAVE_MESSAGE":
                             leaveMessage(message);
+                            break;
+                        case "EXPRESS_RETURN_1":
+                            expressMessage(message, "您好！请问有什么可以帮助您[微笑]?");
+                            break;
+                        case "EXPRESS_RETURN_2":
+                            expressMessage(message, "感谢您对我们的支持！如有疑问请及时与我们沟通[微笑]?");
                             break;
                         default:
                             break;
@@ -138,9 +154,10 @@ public class MessageRouter implements Runnable {
     private void textMessage(Map<String, String> message) {
         String to_account = message.get(API.MESSAGE_TO_TAG);
         String from_openid = message.get(API.MESSAGE_FROM_TAG);
+        String tenantUn = message.get("tenantUn");
         
         // Leaving message
-        if (CheckLeavingMessageJob.leavingMessageClientList.containsKey(from_openid)) {
+        if (CheckLeavingMessageJob.leavingMessageClientList.containsKey(tenantUn) && CheckLeavingMessageJob.leavingMessageClientList.get(tenantUn).containsKey(from_openid)) {
             recordLeaveMessage(message);
             return;
         }
@@ -160,13 +177,31 @@ public class MessageRouter implements Runnable {
             }
         } else {
             // Message from staff
+            
             StaffSessionInfo s = activeStaffMap.get(from_openid);
+
             if (s != null && s.isBusy()) {
-                String cToken = ContextPreloader.Account_Map.get(s.getClient_account()).getToken();
                 String content = String.format("客服%s: %s", s.getStaffid(), message.get(API.MESSAGE_CONTENT_TAG));
+
+                if (s.getClient_type().equalsIgnoreCase("wb")) {
+                    JSONObject weibo_request = new JSONObject();
+                    weibo_request.put("user_id", s.getClient_openid());
+                    weibo_request.put("tenantUn", s.getTenantUn());
+                    weibo_request.put("msgtype", API.TEXT_MESSAGE);
+                    weibo_request.put("content", content);
+                    
+                    JSONObject weibo_ret = WeChatHttpsUtil.httpPostRequest(API.WEIBO_SEND_MESSAGE_URL, weibo_request.toString(), 0);
+                    log.info("Send weibo message return: "+ weibo_ret.toString());
+                    s.setLastReceived(new Date());
+                    recordMessage(s, message, API.TEXT_MESSAGE, "wb", false);
+                    return;
+                }
+                String cToken = ContextPreloader.Account_Map.get(s.getClient_account()).getToken();
+                
                 sendMessage(s.getClient_openid(), cToken, content, API.TEXT_MESSAGE);
                 s.setLastReceived(new Date());
-                recordMessage(s, message, API.TEXT_MESSAGE, "wx", false);
+                String message_source = s.getClient_type();
+                recordMessage(s, message, API.TEXT_MESSAGE, message_source, false);
                 return;
             }
         }
@@ -269,6 +304,10 @@ public class MessageRouter implements Runnable {
                         JSONObject ret = (JSONObject) JSONSerializer.toJSON(HttpClientUtil.httpPost(sua_url, params));
                         log.info("Staff register: "+ ret.toString());
                         
+                        if (!ret.getBoolean("success")) {
+                            // Staff already registed in CRM
+                            return;
+                        }
                         String content = "欢迎使用和声云客服,系统正在为您绑定,请耐心等待...[微笑]";
                         sendMessage(openid, toToken, content, API.TEXT_MESSAGE);
                     } catch (Exception e) {
@@ -308,29 +347,36 @@ public class MessageRouter implements Runnable {
             
             news.put("news", container);
             news.put("access_token", toToken);
-            
-            getMessageToSendQueue().put(news);
+            if (account.equals(ContextPreloader.HESONG_ACCOUNT)) {
+                getMessageToSendQueue().put(news);
+            }
             
             // Insert client info to SugerCRM
             String url = USER_INFO_URL.replace("ACCESS_TOKEN", toToken).replace("OPENID", openid);
             JSONObject user_info = WeChatHttpsUtil.httpsRequest(url, "GET", null);
-            String tanentUn = message.get("tanentUn");
+            String tenantUn = message.get("tenantUn");
             // TODO 
-            if (null == tanentUn) {
-                tanentUn = "null";
+            if (null == tenantUn) {
+                tenantUn = "null";
             }
             if (user_info.containsKey("errcode")) {
                 log.error("Get client info failed: "+user_info.toString());
             } else {
                 log.info("Client info: " + user_info.toString());
-                user_info.put("tenant_code", tanentUn);
+                user_info.put("tenant_code", tenantUn);
+                user_info.put("source", "wx");
                 SugarCRMCaller crmCaller = new SugarCRMCaller();
-                String session = crmCaller.login("admin",
-                        "p@ssw0rd");
+                
+                if (!crmCaller.check_oauth(SUAExecutor.session)) {
+                    SUAExecutor.session = crmCaller.login("admin",
+                            "p@ssw0rd");
+                }
+                String session = SUAExecutor.session;
+                
                 if (!crmCaller.isOpenidBinded(session, openid)) {
                     String insert_recall = crmCaller
                             .insertToCRM_Prospects(session,
-                                    user_info.toString());
+                                    user_info);
                     log.info("insert_recall: " + insert_recall);
                 }
             }
@@ -338,41 +384,146 @@ public class MessageRouter implements Runnable {
         }
     }
     
-    private void clientInfo(Map<String, String> message) {
+    private void scan(Map<String, String> message) {
         String openid = message.get(API.MESSAGE_FROM_TAG);
         String toToken = ContextPreloader.Account_Map.get(
                 message.get(API.MESSAGE_TO_TAG)).getToken();
+        String content = "亲,您已经关注了该公众号!";
+        sendMessage(openid, toToken, content, API.TEXT_MESSAGE);
+    }
+    
+    private void clientInfo(Map<String, String> message) {
+        String openid = message.get(API.MESSAGE_FROM_TAG);
         StaffSessionInfo s = activeStaffMap.get(openid);
-        if (s != null) {
-            String url = "<a href=\"http://www.clouduc.cn/crm/mobile/weixin/prospectsDetail.php?openid="
-                    + s.getClient_openid() + "\" >点击查看用户信息</a>";
-            sendMessage(openid, toToken, url, API.TEXT_MESSAGE);
+        String account = message.get(API.MESSAGE_TO_TAG);
+        AccessToken ac = ContextPreloader.Account_Map.get(account);
+        if (s != null && s.isBusy()) {
+            String url = String.format("http://www.clouduc.cn/crm/mobile/weixin/prospectsDetail.php?kh_weixin_openid=%s&channel=%s", s.getClient_openid(), ContextPreloader.channelMap.get(account));
+            try {
+                String text = String.format("<a href=\"https://open.weixin.qq.com/connect/oauth2/authorize?appid=%s&redirect_uri=%s&response_type=code&scope=snsapi_base&state=123#wechat_redirect\">请查看</a>", ac.getAppid(), URLEncoder.encode(url, "utf8"));
+                sendMessage(openid, ac.getToken(), text, API.TEXT_MESSAGE);
+            } catch (UnsupportedEncodingException e) {
+                log.error("URLEncoder error: " + e.toString() + ", URL = " + url);
+                e.printStackTrace();
+            }
+        } else {
+            String text = "目前没有和客户建立连接，无法查看详情.";
+            sendMessage(openid, ac.getTenantUn(), text, API.TEXT_MESSAGE);
+        }
+    }
+    
+    private void checkin(Map<String, String> message) {
+        String openid = message.get(API.MESSAGE_FROM_TAG);
+        String account = message.get(API.MESSAGE_TO_TAG);
+        String url = CHECKIN_URL + openid;
+        String token = ContextPreloader.Account_Map.get(account).getToken();
+        try {
+            JSONObject staff_info = JSONObject.fromObject(HttpClientUtil.httpGet(url));
+            log.info("Checkin SUA return: " + staff_info.toString());
+            if (staff_info.getBoolean("success")) {
+                if (staff_info.getInt("tenantstatus") != 1) {
+                    log.warn("Staff no autho");
+                    String text = "欢迎使用和声云客服系统，您申请成为【商家】客服，正在审核中，请耐心等待...";
+                    sendMessage(openid, token, text, API.TEXT_MESSAGE);
+                    return;
+                }
+                
+                String wx_account = staff_info.getString("wx_account");
+                String tenantUn = staff_info.getString("tenantUn");
+                String staff_uuid = staff_info.getString("staff_id");
+                
+                Map<String, Staff> staff_map = null;
+                
+                if (mulClientStaffMap.containsKey(tenantUn)) {
+                    staff_map = mulClientStaffMap.get(tenantUn);
+                    if (staff_map.containsKey(staff_uuid)) {
+                        log.info("Staff already checked in, staff_uuid: " + staff_uuid);
+                        String text = "系统消息:您已经签入了,无需再次签入.";
+                        sendMessage(openid, token, text, API.TEXT_MESSAGE);
+                        return;
+                    }
+                } else {
+                    staff_map = new HashMap<String, Staff>();
+                    mulClientStaffMap.put(tenantUn, staff_map);
+                }
+                // Create staff
+                String staff_working_num = staff_info.getString("staff_number");
+                String staff_name = staff_info.getString("staff_name");
+                
+                JSONArray channel_list = staff_info.getJSONArray("channels");
+                List<StaffSessionInfo> sessionChannelList = new ArrayList<StaffSessionInfo>();
+                for (int i = 0; i < channel_list.size(); i++) {
+                    JSONObject channel = channel_list.getJSONObject(i);
+                    String staff_account = channel.getString("account");
+                    String staff_openid = channel.getString("openid");
+                    StaffSessionInfo s = new StaffSessionInfo(tenantUn, staff_account, staff_openid, staff_working_num, staff_name);
+                    MessageRouter.activeStaffMap.put(staff_openid, s);
+                    sessionChannelList.add(s);
+                    JSONObject staff_account_id = new JSONObject();
+                    staff_account_id.put("wx_account", staff_account);
+                    staff_account_id.put("staffid", staff_uuid);
+                    staff_account_id.put("tenantUn", tenantUn);
+                    staffIdList.put(staff_openid, staff_account_id);
+
+                }
+                log.info("staffIdList: "+MessageRouter.staffIdList.toString());
+                Staff staff = new Staff(staff_uuid, staff_name, tenantUn, wx_account, staff_working_num, sessionChannelList);
+                staff_map.put(staff_uuid, staff);
+                log.info("Staff checked in: " + staff.toString());
+                String text = String.format("系统提示:签到成功,你的工号是%s.", staff_working_num);
+                MessageRouter.sendMessage(openid, token, text, API.TEXT_MESSAGE);
+            } else {
+                log.error("Staff checkin failed: " + staff_info.getString("msg"));
+                sendMessage(openid, token, "系统消息:签入失败,请联系管理员!", API.TEXT_MESSAGE);
+            }
+        } catch (Exception e) {
+            log.error("Staff checkin failed: " + e.toString());
+            sendMessage(openid, token, "系统消息:签入失败,请联系管理员!", API.TEXT_MESSAGE);
         }
     }
     
     private void checkout(Map<String, String> message) {
-        String openid = message.get(API.MESSAGE_TO_TAG);
+        String openid = message.get(API.MESSAGE_FROM_TAG);
         JSONObject staff_account_id = staffIdList.get(openid);
+        log.info("staff_account_id: "+staff_account_id.toString());
         if (null != staff_account_id) {
-            String wx_account = staff_account_id.getString("wx_account");
-            String tanentUn = account_tanentUn.get(wx_account);
+            String tenantUn = staff_account_id.getString("tenantUn"); 
             String staff_id = staff_account_id.getString("staffid"); 
-            Map<String, Staff> staff_map = mulClientStaffMap.get(tanentUn);
+            Map<String, Staff> staff_map = mulClientStaffMap.get(tenantUn);
+            log.info("staff_map: "+staff_map.toString());
             Staff staff = staff_map.get(staff_id);
+            log.info("Staff: "+staff.toString());
             List<StaffSessionInfo> sessionList = staff.getSessionChannelList();
             for (StaffSessionInfo s : sessionList) {
                 if (s.isBusy()) {
-                    // Remaind client that staff is leaving.
-                    String token = ContextPreloader.Account_Map.get(s.getClient_account()).getToken();
-                    String text = "对不起，客服MM有急事下线了,会话已结束。您可以使用留言功能,客服MM将会在第一时间给您回复[微笑]";
-                    sendMessage(s.getClient_openid(), token, text, "text");
+                    s.setBusy(true);
+                    
+                    if (s.getClient_type().equalsIgnoreCase("wx")) {
+                     // Remaind client that staff is leaving.
+                        String token = ContextPreloader.Account_Map.get(s.getClient_account()).getToken();
+                        String text = "对不起，客服MM有急事下线了,会话已结束。您可以使用留言功能,客服MM将会在第一时间给您回复[微笑]";
+                        sendMessage(s.getClient_openid(), token, text, "text");
+                        // TODO remove session from CheckLeavingMessageJob.leavingMessageClientList
+                        CheckSessionAvailableJob.sessionMap.remove(s.getClient_openid());
+                        CheckSessionAvailableJob.clientMap.remove(s.getClient_openid());
+                    }
+                    
+                    if (CheckWeiboSessionAvailableJob.weiboSessionMap.containsKey(tenantUn) && 
+                            CheckWeiboSessionAvailableJob.weiboSessionMap.get(tenantUn).containsKey(s.getClient_openid())) {
+                        CheckWeiboSessionAvailableJob.weiboSessionMap.get(tenantUn).remove(s.getClient_openid());
+                    }
                 }
+                String token = ContextPreloader.Account_Map.get(s.getAccount()).getToken();
+                sendMessage(s.getOpenid(), token, "系统消息:您已成功签出!", API.TEXT_MESSAGE);
+                activeStaffMap.remove(s.getOpenid());
+                
             }
             staff_map.remove(staff_id);
+            log.info("staff_map after remove: "+staff_map.toString());
+            log.info("mulClientStaffMap after remove: "+mulClientStaffMap.get(tenantUn).toString());
             staffIdList.remove(openid);
             if (staff_map.isEmpty()) {
-                mulClientStaffMap.remove(tanentUn);
-                account_tanentUn.remove(wx_account);
+                mulClientStaffMap.remove(tenantUn);
             }
         }
     }
@@ -380,12 +531,13 @@ public class MessageRouter implements Runnable {
     private void staffService(Map<String, String> message) {
         String client_openid = message.get(API.MESSAGE_FROM_TAG);
         String client_account = message.get(API.MESSAGE_TO_TAG);
-        String tanentUn = account_tanentUn.get(client_account);
+        String tenantUn = message.get("tenantUn");
         String cToken = ContextPreloader.Account_Map.get(client_account).getToken();
         
         JSONObject crmRequest = new JSONObject();
         crmRequest.put("method", "convertProspectsToLeads");
-        crmRequest.put("$prospectsOpenid", client_openid);
+        crmRequest.put("session", "");
+        crmRequest.put("prospectsOpenid", client_openid);
         try {
             getSuaRequestToExecuteQueue().put(crmRequest);
         } catch (InterruptedException e) {
@@ -398,7 +550,7 @@ public class MessageRouter implements Runnable {
             return;
         }
         String content = "正在为您接通人工服务,请稍等...";
-        if (null == tanentUn || !mulClientStaffMap.containsKey(tanentUn) || mulClientStaffMap.get(tanentUn).isEmpty()) {
+        if (null == tenantUn || !mulClientStaffMap.containsKey(tenantUn) || mulClientStaffMap.get(tenantUn).isEmpty()) {
             content = "暂时没有空闲客服,请稍后再试!您可以使用留言功能，客服MM将第一时间给您回复[微笑]";
             sendMessage(client_openid, cToken, content, API.TEXT_MESSAGE);
             return;
@@ -423,13 +575,13 @@ public class MessageRouter implements Runnable {
             client_name = user_info.getString("nickname");
         }
         
-        WaitingClient c = new WaitingClient(client_openid, client_account, client_name);
+        WaitingClient c = new WaitingClient(tenantUn, client_openid, client_account, client_name);
         waitingList.offer(c);
         waitingListIDs.add(client_openid);
         
         // Broadcast client request to all staffs
         boolean isAllBusy = true;
-        for (Staff staff : mulClientStaffMap.get(tanentUn).values()) {
+        for (Staff staff : mulClientStaffMap.get(tenantUn).values()) {
             for (StaffSessionInfo s : staff.getSessionChannelList()) {
                 if (!s.isBusy()) {
                     isAllBusy = false;
@@ -503,6 +655,7 @@ public class MessageRouter implements Runnable {
             s.setClient_openid(c.getOpenid());
             s.setClient_account(c.getAccount());
             s.setClient_name(c.getName());
+            s.setClient_type("wx");
             s.setSession(UUID.randomUUID().toString());
             CheckSessionAvailableJob.sessionMap.put(c.getOpenid(), s);
             
@@ -515,6 +668,52 @@ public class MessageRouter implements Runnable {
         } else {
             text = "请求已被其他坐席抢接或没有客户发起人工请求.";
             sendMessage(staff_openid, sToken, text, "text");
+        }
+        
+    }
+    
+    private synchronized void getMessage(Map<String, String> message) {
+        String openid = message.get(API.MESSAGE_FROM_TAG);
+        String account = message.get(API.MESSAGE_TO_TAG);
+        String token = ContextPreloader.Account_Map.get(account).getToken();
+        
+        StaffSessionInfo s = activeStaffMap.get(openid);
+        String tenantUn = s.getTenantUn();
+        
+        JSONObject leavedMessage = null;
+        if (leavedMessageMap.containsKey(tenantUn)) {
+            leavedMessage = leavedMessageMap.get(tenantUn).poll();
+        }
+
+        if (null != leavedMessage) {
+            log.info("Leaved message: " + leavedMessage.toString());
+            String appid = ContextPreloader.Account_Map.get(account).getAppid();
+            String channel = ContextPreloader.channelMap.get(account);
+            
+            String source = leavedMessage.getString("source");
+            if (source.equalsIgnoreCase("wx")) {
+                source = "微信";
+            } else if (source.equalsIgnoreCase("wb")) {
+                source = "微博";
+            } else if (source.equalsIgnoreCase("tb")) {
+                String text = leavedMessage.getString("content");
+                text = text.replace("$%7Bappid%7D", appid);
+                text = text.replace("%24%7Bchannel%7D", channel);
+                sendMessage(openid, token, text, API.TEXT_MESSAGE);
+                return;
+            }
+            String url = String.format("http://www.clouduc.cn/crm/mobile/replymessage/index.php?message_group_id=%s&channel=%s", leavedMessage.getString("message_group_id"), channel);
+            try {
+                String text = String.format("读取到一条来自%s的留言,<a href=\"https://open.weixin.qq.com/connect/oauth2/authorize?appid=%s&redirect_uri=%s&response_type=code&scope=snsapi_base&state=123#wechat_redirect\">请查看</a>", source, appid, URLEncoder.encode(url, "utf8"));
+                sendMessage(openid, token, text, API.TEXT_MESSAGE);
+            } catch (UnsupportedEncodingException e) {
+                log.error("URLEncoder error: " + e.toString() + ", URL = " + url);
+                e.printStackTrace();
+            }
+            
+        } else {
+            String text = "留言已被其他客服提取，或目前没有留言需要处理。";
+            sendMessage(openid, token, text, API.TEXT_MESSAGE);
         }
         
     }
@@ -579,13 +778,32 @@ public class MessageRouter implements Runnable {
             String account = message.get(API.MESSAGE_TO_TAG);
             String token = ContextPreloader.Account_Map.get(
                     message.get(API.MESSAGE_TO_TAG)).getToken();
+            String tenantUn = message.get("tenantUn");
+            
+            JSONObject crmRequest = new JSONObject();
+            crmRequest.put("method", "convertProspectsToLeads");
+            crmRequest.put("session", "");
+            crmRequest.put("prospectsOpenid", openid);
+            try {
+                getSuaRequestToExecuteQueue().put(crmRequest);
+            } catch (InterruptedException e) {
+                log.error("Put convertProspectsToLeads request to queue failed: " + e.toString());
+                e.printStackTrace();
+            }
+            
             if (CheckLeavingMessageJob.leavingMessageClientList
-                    .containsKey(openid)) {
+                    .containsKey(tenantUn) && CheckLeavingMessageJob.leavingMessageClientList.get(tenantUn).containsKey(openid)) {
                 String content = "您正在使用留言功能,赶紧发送您的留言吧!";
                 sendMessage(openid, token, content, API.TEXT_MESSAGE);
                 return;
             }
-            String content = "欢迎使用在线留言服务,和声云客服MM将会在第一时间处理您的留言。请您在五分钟内完成留言,发送END(大小写不限)结束留言,否则系统将在五分钟后自动结束您的留言请求!";
+            
+            if (CheckSessionAvailableJob.sessionMap.containsKey(openid)) {
+                String content = "您正在和客服对话中，无法使用留言功能[微笑]";
+                sendMessage(openid, token, content, API.TEXT_MESSAGE);
+                return;
+            }
+            String content = "欢迎使用在线留言服务,客服MM将会在第一时间处理您的留言。请您在五分钟内完成留言,发送END(大小写不限)结束留言,否则系统将在五分钟后自动结束您的留言请求!";
             sendMessage(openid, token, content, API.TEXT_MESSAGE);
 
             String url = USER_INFO_URL.replace("ACCESS_TOKEN", token).replace(
@@ -597,9 +815,15 @@ public class MessageRouter implements Runnable {
             } else {
                 String client_name = user_info.getString("nickname");
                 String headimgurl = user_info.getString("headimgurl");
+                headimgurl = headimgurl.substring(0,headimgurl.length()-1) + 46;
                 LeavingMessageClient c = new LeavingMessageClient(account,
-                        openid, client_name, headimgurl);
-                CheckLeavingMessageJob.leavingMessageClientList.put(openid, c);
+                        openid, client_name, headimgurl, "wx");
+                Map<String, LeavingMessageClient> c_map = CheckLeavingMessageJob.leavingMessageClientList.get(tenantUn);
+                if (c_map == null) {
+                    c_map = new HashMap<String, LeavingMessageClient>();
+                    CheckLeavingMessageJob.leavingMessageClientList.put(tenantUn, c_map);
+                }
+                c_map.put(openid, c);
             }
         } catch (Exception e) {
             log.error("Request to leave message failed: " + e.toString());
@@ -607,7 +831,41 @@ public class MessageRouter implements Runnable {
         }
     }
     
-    private void sendMessage(String openid, String token, String text, String type) {
+    private void expressMessage(Map<String, String> message, String text) {
+        try {
+            String openid = message.get(API.MESSAGE_FROM_TAG);
+            String sToken = ContextPreloader.Account_Map.get(message.get(API.MESSAGE_TO_TAG)).getToken();
+            
+            StaffSessionInfo s = activeStaffMap.get(openid);
+            if (null != s && s.isBusy()) {
+                if (s.getClient_type().equalsIgnoreCase("wx")) {
+                    String token = ContextPreloader.Account_Map.get(
+                            s.getClient_account()).getToken();
+                    sendMessage(s.getClient_openid(), token, text, API.TEXT_MESSAGE);
+                    sendMessage(openid, sToken, text, API.TEXT_MESSAGE);
+                    s.setLastReceived(new Date());
+                }
+                
+                if (s.getClient_type().equalsIgnoreCase("wb")) {
+                    JSONObject weibo_request = new JSONObject();
+                    weibo_request.put("user_id", s.getClient_openid());
+                    weibo_request.put("tenantUn", s.getTenantUn());
+                    weibo_request.put("msgtype", API.TEXT_MESSAGE);
+                    weibo_request.put("content", text);
+                    
+                    JSONObject weibo_ret = WeChatHttpsUtil.httpPostRequest(API.WEIBO_SEND_MESSAGE_URL, weibo_request.toString(), 0);
+                    log.info("Send weibo message return: "+ weibo_ret.toString());
+                    sendMessage(openid, sToken, text, API.TEXT_MESSAGE);
+                    s.setLastReceived(new Date());
+                }
+            } 
+        } catch (Exception e) {
+            log.error("Request to leave message failed: " + e.toString());
+            e.printStackTrace();
+        }
+    }
+    
+    public static void sendMessage(String openid, String token, String text, String type) {
         JSONObject message = new JSONObject();
         message.put("msgtype", type);
         message.put("touser", openid);
@@ -622,7 +880,7 @@ public class MessageRouter implements Runnable {
         message.put(type, content);
         message.put("access_token", token);
         try {
-            getMessageToSendQueue().put(message);
+            MessageExecutor.messageToSendQueue.put(message);
         } catch (InterruptedException e) {
             log.error("Put message to queue error: "+e.toString());
         }
@@ -634,18 +892,10 @@ public class MessageRouter implements Runnable {
         messageToRecord.put("content", message.get(API.MESSAGE_CONTENT_TAG));
         messageToRecord.put("message_type", type);
         messageToRecord.put("message_source", source);
+        messageToRecord.put("tenant_code", s.getTenantUn());
         Date d = new Date(Long.parseLong(message.get("CreateTime")));
-        messageToRecord.put("time", TIME_FORMAT.format(d));
+        messageToRecord.put("time", API.TIME_FORMAT.format(d));
         if (isClient) {
-            messageToRecord.put("sender_openid", s.getOpenid());
-            messageToRecord.put("sender_name", s.getName());
-            messageToRecord.put("sender_type", "staff");
-            messageToRecord.put("sender_public_account", s.getAccount());
-            messageToRecord.put("receiver_openid", s.getClient_openid());
-            messageToRecord.put("receiver_name", s.getClient_name());
-            messageToRecord.put("receiver_type", "client");
-            messageToRecord.put("receiver_public_account", s.getClient_account());
-        } else {
             messageToRecord.put("sender_openid", s.getClient_openid());
             messageToRecord.put("sender_name", s.getClient_name());
             messageToRecord.put("sender_type", "client");
@@ -654,6 +904,15 @@ public class MessageRouter implements Runnable {
             messageToRecord.put("receiver_name", s.getName());
             messageToRecord.put("receiver_type", "staff");
             messageToRecord.put("receiver_public_account", s.getAccount());
+        } else {
+            messageToRecord.put("sender_openid", s.getOpenid());
+            messageToRecord.put("sender_name", s.getName());
+            messageToRecord.put("sender_type", "staff");
+            messageToRecord.put("sender_public_account", s.getAccount());
+            messageToRecord.put("receiver_openid", s.getClient_openid());
+            messageToRecord.put("receiver_name", s.getClient_name());
+            messageToRecord.put("receiver_type", "client");
+            messageToRecord.put("receiver_public_account", s.getClient_account());
         }
         
         JSONObject json_request = new JSONObject();
@@ -675,28 +934,33 @@ public class MessageRouter implements Runnable {
         String account = message.get(API.MESSAGE_TO_TAG);
         String type = message.get(API.MESSAGE_TYPE_TAG);
         String content = message.get(API.MESSAGE_CONTENT_TAG);
+        String tenantUn = message.get("tenantUn");
         if (type.equalsIgnoreCase(API.TEXT_MESSAGE)) {
             if (content.equalsIgnoreCase("end")) {
                 // End of leaving message
-                CheckLeavingMessageJob.leavingMessageClientList.remove(openid);
+                CheckLeavingMessageJob.leavingMessageClientList.get(tenantUn).remove(openid);
                 String text = "感谢您使用在线留言服务,客服MM将在第一时间回复您的消息!";
                 String token = ContextPreloader.Account_Map.get(account).getToken();
                 sendMessage(openid, token, text, API.TEXT_MESSAGE);
+                return;
             }
         } else {
             // Only recording text message for now
             return;
         }
         
-        LeavingMessageClient c = CheckLeavingMessageJob.leavingMessageClientList.get(openid);
-        
+        LeavingMessageClient c = CheckLeavingMessageJob.leavingMessageClientList.get(tenantUn).get(openid);
+        if (null == c) {
+            log.error("LeavingMessageClient dose not exist.");
+        }
         JSONObject messageToLeave = new JSONObject();
+        messageToLeave.put("tenant_code", tenantUn);
         messageToLeave.put("messager_id", openid);
         messageToLeave.put("messager_name", c.getName());
         messageToLeave.put("messager_photo", c.getHeadimgurl());
         messageToLeave.put("messager_public_account", account);
         messageToLeave.put("content", content);
-        messageToLeave.put("time", TIME_FORMAT.format(new Date()));
+        messageToLeave.put("time", API.TIME_FORMAT.format(new Date()));
         messageToLeave.put("message_status", "0");
         messageToLeave.put("type", type);
         messageToLeave.put("source", "wx");
@@ -704,9 +968,8 @@ public class MessageRouter implements Runnable {
         
         JSONObject json_request = new JSONObject();
         json_request.put("session", "hold");
-        json_request.put("module_name", "chat_message");
         json_request.put("name_value_list", messageToLeave.toString());
-        json_request.put("method", "set_entry");
+        json_request.put("method", "saveChatMessage");
         
         try {
             getSuaRequestToExecuteQueue().put(json_request);

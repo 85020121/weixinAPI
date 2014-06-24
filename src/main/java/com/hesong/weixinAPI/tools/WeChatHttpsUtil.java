@@ -155,17 +155,16 @@ public class WeChatHttpsUtil {
         }
     }
 
-    public static AccessToken getAccessToken(String appid, String appSecret) {
-        AccessToken token = null;
+    public static AccessToken getAccessToken(AccessToken ac) {
 
-        String requestUrl = ACCESS_TOKEN_URL.replace("APPID", appid).replace(
-                "APPSECRET", appSecret);
+        String requestUrl = ACCESS_TOKEN_URL.replace("APPID", ac.getAppid()).replace(
+                "APPSECRET", ac.getAppSecret());
         JSONObject jo = httpsRequest(requestUrl, "GET", null);
 
         if (jo != null && jo.getString("access_token") != null) {
             try {
-                token = new AccessToken(appid, appSecret,
-                        jo.getString("access_token"), jo.getInt("expires_in"));
+                ac.setToken(jo.getString("access_token"));
+                ac.setExpiresIn(jo.getInt("expires_in"));
             } catch (Exception e) {
                 log.error("Get token failed, errorcode:{"
                         + jo.getInt("errcode") + "} errormsg:{"
@@ -174,7 +173,7 @@ public class WeChatHttpsUtil {
             }
         }
 
-        return token;
+        return ac;
     }
     
     public static JSONObject httpPostFile(String requestUrl, InputStream input, String filename) {

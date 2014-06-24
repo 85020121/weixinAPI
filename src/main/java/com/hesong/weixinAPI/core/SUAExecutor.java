@@ -14,10 +14,12 @@ public class SUAExecutor implements Runnable {
     private static Logger log = Logger.getLogger(SUAExecutor.class);
     
     private BlockingQueue<JSONObject> suaRequestToExecuteQueue;
+    public static String session = "";
+    
     @Override
     public void run() {
         SugarCRMCaller caller = new SugarCRMCaller();
-        String session = caller.login("admin", "p@ssw0rd");
+        session = caller.login("admin", "p@ssw0rd");
         while(true){
             try {
                 JSONObject message = suaRequestToExecuteQueue.take();

@@ -74,8 +74,7 @@ public class SugarCRMCaller {
 	 *  1-失败
 	 *  
 	 */
-	public String insertToCRM_Prospects(String session,String json){
-		JSONObject fromJsonObject = JSONObject.fromObject(json);
+	public String insertToCRM_Prospects(String session, JSONObject fromJsonObject){
 		JSONArray attrs = new JSONArray();
 		attrs.add(cnvp("weixinid_c",fromJsonObject.getString("openid")));
 		attrs.add(cnvp("last_name",fromJsonObject.getString("nickname")));
@@ -85,7 +84,8 @@ public class SugarCRMCaller {
 		attrs.add(cnvp("primary_address_state",fromJsonObject.getString("province")));
 		attrs.add(cnvp("primary_address_country",fromJsonObject.getString("country")));
 		attrs.add(cnvp("headimgurl_c",fromJsonObject.getString("headimgurl")));
-		
+		attrs.add(cnvp("tenant_code_c",fromJsonObject.getString("tenant_code")));
+		attrs.add(cnvp("source_c",fromJsonObject.getString("source")));
 		
 		JSONObject jsonObject = new JSONObject();
 		jsonObject.put("session", session);
@@ -145,17 +145,10 @@ public class SugarCRMCaller {
      * 微信机器人获取未处理留言
      * @param sessionid
      */
-    public void getChatMessageForWX(String sessionid){
-        String params = "{\"session\":\""+sessionid+"\",\"module_name\":\"chat_message\",\"query\":\"message_status='0'\",\"order_by\":\"time\",\"offset\":0,\"select_fields\":[\"id\",\"message_group_id\"],\"max_results\":1,\"deleted\":0,\"favorites\":false}";
-        String result = call("get_entry_list",params);
-        String message_group_id = null;
-        if(result!=null && !result.equals("")){
-            JSONObject jsonObj =JSONObject.fromObject(result);
-            JSONArray list  = jsonObj.getJSONArray("entry_list");
-            JSONObject jsonObjs = list.getJSONObject(0);
-            message_group_id = (String)jsonObjs.getJSONObject("name_value_list").getJSONObject("message_group_id").get("value");
-        }
-        System.out.println(message_group_id);   
+    public String getMessageNoticeForWX(String sessionid){
+        String params = "{\"session\":\""+sessionid+"\"}";
+        String result = call("getMessageNoticeForWX",params);
+        return result;
     }
 
 	/**
@@ -202,6 +195,17 @@ public class SugarCRMCaller {
 	                md5StrBuff.append(Integer.toHexString(0xFF & byteArray[i]));  
 	        }  
 	        return md5StrBuff.toString();  
+	}
+	
+	public boolean check_oauth(String session) {
+	    String r = call("oauth_access", "{\"session\":\"" + session + "\"}");
+	    JSONObject ret = JSONObject.fromObject(r);
+	    System.out.println(ret.toString());
+	    if (ret.containsKey("id")) {
+            return true;
+        } else {
+            return false;
+        }
 	}
 	
 

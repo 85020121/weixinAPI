@@ -4,6 +4,8 @@ import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.io.UnsupportedEncodingException;
+import java.net.URLEncoder;
 import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.UUID;
@@ -106,16 +108,30 @@ public class WeChatTest {
         SugarCRMCaller sc = new SugarCRMCaller();
         String session = sc.login("admin",
                 "p@ssw0rd");
-        JSONObject rest = new JSONObject();
-        rest.put("session", "1234sadasd");
-        System.out.println(session);
-        System.out.println(sc.call("oauth_access", rest.toString()));
+        sc.check_oauth(session);
+//        JSONObject rest = new JSONObject();
+//        rest.put("session", "1234sadasd");
+//        System.out.println(session);
+//        System.out.println(sc.call("oauth_access", rest.toString()));
     }
     
     @Test
     public void messageTest(){
-        SugarCRMCaller s = new SugarCRMCaller();
-        String session = s.login("admin", "p@ssw0rd");
-        s.getChatMessageForWX(session);
+//        SugarCRMCaller s = new SugarCRMCaller();
+//        String session = s.login("admin", "p@ssw0rd");
+//        System.out.println(s.getMessageNoticeForWX(session));
+        String s = "12345";
+        System.out.println(s.substring(0,s.length()-1));
+    }
+    
+    @Test
+    public void urlTest(){
+        String url = "http://www.clouduc.cn/crm/mobile/replymessage/index.php?message_group_id=1&channel=1";
+        try {
+            System.out.println(URLEncoder.encode(url, "utf8"));
+        } catch (UnsupportedEncodingException e) {
+            // TODO Auto-generated catch block
+            e.printStackTrace();
+        }
     }
 }

@@ -1,11 +1,29 @@
 package com.hesong.weixinAPI.model;
 
 public class AccessToken {
+    private String tenantUn;
+    private String account;
     private String appid;
     private String appSecret;
     private String token;
     private int expiresIn;
     
+    public AccessToken(String account, String appid, String appSecret) {
+        super();
+        this.account = account;
+        this.appid = appid;
+        this.appSecret = appSecret;
+    }
+    
+    public AccessToken(String tenantUn, String account, String appid,
+            String appSecret) {
+        super();
+        this.tenantUn = tenantUn;
+        this.account = account;
+        this.appid = appid;
+        this.appSecret = appSecret;
+    }
+
     public AccessToken(String appid, String appSecret, String token,
             int expiresIn) {
         super();
@@ -14,6 +32,24 @@ public class AccessToken {
         this.token = token;
         this.expiresIn = expiresIn;
     }
+    
+    
+    public String getAccount() {
+        return account;
+    }
+
+    public void setAccount(String account) {
+        this.account = account;
+    }
+
+    public String getTenantUn() {
+        return tenantUn;
+    }
+
+    public void setTenantUn(String tenantUn) {
+        this.tenantUn = tenantUn;
+    }
+
     public String getAppid() {
         return appid;
     }

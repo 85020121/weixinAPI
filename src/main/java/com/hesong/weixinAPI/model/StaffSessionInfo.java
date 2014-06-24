@@ -2,9 +2,16 @@ package com.hesong.weixinAPI.model;
 
 import java.util.Date;
 
+/**
+ * 
+ * @author Bowen
+ * 微信端客户--客服会话信息
+ */
+
 public class StaffSessionInfo {
 
     private String session;
+    private String tenantUn;
     private String account;
     private String openid;
     private String staffid; // Staff working num
@@ -12,12 +19,15 @@ public class StaffSessionInfo {
     private String client_openid;
     private String client_account;
     private String client_name;
+    private String client_type;
+    private String client_image;
     private boolean isBusy;
     private Date lastReceived;
     
-    public StaffSessionInfo(String account, String openid, String staffid,
+    public StaffSessionInfo(String tenantUn, String account, String openid, String staffid,
             String name) {
         super();
+        this.tenantUn = tenantUn;
         this.account = account;
         this.openid = openid;
         this.staffid = staffid;
@@ -25,6 +35,14 @@ public class StaffSessionInfo {
         this.isBusy = false;
     }
     
+    public String getTenantUn() {
+        return tenantUn;
+    }
+
+    public void setTenantUn(String tenantUn) {
+        this.tenantUn = tenantUn;
+    }
+
     public String getName() {
         return name;
     }
@@ -68,6 +86,14 @@ public class StaffSessionInfo {
         this.client_openid = client_openid;
     }
     
+    public String getClient_type() {
+        return client_type;
+    }
+
+    public void setClient_type(String client_type) {
+        this.client_type = client_type;
+    }
+
     public String getClient_account() {
         return client_account;
     }
@@ -86,13 +112,23 @@ public class StaffSessionInfo {
     public void setClient_name(String client_name) {
         this.client_name = client_name;
     }
+    public String getClient_image() {
+        return client_image;
+    }
+    public void setClient_image(String client_image) {
+        this.client_image = client_image;
+    }
 
     @Override
     public String toString() {
-        return "StaffSessionInfo [session=" + session + ", account=" + account
-                + ", openid=" + openid + ", staffid=" + staffid
+        return "StaffSessionInfo [session=" + session + ", tenantUn="
+                + tenantUn + ", account=" + account + ", openid=" + openid
+                + ", staffid=" + staffid + ", name=" + name
                 + ", client_openid=" + client_openid + ", client_account="
-                + client_account + ", client_name=" + client_name + ", isBusy="
-                + isBusy + ", lastReceived=" + lastReceived + "]";
+                + client_account + ", client_name=" + client_name
+                + ", client_type=" + client_type + ", client_image="
+                + client_image + ", isBusy=" + isBusy + ", lastReceived="
+                + lastReceived + "]";
     }
+
 }

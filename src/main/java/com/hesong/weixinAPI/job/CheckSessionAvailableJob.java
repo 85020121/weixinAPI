@@ -44,11 +44,16 @@ public class CheckSessionAvailableJob implements Job {
                 String cToken = ContextPreloader.Account_Map.get(clientMap.get(client_openid)).getToken();
                 String sToken = ContextPreloader.Account_Map.get(staff.getAccount()).getToken();
                 try {
-                    // To client
-                    String request = SEND_MESSAGE_REQUEST_URL + cToken;
-                    JSONObject ret = WeChatHttpsUtil.httpsRequest(request, "POST", message.toString());
-                    log.info("Send message ret: "+ret.toString());
+                    String request = null;
+                    JSONObject ret = null;
                     
+                    // To client
+                    if (staff.getClient_type().equalsIgnoreCase("wx")) {
+                        request = SEND_MESSAGE_REQUEST_URL + cToken;
+                        ret = WeChatHttpsUtil.httpsRequest(request, "POST", message.toString());
+                        log.info("Send message ret: "+ret.toString());
+                    }
+
                     // To staff
                     request = SEND_MESSAGE_REQUEST_URL + sToken;
                     message.put("touser", staff.getOpenid());

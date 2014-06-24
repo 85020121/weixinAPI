@@ -1,5 +1,7 @@
 package com.hesong.weixinAPI.tools;
 
+import java.text.SimpleDateFormat;
+
 public class API {
     
     public static String TOKEN = "weixin";
@@ -61,5 +63,10 @@ public class API {
     public static String CONTENT_TYPE_VOICE = "audio/amr";
 
     public static String FTP_HTTP_ADDRESS = "http://10.4.62.41:8370";
+    
+    public static String WEIBO_SEND_MESSAGE_URL = "http://www.clouduc.cn:8080/weibo_robot/send";
+    
+    public static SimpleDateFormat TIME_FORMAT = new SimpleDateFormat(
+            "yyyy-MM-dd HH:mm:ss");
     
 }

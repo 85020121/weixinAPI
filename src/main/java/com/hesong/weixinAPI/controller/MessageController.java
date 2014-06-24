@@ -71,15 +71,37 @@ public class MessageController {
 
     }
     
-    @RequestMapping(value = "/{tanentUn}/clientMessage", method = RequestMethod.POST)
-    public void receiveClientMessage(@PathVariable String tanentUn, HttpServletRequest request,
+    @RequestMapping(value = "/{tenantUn}/clientChannel", method = RequestMethod.GET)
+    public void checkClientSignature(HttpServletRequest request,
+            HttpServletResponse response) throws IOException {
+        
+        String signature = request.getParameter(SIGNATURE);
+        String timestamp = request.getParameter(TIMESTAMP);
+        String nonce = request.getParameter(NONCE);
+        log.info("signature:" + signature + " timestamp:" + timestamp
+                + " nonce:" + nonce);
+
+        if (SignatureChecker.checkSignature(signature, timestamp, nonce,
+                API.TOKEN)) {
+            PrintWriter out = response.getWriter();
+            out.print(request.getParameter(ECHOSTR));
+            out.close();
+            out = null;
+        } else {
+            log.info("Signature check failed.");
+        }
+        
+    }
+    
+    @RequestMapping(value = "/{tenantUn}/clientChannel", method = RequestMethod.POST)
+    public void receiveClientMessage(@PathVariable String tenantUn, HttpServletRequest request,
             HttpServletResponse response) {
         
         try {
             PrintWriter out = response.getWriter();
             out.print("");
             Map<String, String> message = WeChatXMLParser.parseXML(request);
-            message.put("tanentUn", tanentUn);
+            message.put("tenantUn", tenantUn);
             MessageExecutor.messageQueue.put(message);
             out.close();
             out = null;

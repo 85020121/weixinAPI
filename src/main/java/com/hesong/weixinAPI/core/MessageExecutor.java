@@ -21,10 +21,10 @@ public class MessageExecutor {
     
     public static BlockingQueue<Map<String, String>> messageQueue = new LinkedBlockingDeque<Map<String,String>>();
 
-    private static BlockingQueue<JSONObject> messageToSendQueue = new LinkedBlockingDeque<JSONObject>();
+    public static BlockingQueue<JSONObject> messageToSendQueue = new LinkedBlockingDeque<JSONObject>();
     public static BlockingQueue<JSONObject> groupMessagesQueue = new LinkedBlockingDeque<JSONObject>();
     public static BlockingQueue<JSONObject> activeMessagesQueue = new LinkedBlockingDeque<JSONObject>();
-    private static BlockingQueue<JSONObject> suaRequestToExecuteQueue = new LinkedBlockingDeque<JSONObject>();
+    public static BlockingQueue<JSONObject> suaRequestToExecuteQueue = new LinkedBlockingDeque<JSONObject>();
     
     public static void execute(){
         for (int i = 0; i < MAX_HANDLER_NUM; i++) {

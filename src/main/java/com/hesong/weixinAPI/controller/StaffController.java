@@ -25,6 +25,7 @@ import com.hesong.weixinAPI.core.MessageRouter;
 import com.hesong.weixinAPI.job.CheckSessionAvailableJob;
 import com.hesong.weixinAPI.model.Staff;
 import com.hesong.weixinAPI.model.StaffSessionInfo;
+import com.hesong.weixinAPI.tools.API;
 import com.hesong.weixinAPI.tools.WeChatHttpsUtil;
 
 @Controller
@@ -110,32 +111,29 @@ public class StaffController {
     
     @ResponseBody
     @RequestMapping(value = "/{staff_uuid}/checkin", method = RequestMethod.POST)
-    public int checkin(@PathVariable String staff_uuid, HttpServletRequest request) {
-        log.info("Checked in staff_id: " + staff_uuid);
+    public String checkin(@PathVariable String staff_uuid, HttpServletRequest request) {
+        log.info("Checked in staff_uuid: " + staff_uuid);
         ObjectMapper mapper = new ObjectMapper();
         try {
             JSONObject staff_info = (JSONObject) JSONSerializer.toJSON(mapper
                     .readValue(request.getInputStream(), Map.class));
             String wx_account = staff_info.getString("wx_account");
-            String tanentUn = staff_info.getString("tanentUn");
+            String tenantUn = staff_info.getString("tanentUn");
             
             Map<String, Staff> staff_map = null;
-            if (MessageRouter.mulClientStaffMap.containsKey(tanentUn)) {
-                staff_map = MessageRouter.mulClientStaffMap.get(tanentUn);
+            if (MessageRouter.mulClientStaffMap.containsKey(tenantUn)) {
+                staff_map = MessageRouter.mulClientStaffMap.get(tenantUn);
                 if (staff_map.containsKey(staff_uuid)) {
                     log.info("Staff already checked in, working num: " + staff_uuid);
-                    return 200;
+                    return WeChatHttpsUtil.getErrorMsg(0, "Staff already checked in.").toString();
                 }
             } else {
                 staff_map = new HashMap<String, Staff>();
-                MessageRouter.mulClientStaffMap.put(tanentUn, staff_map);
+                MessageRouter.mulClientStaffMap.put(tenantUn, staff_map);
             }
-            
             // Create staff
             String staff_working_num = staff_info.getString("staffid");
             String staff_name = staff_info.getString("staff_name");
-            
-            MessageRouter.account_tanentUn.put(wx_account, tanentUn);
             
             JSONArray channel_list = staff_info.getJSONArray("channels");
             List<StaffSessionInfo> sessionChannelList = new ArrayList<StaffSessionInfo>();
@@ -143,23 +141,29 @@ public class StaffController {
                 JSONObject channel = channel_list.getJSONObject(i);
                 String staff_account = channel.getString("account");
                 String staff_openid = channel.getString("openid");
-                StaffSessionInfo s = new StaffSessionInfo(staff_account, staff_openid, staff_working_num, staff_name);
+                StaffSessionInfo s = new StaffSessionInfo(tenantUn, staff_account, staff_openid, staff_working_num, staff_name);
                 MessageRouter.activeStaffMap.put(staff_openid, s);
                 sessionChannelList.add(s);
                 JSONObject staff_account_id = new JSONObject();
                 staff_account_id.put("wx_account", staff_account);
                 staff_account_id.put("staffid", staff_uuid);
-                staff_account_id.put("tanentUn", tanentUn);
+                staff_account_id.put("tenantUn", tenantUn);
                 MessageRouter.staffIdList.put(staff_openid, staff_account_id);
+                String token = ContextPreloader.Account_Map.get(staff_account).getToken();
+                String text = String.format("系统提示:签到成功,你的工号是%s.", staff_working_num);
+                MessageRouter.sendMessage(staff_openid, token, text, API.TEXT_MESSAGE);
             }
-            Staff staff = new Staff(staff_uuid, staff_name, tanentUn, wx_account, staff_working_num, sessionChannelList);
+            log.info("staffIdList: "+MessageRouter.staffIdList.toString());
+            Staff staff = new Staff(staff_uuid, staff_name, tenantUn, wx_account, staff_working_num, sessionChannelList);
             staff_map.put(staff_uuid, staff);
             log.info("Staff checked in: " + staff.toString());
-            return 200;
+            return WeChatHttpsUtil.getErrorMsg(0, "Staff checked in.").toString();
         } catch (Exception e) {
+            e.printStackTrace();
             log.error("Staff checkin failed, staff_uuid = " + staff_uuid + ", caused by: " + e.toString());
-            return 404;
+            return WeChatHttpsUtil.getErrorMsg(10001, "Staff checkin failed, staff_uuid = " + staff_uuid + ", caused by: " + e.toString()).toString();
         }
+        
         
     }
 }
