@@ -22,7 +22,7 @@ public class CheckWeiboSessionAvailableJob implements Job{
 
     public static ConcurrentMap<String, Map<String, StaffSessionInfo>> weiboSessionMap = new ConcurrentHashMap<String, Map<String, StaffSessionInfo>>();
 
-    private static long session_available_duration = 120000l;
+    private static long session_available_duration = 300000l;
     
     @Override
     public void execute(JobExecutionContext context)

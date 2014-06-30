@@ -48,9 +48,21 @@ public class MessageRouter implements Runnable {
     private BlockingQueue<JSONObject> messageToSendQueue;
     private BlockingQueue<JSONObject> suaRequestToExecuteQueue;
     
-    public static Map<String, Map<String, Staff>> mulClientStaffMap = new HashMap<String, Map<String, Staff>>();  // <tenantUn, <staff_uuid, staff>>
+    /**
+     * 租户的坐席表
+     * <tenantUn, <staff_uuid, staff>>
+     */
+    public static Map<String, Map<String, Staff>> mulClientStaffMap = new HashMap<String, Map<String, Staff>>();
     public static Map<String, StaffSessionInfo> activeStaffMap = new HashMap<String, StaffSessionInfo>();   // <Staff openid, StaffSessionInfo>
+    
+    /**
+     * 已发起人工服务请求并处于等待状态的客户排队列表
+     */
     public static Queue<WaitingClient> waitingList = new LinkedList<WaitingClient>();
+    
+    /**
+     * 排队中的客户openid集合
+     */
     public static Set<String>  waitingListIDs= new HashSet<String>();
     public static Map<String, JSONObject> staffIdList = new HashMap<String, JSONObject>();
     public static Map<String, Queue<JSONObject>> leavedMessageMap = new HashMap<String, Queue<JSONObject>>();  // <tenantUn, Queue>
@@ -75,7 +87,9 @@ public class MessageRouter implements Runnable {
                     String event = message.get(API.MESSAGE_EVENT_TAG);
                     if (event.equals("subscribe")) {
                         subscribe(message);
-                    } else if (event.equals("SCAN")) {
+                    } else if (event.equals("unsubscribe")) {
+                        unsubscribe(message);
+                    }else if (event.equals("SCAN")) {
                         scan(message);
                     } else if (event.equalsIgnoreCase("click")) {
                         switch (message.get(API.MESSAGE_EVENT_KEY_TAG)) {
@@ -323,32 +337,37 @@ public class MessageRouter implements Runnable {
             String toToken = ContextPreloader.Account_Map.get(account).getToken();
             String openid = message.get(API.MESSAGE_FROM_TAG);
             
-         // Welcom news
-            JSONObject news = new JSONObject();
-            news.put("msgtype", "news");
-            news.put("touser", openid);
-            JSONArray articles = new JSONArray();
-            
-            JSONObject article_1 = new JSONObject();
-            article_1.put("title", "和声云端服务");
-            article_1.put("url", "http://hesong.net/");
-            article_1.put("picurl", "http://hesong.net/images/banner2.jpg");
-            
-            JSONObject article_2 = new JSONObject();
-            article_2.put("title", "指尖上的和声");
-            article_2.put("url", "http://hesong.net/");
-            article_2.put("picurl", "http://hesong.net/images/tu4.jpg");
-            
-            articles.add(article_1);
-            articles.add(article_2);
-            
-            JSONObject container = new JSONObject();
-            container.put("articles", articles);
-            
-            news.put("news", container);
-            news.put("access_token", toToken);
+
             if (account.equals(ContextPreloader.HESONG_ACCOUNT)) {
+                // Welcom news
+                JSONObject news = new JSONObject();
+                news.put("msgtype", "news");
+                news.put("touser", openid);
+                JSONArray articles = new JSONArray();
+                
+                JSONObject article_1 = new JSONObject();
+                article_1.put("title", "和声云端服务");
+                article_1.put("url", "http://hesong.net/");
+                article_1.put("picurl", "http://hesong.net/images/banner2.jpg");
+                
+                JSONObject article_2 = new JSONObject();
+                article_2.put("title", "指尖上的和声");
+                article_2.put("url", "http://hesong.net/");
+                article_2.put("picurl", "http://hesong.net/images/tu4.jpg");
+                
+                articles.add(article_1);
+                articles.add(article_2);
+                
+                JSONObject container = new JSONObject();
+                container.put("articles", articles);
+                
+                news.put("news", container);
+                news.put("access_token", toToken);
+                
                 getMessageToSendQueue().put(news);
+            } else {
+                String text = "感谢您关注我们的服务号，我们将为您提供最优质的服务[微笑]";
+                sendMessage(openid, toToken, text, API.TEXT_MESSAGE);
             }
             
             // Insert client info to SugerCRM
@@ -384,6 +403,14 @@ public class MessageRouter implements Runnable {
         }
     }
     
+    private void unsubscribe(Map<String, String> message){
+        String account = message.get(API.MESSAGE_TO_TAG);
+        if (ContextPreloader.staffAccountList.contains(account)) {
+            String openid = message.get(API.MESSAGE_FROM_TAG);
+        }
+        
+    }
+    
     private void scan(Map<String, String> message) {
         String openid = message.get(API.MESSAGE_FROM_TAG);
         String toToken = ContextPreloader.Account_Map.get(
@@ -408,7 +435,7 @@ public class MessageRouter implements Runnable {
             }
         } else {
             String text = "目前没有和客户建立连接，无法查看详情.";
-            sendMessage(openid, ac.getTenantUn(), text, API.TEXT_MESSAGE);
+            sendMessage(openid, ac.getToken(), text, API.TEXT_MESSAGE);
         }
     }
     
@@ -485,8 +512,8 @@ public class MessageRouter implements Runnable {
     private void checkout(Map<String, String> message) {
         String openid = message.get(API.MESSAGE_FROM_TAG);
         JSONObject staff_account_id = staffIdList.get(openid);
-        log.info("staff_account_id: "+staff_account_id.toString());
         if (null != staff_account_id) {
+            log.info("staff_account_id: "+staff_account_id.toString());
             String tenantUn = staff_account_id.getString("tenantUn"); 
             String staff_id = staff_account_id.getString("staffid"); 
             Map<String, Staff> staff_map = mulClientStaffMap.get(tenantUn);
@@ -496,7 +523,7 @@ public class MessageRouter implements Runnable {
             List<StaffSessionInfo> sessionList = staff.getSessionChannelList();
             for (StaffSessionInfo s : sessionList) {
                 if (s.isBusy()) {
-                    s.setBusy(true);
+                    s.setBusy(false);
                     
                     if (s.getClient_type().equalsIgnoreCase("wx")) {
                      // Remaind client that staff is leaving.
@@ -858,7 +885,10 @@ public class MessageRouter implements Runnable {
                     sendMessage(openid, sToken, text, API.TEXT_MESSAGE);
                     s.setLastReceived(new Date());
                 }
-            } 
+            } else {
+                String warning = "系统消息：目前没有和客户建立连接，无法使用常用语。";
+                sendMessage(openid, sToken, warning, API.TEXT_MESSAGE);
+            }
         } catch (Exception e) {
             log.error("Request to leave message failed: " + e.toString());
             e.printStackTrace();

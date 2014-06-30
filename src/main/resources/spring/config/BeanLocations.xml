@@ -11,4 +11,7 @@ http://www.springframework.org/schema/beans/spring-beans-2.5.xsd">
 	<import resource="../beans/Account.xml" /> 
     <import resource="../beans/ApplicationContextProvider.xml" />
     <import resource="SpringJDBC.xml" />
+    
+    <!-- Redis -->
+    <import resource="Redis.xml" /> 
 </beans>

@@ -75,10 +75,11 @@ public class UtilsController {
             String appsecret = json.getString("appsecret");
             AccessToken ac = new AccessToken(tenantUn, account, appid, appsecret);
             ContextPreloader.Account_Map.put(account, WeChatHttpsUtil.getAccessToken(ac));
-            
+            ContextPreloader.ContextLog.info("New client added into Account_Map: " + ac.toString());
             return WeChatHttpsUtil.getErrorMsg(0, "Client added.").toString();
         } catch (Exception e) {
             e.printStackTrace();
+            ContextPreloader.ContextLog.error("Add new client account failed: " + e.toString());
             return WeChatHttpsUtil.getErrorMsg(1, "Add client failed: " + e.toString()).toString();
         }
     }

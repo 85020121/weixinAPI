@@ -1,8 +1,6 @@
 package com.hesong.weixinAPI.job;
 
-import java.util.HashMap;
 import java.util.LinkedList;
-import java.util.Map;
 import java.util.Queue;
 
 import net.sf.json.JSONArray;
@@ -28,13 +26,19 @@ public class GetLeavedMessageJob implements Job {
     @Override
     public void execute(JobExecutionContext context)
             throws JobExecutionException {
+        if (!sua.check_oauth(SUAExecutor.session)) {
+            SUAExecutor.session = sua.login("admin",
+                    "p@ssw0rd");
+            ContextPreloader.ContextLog.info("getMessageNoticeForWX renew session: " + SUAExecutor.session);
+        }
         String r = sua.getMessageNoticeForWX(SUAExecutor.session);
         JSONObject sua_ret = JSONObject.fromObject(r);
-        if (!sua_ret.getBoolean("success")) {
-            SUAExecutor.session = sua.login("admin", "p@ssw0rd");
-            ContextPreloader.ContextLog.info("getMessageNoticeForWX renew session: " + SUAExecutor.session);
-            sua_ret = JSONObject.fromObject(sua.getMessageNoticeForWX(SUAExecutor.session));
-        }
+//        if (!sua_ret.getBoolean("success")) {
+//            SUAExecutor.session = sua.login("admin", "p@ssw0rd");
+//            ContextPreloader.ContextLog.info("getMessageNoticeForWX renew session: " + SUAExecutor.session);
+//            sua_ret = JSONObject.fromObject(sua.getMessageNoticeForWX(SUAExecutor.session));
+//        }
+
         if (sua_ret.containsKey("result")) {
             JSONArray results = sua_ret.getJSONArray("result");
             for (int i = 0; i < results.size(); i++) {
