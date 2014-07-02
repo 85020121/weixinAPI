@@ -8,6 +8,9 @@ public class API {
     public static String APPID = "wx5c19ccf5d7bdce97";
     public static String APP_SECRET = "b3b2b1f0cb0babc572adbd48dd072fb6";
     
+    public static String REDIS_CLIENT_ACCESS_TOKEN_FIELD = "weixin_client_access_token";
+    public static String REDIS_STAFF_ACCESS_TOKEN_FIELD = "weixin_staff_access_token";
+    
     public final static String MESSAGE_TYPE_TAG = "MsgType";
     public final static String MESSAGE_FROM_TAG = "FromUserName";
     public final static String MESSAGE_TO_TAG = "ToUserName";
@@ -61,10 +64,14 @@ public class API {
 
     public static String CONTENT_TYPE_IMAGE = "image/*";
     public static String CONTENT_TYPE_VOICE = "audio/amr";
+    public static String CONTENT_TYPE_VIDEO = "video/mpeg4";
 
     public static String FTP_HTTP_ADDRESS = "http://10.4.62.41:8370";
     
     public static String WEIBO_SEND_MESSAGE_URL = "http://www.clouduc.cn:8080/weibo_robot/send";
+    
+    // SUA urls
+    public static String SUA_DEL_STAFF_URL = "http://www.clouduc.cn/sua/rest/n/tenant/channel/del?openid=";
     
     public static SimpleDateFormat TIME_FORMAT = new SimpleDateFormat(
             "yyyy-MM-dd HH:mm:ss");

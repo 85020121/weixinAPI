@@ -19,6 +19,8 @@ import net.sf.json.JSONObject;
 
 import org.apache.log4j.Logger;
 
+import redis.clients.jedis.Jedis;
+
 import com.hesong.weixinAPI.model.AccessToken;
 
 public class WeChatHttpsUtil {
@@ -161,7 +163,7 @@ public class WeChatHttpsUtil {
                 "APPSECRET", ac.getAppSecret());
         JSONObject jo = httpsRequest(requestUrl, "GET", null);
 
-        if (jo != null && jo.getString("access_token") != null) {
+        if (jo != null && jo.containsKey("access_token")) {
             try {
                 ac.setToken(jo.getString("access_token"));
                 ac.setExpiresIn(jo.getInt("expires_in"));
@@ -171,9 +173,37 @@ public class WeChatHttpsUtil {
                         + jo.getString("errmsg") + "}");
                 return null;
             }
+        } else {
+            log.error("Update access_token failed: " + jo.toString());
+            return null;
         }
 
         return ac;
+    }
+    
+    public static void setAccessTokenToRedis(Jedis jedis, String account, String appid, String appSecret, String tenantUn) {
+
+        String requestUrl = ACCESS_TOKEN_URL.replace("APPID", appid).replace(
+                "APPSECRET", appSecret);
+        JSONObject jo = httpsRequest(requestUrl, "GET", null);
+
+        if (jo != null && jo.containsKey("access_token")) {
+            try {
+                JSONObject ac = new JSONObject();
+                ac.put("appid", appid);
+                ac.put("appSecret", appSecret);
+                ac.put("tenantUn", tenantUn);
+                ac.put("access_token", jo.getString("access_token"));
+                jedis.hset(account, API.REDIS_CLIENT_ACCESS_TOKEN_FIELD, ac.toString());
+            } catch (Exception e) {
+                log.error("Get token failed, errorcode:{"
+                        + jo.getInt("errcode") + "} errormsg:{"
+                        + jo.getString("errmsg") + "}");
+            }
+        } else {
+            log.error("Update access_token failed: " + jo.toString());
+        }
+
     }
     
     public static JSONObject httpPostFile(String requestUrl, InputStream input, String filename) {

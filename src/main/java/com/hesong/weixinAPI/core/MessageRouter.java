@@ -83,6 +83,9 @@ public class MessageRouter implements Runnable {
                 case API.VOICE_MESSAGE:
                     voiceMessage(message);
                     break;
+                case API.VIDEO_MESSAGE:
+                    videoMessage(message);
+                    break;
                 case API.EVENT_MESSAGE:
                     String event = message.get(API.MESSAGE_EVENT_TAG);
                     if (event.equals("subscribe")) {
@@ -113,6 +116,9 @@ public class MessageRouter implements Runnable {
                             break;
                         case "GET_MESSAGE":
                             getMessage(message);  // 获取留言
+                            break;
+                        case "CHAT_HISTORY":
+                            getChatHistory(message);  // 获取留言
                             break;
                         case "CHECK_CLIENT_NUM":  // 查看等待客户数量
                             checkClientNum(message);
@@ -150,12 +156,15 @@ public class MessageRouter implements Runnable {
         String pull_url = API.PULLING_MEDIA_URL.replace("ACCESS_TOKEN", origToken) + origMediaId;
         InputStream input = WeChatHttpsUtil.httpGetInputStream(pull_url, content_type);
         String post_url = API.UPLOAD_IMAGE_REQUEST_URL.replace("ACCESS_TOKEN", token) + media_type;
-        JSONObject ret;
+        String extension = "";
         if (media_type.equals(API.IMAGE_MESSAGE)) {
-            ret = WeChatHttpsUtil.httpPostFile(post_url, input, UUID.randomUUID().toString()+".jpg");
-        } else {
-            ret = WeChatHttpsUtil.httpPostFile(post_url, input, UUID.randomUUID().toString()+".amr");
+            extension = ".jpg";
+        } else if (media_type.equals(API.VOICE_MESSAGE)) {
+            extension = ".amr";
+        } else if (media_type.equals(API.VIDEO_MESSAGE)) {
+            extension = ".mp4";
         }
+        JSONObject ret = WeChatHttpsUtil.httpPostFile(post_url, input, UUID.randomUUID().toString() + extension);
         log.info("Upload return: "+ret.toString());
         if (ret.containsKey("media_id")) {
             return ret.getString("media_id");
@@ -249,7 +258,7 @@ public class MessageRouter implements Runnable {
                 s.setLastReceived(new Date());
             }
         }
-        String img_id = getMediaId(message.get(API.MESSAGE_MEDIA_ID_TAG), img_Token, img_toToken, "image", "image/*");
+        String img_id = getMediaId(message.get(API.MESSAGE_MEDIA_ID_TAG), img_Token, img_toToken, "image", API.CONTENT_TYPE_IMAGE);
         if (img_id.equals("error")) {
             sendMessage(img_openid, img_Token, "系统消息:发送图片失败,请发送小于120KB的图片", API.TEXT_MESSAGE);
             return;
@@ -280,12 +289,43 @@ public class MessageRouter implements Runnable {
                 s.setLastReceived(new Date());
             }
         }
-        String voice_id = getMediaId(message.get(API.MESSAGE_MEDIA_ID_TAG), voice_Token, voice_toToken, "voice", "audio/amr");
+        String voice_id = getMediaId(message.get(API.MESSAGE_MEDIA_ID_TAG), voice_Token, voice_toToken, "voice", API.CONTENT_TYPE_VOICE);
         if (voice_id.equals("error")) {
             sendMessage(voice_openid, voice_Token, "系统消息:发送语音消息失败", API.TEXT_MESSAGE);
             return;
         }
         sendMessage(voice_to_openid, voice_toToken, voice_id, API.VOICE_MESSAGE);
+    }
+    
+    private void videoMessage(Map<String, String> message) {
+        String video_account = message.get(API.MESSAGE_TO_TAG);
+        String video_openid = message.get(API.MESSAGE_FROM_TAG);
+        String video_Token = ContextPreloader.Account_Map.get(video_account).getToken();
+        String video_toToken = "";
+        String video_to_openid = "";
+        if (!ContextPreloader.staffAccountList.contains(video_account)) {
+            // Message from client
+            if (CheckSessionAvailableJob.clientMap.containsKey(video_openid)) {
+                StaffSessionInfo s = CheckSessionAvailableJob.sessionMap.get(video_openid);
+                video_toToken = ContextPreloader.Account_Map.get(s.getAccount()).getToken();
+                video_to_openid = s.getOpenid();
+                s.setLastReceived(new Date());
+            }
+        } else {
+            // Message from staff
+            StaffSessionInfo s = activeStaffMap.get(video_openid);
+            if (s != null && s.isBusy()) {
+                video_toToken = ContextPreloader.Account_Map.get(s.getClient_account()).getToken();
+                video_to_openid = s.getClient_openid();
+                s.setLastReceived(new Date());
+            }
+        }
+        String voice_id = getMediaId(message.get(API.MESSAGE_MEDIA_ID_TAG), video_Token, video_toToken, "video", API.CONTENT_TYPE_VIDEO);
+        if (voice_id.equals("error")) {
+            sendMessage(video_openid, video_Token, "系统消息:发送视频消息失败", API.TEXT_MESSAGE);
+            return;
+        }
+        sendMessage(video_to_openid, video_toToken, voice_id, API.VIDEO_MESSAGE);
     }
     
     private void subscribe(Map<String, String> message) throws InterruptedException {
@@ -407,7 +447,11 @@ public class MessageRouter implements Runnable {
         String account = message.get(API.MESSAGE_TO_TAG);
         if (ContextPreloader.staffAccountList.contains(account)) {
             String openid = message.get(API.MESSAGE_FROM_TAG);
+            String r = HttpClientUtil.httpGet(API.SUA_DEL_STAFF_URL + openid);
+            JSONObject rj = JSONObject.fromObject(r);
+            log.info("Staff unsubscribe return: " + rj.toString());
         }
+        // TODO remove active session
         
     }
     
@@ -436,6 +480,33 @@ public class MessageRouter implements Runnable {
         } else {
             String text = "目前没有和客户建立连接，无法查看详情.";
             sendMessage(openid, ac.getToken(), text, API.TEXT_MESSAGE);
+        }
+    }
+    
+    private void getChatHistory(Map<String, String> message) {
+        String openid = message.get(API.MESSAGE_FROM_TAG);
+        StaffSessionInfo s = activeStaffMap.get(openid);
+        String account = message.get(API.MESSAGE_TO_TAG);
+        AccessToken ac = ContextPreloader.Account_Map.get(account);
+        String url = null;
+        if (s != null && s.isBusy()) {
+            url = String
+                    .format("http://www.clouduc.cn/crm/mobile/chathistory/chathistory.php?client_openid=%s&staff_openid=%s&channel=%s",
+                            s.getClient_openid(), openid,
+                            ContextPreloader.channelMap.get(account));
+        } else {
+            url = String
+                    .format("http://www.clouduc.cn/crm/mobile/chathistory/chathistorylist.php?staff_openid=%s&channel=%s",
+                            openid, ContextPreloader.channelMap.get(account));
+        }
+        try {
+            String text = String
+                    .format("<a href=\"https://open.weixin.qq.com/connect/oauth2/authorize?appid=%s&redirect_uri=%s&response_type=code&scope=snsapi_base&state=123#wechat_redirect\">请点击查看历史记录</a>",
+                            ac.getAppid(), URLEncoder.encode(url, "utf8"));
+            sendMessage(openid, ac.getToken(), text, API.TEXT_MESSAGE);
+        } catch (UnsupportedEncodingException e) {
+            log.error("URLEncoder error: " + e.toString() + ", URL = " + url);
+            e.printStackTrace();
         }
     }
     
@@ -906,6 +977,8 @@ public class MessageRouter implements Runnable {
             content.put("media_id", text);
         } else if (type.equals("voice")) {
             content.put("media_id", text);
+        } else if (type.equals("video")) {
+            content.put("media_id", text);
         }
         message.put(type, content);
         message.put("access_token", token);
@@ -923,8 +996,7 @@ public class MessageRouter implements Runnable {
         messageToRecord.put("message_type", type);
         messageToRecord.put("message_source", source);
         messageToRecord.put("tenant_code", s.getTenantUn());
-        Date d = new Date(Long.parseLong(message.get("CreateTime")));
-        messageToRecord.put("time", API.TIME_FORMAT.format(d));
+        messageToRecord.put("time", API.TIME_FORMAT.format(new Date()));
         if (isClient) {
             messageToRecord.put("sender_openid", s.getClient_openid());
             messageToRecord.put("sender_name", s.getClient_name());
