@@ -76,6 +76,7 @@ public class ChannelController {
                                 session_info.setClient_image(user_image_url);
                                 session_info.setLastReceived(new Date());
                                 session_info.setSession(UUID.randomUUID().toString());
+                                session_info.setBeginTime(API.TIME_FORMAT.format(new Date()));
                                 session_info.setBusy(true);
                                 break;
                             }

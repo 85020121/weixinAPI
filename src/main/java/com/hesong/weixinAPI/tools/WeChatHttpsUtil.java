@@ -181,7 +181,7 @@ public class WeChatHttpsUtil {
         return ac;
     }
     
-    public static void setAccessTokenToRedis(Jedis jedis, String account, String appid, String appSecret, String tenantUn) {
+    public static void setAccessTokenToRedis(Jedis jedis, String account, String appid, String appSecret, String tenantUn, String redisKey) {
 
         String requestUrl = ACCESS_TOKEN_URL.replace("APPID", appid).replace(
                 "APPSECRET", appSecret);
@@ -194,7 +194,8 @@ public class WeChatHttpsUtil {
                 ac.put("appSecret", appSecret);
                 ac.put("tenantUn", tenantUn);
                 ac.put("access_token", jo.getString("access_token"));
-                jedis.hset(account, API.REDIS_CLIENT_ACCESS_TOKEN_FIELD, ac.toString());
+                jedis.hset(redisKey, account, ac.toString());
+                jedis.hset(API.REDIS_WEIXIN_ACCESS_TOKEN_KEY, account, jo.getString("access_token"));
             } catch (Exception e) {
                 log.error("Get token failed, errorcode:{"
                         + jo.getInt("errcode") + "} errormsg:{"

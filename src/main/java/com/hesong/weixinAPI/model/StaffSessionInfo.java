@@ -11,6 +11,7 @@ import java.util.Date;
 public class StaffSessionInfo {
 
     private String session;
+    private String staff_uuid;
     private String tenantUn;
     private String account;
     private String openid;
@@ -21,17 +22,21 @@ public class StaffSessionInfo {
     private String client_name;
     private String client_type;
     private String client_image;
+    private boolean isWebStaff;
     private boolean isBusy;
     private Date lastReceived;
+    private String beginTime;
+    private String endTime;
     
     public StaffSessionInfo(String tenantUn, String account, String openid, String staffid,
-            String name) {
+            String name, String staff_uuid) {
         super();
         this.tenantUn = tenantUn;
         this.account = account;
         this.openid = openid;
         this.staffid = staffid;
         this.name = name;
+        this.staff_uuid = staff_uuid;
         this.isBusy = false;
     }
     
@@ -117,6 +122,30 @@ public class StaffSessionInfo {
     }
     public void setClient_image(String client_image) {
         this.client_image = client_image;
+    }
+    public boolean isWebStaff() {
+        return isWebStaff;
+    }
+    public void setWebStaff(boolean isWebStaff) {
+        this.isWebStaff = isWebStaff;
+    }
+    public String getBeginTime() {
+        return beginTime;
+    }
+    public void setBeginTime(String beginTime) {
+        this.beginTime = beginTime;
+    }
+    public String getEndTime() {
+        return endTime;
+    }
+    public void setEndTime(String endTime) {
+        this.endTime = endTime;
+    }
+    public String getStaff_uuid() {
+        return staff_uuid;
+    }
+    public void setStaff_uuid(String staff_uuid) {
+        this.staff_uuid = staff_uuid;
     }
 
     @Override

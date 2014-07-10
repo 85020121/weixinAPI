@@ -41,6 +41,9 @@ public class CheckWeiboSessionAvailableJob implements Job{
                     session_map.remove(session.getClient_openid());
                     log.info("Weibo session removed for client: " + session.getClient_openid());
                     session.setBusy(false);
+                    session.setEndTime(API.TIME_FORMAT.format(new Date()));
+                    MessageRouter.recordSession(session, 0);
+                    
                     session_map.remove(id);
                 }
             }

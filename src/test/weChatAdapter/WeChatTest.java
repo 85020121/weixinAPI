@@ -32,6 +32,14 @@ import com.hesong.weixinAPI.tools.WeChatHttpsUtil;
 public class WeChatTest {
 
     @Test
+    public void updateTest(){
+        String requestUrl = WeChatHttpsUtil.ACCESS_TOKEN_URL.replace("APPID", "wx735e58e85eb3614a").replace(
+                "APPSECRET", "d21d943d536c383c9e60053ff15996c2");
+        JSONObject jo = WeChatHttpsUtil.httpsRequest(requestUrl, "GET", null);
+        System.out.println(jo.toString());
+    }
+    
+    @Test
     public void uploadTest() {
         String media_id = "CxGxPEdGRvGt3ubCgRGmMSCbKKXFiWLn9jOtNRt0Pa4AJhRcrZhtA_8OmWlJaMV9";
         String token = "7h7UN1yUxNSvlqpUtIfAcydtkwquWQPI0mH98VS2SwPiXqi5Y1jhEony1DLIBgdFYsJi7ADasqjhAoMnidt2ww";
@@ -164,13 +172,14 @@ public class WeChatTest {
             ac.put("appid", jo.getString("appid"));
             ac.put("secretKey", jo.getString("secretKey"));
             ac.put("tenantUn", ((JSONObject)object).getString("tenantUn"));
-            jedis.hset(jo.getString("publicid"), "weixin_access_token", ac.toString());
+            jedis.hset("weixin_access_token", jo.getString("publicid"), ac.toString());
         }
-        System.out.println(jedis.hget("gh_be994485fbce", "weixin_access_token"));
-        System.out.println(jedis.hget("gh_108cbaea5b15", "weixin_access_token"));
-        jedis.hdel("gh_be994485fbce", "weixin_access_token");
-        jedis.hdel("gh_108cbaea5b15", "weixin_access_token");
-        System.out.println(jedis.hget("gh_be994485fbce", "weixin_access_token"));
+        System.out.println(jedis.hgetAll("weixin_access_token"));
+        System.out.println(jedis.hexists("weixin_access_token", "gh_be994485fbce"));
+        jedis.hdel("weixin_access_token", "gh_be994485fbce");
+        jedis.hdel("weixin_access_token", "gh_108cbaea5b15");
+        System.out.println(jedis.hexists("weixin_access_token", "gh_be994485fbce"));
+        System.out.println(jedis.hgetAll("weixin_access_token"));
         pool.returnBrokenResource(jedis);
         pool.destroy();
     }

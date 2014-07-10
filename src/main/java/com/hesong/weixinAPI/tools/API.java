@@ -8,9 +8,11 @@ public class API {
     public static String APPID = "wx5c19ccf5d7bdce97";
     public static String APP_SECRET = "b3b2b1f0cb0babc572adbd48dd072fb6";
     
-    public static String REDIS_CLIENT_ACCESS_TOKEN_FIELD = "weixin_client_access_token";
-    public static String REDIS_STAFF_ACCESS_TOKEN_FIELD = "weixin_staff_access_token";
-    
+    public static String REDIS_WEIXIN_ACCESS_TOKEN_KEY = "weixin_access_token";
+    public static String REDIS_CLIENT_ACCOUNT_INFO_KEY = "weixin_client_account_info";
+    public static String REDIS_STAFF_ACCOUNT_INFO_KEY = "weixin_staff_account_info";
+    public static String REDIS_WEB_STAFF_OPENID_ACCOUNT = "web_staff_openid_account";
+
     public final static String MESSAGE_TYPE_TAG = "MsgType";
     public final static String MESSAGE_FROM_TAG = "FromUserName";
     public final static String MESSAGE_TO_TAG = "ToUserName";
@@ -72,7 +74,7 @@ public class API {
     
     // SUA urls
     public static String SUA_DEL_STAFF_URL = "http://www.clouduc.cn/sua/rest/n/tenant/channel/del?openid=";
-    
+
     public static SimpleDateFormat TIME_FORMAT = new SimpleDateFormat(
             "yyyy-MM-dd HH:mm:ss");
     

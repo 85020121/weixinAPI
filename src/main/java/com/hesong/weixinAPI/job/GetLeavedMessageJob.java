@@ -54,13 +54,14 @@ public class GetLeavedMessageJob implements Job {
             }
         }
         
-        ContextPreloader.ContextLog.info("Messages: " + MessageRouter.leavedMessageMap.toString());
+//        ContextPreloader.ContextLog.info("Messages: " + MessageRouter.leavedMessageMap.toString());
         
         for (String tenantUn : MessageRouter.leavedMessageMap.keySet()) {
                 int count = MessageRouter.leavedMessageMap.get(tenantUn).size();
                 if (count == 0) {
                     continue;
                 }
+                ContextPreloader.ContextLog.info(count + " leaved messages for client " + tenantUn);
                 for (Staff staff : MessageRouter.mulClientStaffMap.get(tenantUn).values()) {
                     for (StaffSessionInfo s : staff.getSessionChannelList()) {
                         if (!s.isBusy()) {

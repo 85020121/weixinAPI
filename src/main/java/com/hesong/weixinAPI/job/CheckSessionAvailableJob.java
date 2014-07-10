@@ -29,29 +29,32 @@ public class CheckSessionAvailableJob implements Job {
     public void execute(JobExecutionContext context)
             throws JobExecutionException {
         for (String client_openid : sessionMap.keySet()) {
-            StaffSessionInfo staff = sessionMap.get(client_openid);
-            if (staff != null && (new Date().getTime() - staff.getLastReceived().getTime()) > session_available_duration) {
+            StaffSessionInfo session = sessionMap.get(client_openid);
+            if (session != null && (new Date().getTime() - session.getLastReceived().getTime()) > session_available_duration) {
                 log.info("Time out, remove client.");
                 
-                String cToken = ContextPreloader.Account_Map.get(staff.getClient_account()).getToken();
-                String sToken = ContextPreloader.Account_Map.get(staff.getAccount()).getToken();
+                String cToken = ContextPreloader.Account_Map.get(session.getClient_account()).getToken();
+                String sToken = ContextPreloader.Account_Map.get(session.getAccount()).getToken();
                 try {
                     
                     String text = "系统消息:会话超时,您已退出人工对话，感谢您的使用。";
                     // To client
-                    if (staff.getClient_type().equalsIgnoreCase("wx")) {
+                    if (session.getClient_type().equalsIgnoreCase("wx")) {
                         MessageRouter.sendMessage(client_openid, cToken, text, API.TEXT_MESSAGE);
                     }
 
                     // To staff
                     text = "系统消息:会话超时,该会话已结束。";
-                    MessageRouter.sendMessage(staff.getOpenid(), sToken, text, API.TEXT_MESSAGE);
+                    MessageRouter.sendMessage(session.getOpenid(), sToken, text, API.TEXT_MESSAGE);
                     
                 } catch (Exception e) {
                     log.error("Send message error: "+e.toString());
                 }
                 
-                staff.setBusy(false);
+                session.setBusy(false);
+                session.setEndTime(API.TIME_FORMAT.format(new Date()));
+                MessageRouter.recordSession(session, 0);
+                
                 clientMap.remove(client_openid);
                 sessionMap.remove(client_openid);
             }
