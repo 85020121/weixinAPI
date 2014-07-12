@@ -6,6 +6,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
+
 import javax.servlet.http.Cookie;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
@@ -108,8 +109,17 @@ public class WebchatController {
 
                     MessageRouter.sendMessage(staff_openid, MessageRouter.getAccessToken(staff_account), text, API.TEXT_MESSAGE);
                 }
+                
+                List<String> skills = new ArrayList<String>();
+                if (staff_info.containsKey("skills")) {
+                    JSONArray skl = staff_info.getJSONArray("skills");
+                    for (int i = 0; i < skl.size(); i++) {
+                        skills.add(skl.getJSONObject(i).getString("code"));
+                    }
+                }
+                
                 log.info("staffIdList: "+MessageRouter.staffIdList.toString());
-                Staff staff = new Staff(staff_uuid, staff_name, tenantUn, wx_account, staff_working_num, sessionChannelList);
+                Staff staff = new Staff(staff_uuid, staff_name, tenantUn, wx_account, staff_working_num, sessionChannelList, skills);
                 staff_map.put(staff_uuid, staff);
                 log.info("Staff checked in: " + staff.toString());
                 return "chatRoom";

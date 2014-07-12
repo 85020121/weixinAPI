@@ -54,7 +54,6 @@ public class ContextPreloader extends HttpServlet{
             
             JedisPoolConfig config = new JedisPoolConfig();
             config.setMaxTotal(Integer.parseInt(bundle.getString("redis.pool.maxTotal")));
-            System.out.println(bundle.getString("redis.pool.maxTotal"));
             config.setMaxIdle(Integer.parseInt(bundle.getString("redis.pool.maxIdle")));
             config.setMaxWaitMillis(Integer.parseInt(bundle.getString("redis.pool.maxWait")));
             config.setTestOnBorrow(true);

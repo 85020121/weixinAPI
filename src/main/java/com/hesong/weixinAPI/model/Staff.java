@@ -10,9 +10,11 @@ public class Staff {
     private String wx_account;
     private String work_num;
     private List<StaffSessionInfo> sessionChannelList;
+    private List<String> skills;
     
     public Staff(String id, String name, String tanentUn, String wx_account,
-            String work_num, List<StaffSessionInfo> sessionChannelList) {
+            String work_num, List<StaffSessionInfo> sessionChannelList,
+            List<String> skills) {
         super();
         this.id = id;
         this.name = name;
@@ -20,6 +22,7 @@ public class Staff {
         this.wx_account = wx_account;
         this.work_num = work_num;
         this.sessionChannelList = sessionChannelList;
+        this.skills = skills;
     }
 
     public String getId() {
@@ -70,11 +73,19 @@ public class Staff {
         this.sessionChannelList = sessionChannelList;
     }
 
+    public List<String> getSkills() {
+        return skills;
+    }
+
+    public void setSkills(List<String> skills) {
+        this.skills = skills;
+    }
+
     @Override
     public String toString() {
         return "Staff [id=" + id + ", name=" + name + ", tanentUn=" + tanentUn
                 + ", wx_account=" + wx_account + ", work_num=" + work_num
-                + ", sessionChannelList=" + sessionChannelList + "]";
+                + ", sessionChannelList=" + sessionChannelList + ", skills="
+                + skills + "]";
     }
-    
 }

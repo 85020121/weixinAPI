@@ -14,6 +14,7 @@ import java.util.Queue;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.ConcurrentHashMap;
 
 import net.sf.json.JSONArray;
 import net.sf.json.JSONObject;
@@ -53,18 +54,19 @@ public class MessageRouter implements Runnable {
      * 租户的坐席表
      * <tenantUn, <staff_uuid, staff>>
      */
-    public static Map<String, Map<String, Staff>> mulClientStaffMap = new HashMap<String, Map<String, Staff>>();
-    public static Map<String, StaffSessionInfo> activeStaffMap = new HashMap<String, StaffSessionInfo>();   // <Staff openid, StaffSessionInfo>
+    public static Map<String, Map<String, Staff>> mulClientStaffMap = new ConcurrentHashMap<String, Map<String, Staff>>();
+    public static Map<String, StaffSessionInfo> activeStaffMap = new ConcurrentHashMap<String, StaffSessionInfo>();   // <Staff openid, StaffSessionInfo>
     
     /**
      * 已发起人工服务请求并处于等待状态的客户排队列表
+     * <tenantUn, <skill_category, queue>>
      */
-    public static Queue<WaitingClient> waitingList = new LinkedList<WaitingClient>();
+    public static Map<String, Map<String, Queue<WaitingClient>>> waitingList = new ConcurrentHashMap<String, Map<String,Queue<WaitingClient>>>();
     
     /**
      * 排队中的客户openid集合
      */
-    public static Set<String>  waitingListIDs= new HashSet<String>();
+    public static Set<String> waitingListIDs= new HashSet<String>();
     public static Map<String, JSONObject> staffIdList = new HashMap<String, JSONObject>();
     public static Map<String, Queue<JSONObject>> leavedMessageMap = new HashMap<String, Queue<JSONObject>>();  // <tenantUn, Queue>
     
@@ -106,8 +108,17 @@ public class MessageRouter implements Runnable {
                         case "CHECK_OUT":    // 坐席登出
                             checkout(message);
                             break;
-                        case "STAFF_SERVICE":  // 人工服务
-                            staffService(message);
+                        case "SERVICE_zixun":  // 咨询
+                            staffService(message, "zixun");
+                            break;
+                        case "SERVICE_shouqian":  // 售前
+                            staffService(message, "shouqian");
+                            break;
+                        case "SERVICE_shouhou":  // 售后
+                            staffService(message, "shouhou");
+                            break;
+                        case "SERVICE_tousu":  // 投诉
+                            staffService(message, "tousu");
                             break;
                         case "END_SESSION":    // 结束对话
                             endSession(message);
@@ -607,8 +618,16 @@ public class MessageRouter implements Runnable {
                     staffIdList.put(staff_openid, staff_account_id);
 
                 }
-                log.info("staffIdList: "+MessageRouter.staffIdList.toString());
-                Staff staff = new Staff(staff_uuid, staff_name, tenantUn, wx_account, staff_working_num, sessionChannelList);
+                
+                List<String> skills = new ArrayList<String>();
+                if (staff_info.containsKey("skills")) {
+                    JSONArray skl = staff_info.getJSONArray("skills");
+                    for (int i = 0; i < skl.size(); i++) {
+                        skills.add(skl.getJSONObject(i).getString("code"));
+                    }
+                }
+                
+                Staff staff = new Staff(staff_uuid, staff_name, tenantUn, wx_account, staff_working_num, sessionChannelList, skills);
                 staff_map.put(staff_uuid, staff);
                 log.info("Staff checked in: " + staff.toString());
                 String text = String.format("系统提示:签到成功,你的工号是%s.", staff_working_num);
@@ -678,7 +697,7 @@ public class MessageRouter implements Runnable {
         }
     }
     
-    private void staffService(Map<String, String> message) {
+    private void staffService(Map<String, String> message, String skill_category) {
         String client_openid = message.get(API.MESSAGE_FROM_TAG);
         String client_account = message.get(API.MESSAGE_TO_TAG);
         String tenantUn = message.get("tenantUn");
@@ -726,7 +745,20 @@ public class MessageRouter implements Runnable {
         }
         
         WaitingClient c = new WaitingClient(tenantUn, client_openid, client_account, client_name);
-        waitingList.offer(c);
+        if (!waitingList.containsKey(tenantUn)) {
+            Queue<WaitingClient> queue = new LinkedList<WaitingClient>();
+            queue.offer(c);
+            Map<String, Queue<WaitingClient>> m = new ConcurrentHashMap<String, Queue<WaitingClient>>();
+            m.put(skill_category, queue);
+            waitingList.put(tenantUn, m);
+        } else if (!waitingList.get(tenantUn).containsKey(skill_category)) {
+            Queue<WaitingClient> queue = new LinkedList<WaitingClient>();
+            queue.offer(c);
+            waitingList.get(tenantUn).put(skill_category, queue);
+        } else {
+            waitingList.get(tenantUn).get(skill_category).offer(c);
+        }
+//        waitingList.offer(c);
         waitingListIDs.add(client_openid);
         
         // Broadcast client request to all staffs
@@ -786,45 +818,73 @@ public class MessageRouter implements Runnable {
         String staff_openid = message.get(API.MESSAGE_FROM_TAG);
         String sToken = getAccessToken(message.get(API.MESSAGE_TO_TAG)); //ContextPreloader.Account_Map.get(message.get(API.MESSAGE_TO_TAG)).getToken();
         
-        WaitingClient c = waitingList.poll();
-        String text = "";
+        StaffSessionInfo session = activeStaffMap.get(staff_openid);
+        if (null == session) {
+            String text = "系统消息：您还没有签到，无法使用此功能!";
+            log.error("Get session returns null, staff openid: " + staff_openid);
+            sendMessage(staff_openid, sToken, text, "text");
+            return;
+        }
         
-        if (c != null && CheckSessionAvailableJob.clientMap.get(c.getOpenid()) == null) {
-            CheckSessionAvailableJob.clientMap.put(c.getOpenid(), c.getAccount());
-            StaffSessionInfo s = MessageRouter.activeStaffMap.get(staff_openid);
-            if (s == null) {
-                text = "系统错误";
-                log.error("Get staff returns null, staff openid: " + staff_openid);
-                sendMessage(staff_openid, sToken, text, "text");
-                return;
+        if (session.isBusy()) {
+            String text = "系统消息：您正在和客户通话,无法实施该操作.";
+            sendMessage(staff_openid, sToken, text, "text");
+            return;
+        }
+        
+        String tenentUn = session.getTenantUn();
+        if (!mulClientStaffMap.containsKey(tenentUn) || !mulClientStaffMap.get(tenentUn).containsKey(session.getStaff_uuid())) {
+            String text = "系统消息：您还没有签到，无法使用此功能!";
+            log.error("Get staff returns null, staff openid: " + staff_openid);
+            sendMessage(staff_openid, sToken, text, "text");
+            return;
+        }
+        
+        if (!waitingList.containsKey(tenentUn)) {
+            String text = "系统消息：请求已被其他客服抢接或没有客户发起人工请求.";
+            sendMessage(staff_openid, sToken, text, "text");
+            return;
+        }
+        
+        Staff staff = mulClientStaffMap.get(tenentUn).get(session.getStaff_uuid());
+        Map<String, Queue<WaitingClient>> c_map = waitingList.get(tenentUn);
+        WaitingClient client = null;
+        for (String skill : staff.getSkills()) {
+            if (c_map.containsKey(skill) && !c_map.get(skill).isEmpty()) {
+                client = c_map.get(skill).poll();
+                break;
             }
-            if (s.isBusy()) {
-                text = "您正在和客户通话,无法实施该操作.";
-                sendMessage(staff_openid, sToken, text, "text");
-                return;
-            }
-            
-            // Remove client openid from waiting list
-            waitingListIDs.remove(c.getOpenid());
+        }
+        if (null == client) {
+            String text = "系统消息：请求已被其他坐席抢接或没有客户发起人工请求.";
+            sendMessage(staff_openid, sToken, text, "text");
+            return;
+        }
+        
+        if (CheckSessionAvailableJob.clientMap.get(client.getOpenid()) == null) {
+            CheckSessionAvailableJob.clientMap.put(client.getOpenid(), client.getAccount());
 
-            s.setBusy(true);
-            s.setLastReceived(new Date());
-            s.setClient_openid(c.getOpenid());
-            s.setClient_account(c.getAccount());
-            s.setClient_name(c.getName());
-            s.setClient_type("wx");
-            s.setSession(UUID.randomUUID().toString());
-            s.setBeginTime(API.TIME_FORMAT.format(new Date()));
-            CheckSessionAvailableJob.sessionMap.put(c.getOpenid(), s);
+            // Remove client openid from waiting list
+            waitingListIDs.remove(client.getOpenid());
+
+            session.setBusy(true);
+            session.setLastReceived(new Date());
+            session.setClient_openid(client.getOpenid());
+            session.setClient_account(client.getAccount());
+            session.setClient_name(client.getName());
+            session.setClient_type("wx");
+            session.setSession(UUID.randomUUID().toString());
+            session.setBeginTime(API.TIME_FORMAT.format(new Date()));
+            CheckSessionAvailableJob.sessionMap.put(client.getOpenid(), session);
             
             // To staff
-            text = String.format("您已经和客户:%s 建立通话.", c.getName());
+            String text = String.format("系统消息：您已经和客户:%s 建立通话.", client.getName());
             sendMessage(staff_openid, sToken, text, API.TEXT_MESSAGE);
             // To client
-            text = String.format("会话已建立,客服%s将为您服务[微笑]", s.getStaffid());
-            sendMessage(c.getOpenid(), getAccessToken(c.getAccount()), text, API.TEXT_MESSAGE);
+            text = String.format("系统消息：会话已建立,客服%s将为您服务[微笑]", session.getStaffid());
+            sendMessage(client.getOpenid(), getAccessToken(client.getAccount()), text, API.TEXT_MESSAGE);
         } else {
-            text = "请求已被其他坐席抢接或没有客户发起人工请求.";
+            String text = "系统消息：系统错误，请联系管理员.";
             sendMessage(staff_openid, sToken, text, "text");
         }
         
