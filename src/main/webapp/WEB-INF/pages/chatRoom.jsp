@@ -19,6 +19,8 @@
 <script src="<c:url value='/resources/js/guid.js'/>"></script>    
 
 <script>
+    weixin_long_poll_flag = false;
+
 	dojo.require("dojo.on");
     dojo.require("dojo.io-query");
     dojo.require("dojo.query");
@@ -28,42 +30,99 @@
     dojo.require("dojo.parser");
     dojo.require("dijit.layout.TabContainer");
     dojo.require("dijit.layout.ContentPane");
+    dojo.require("dijit.Dialog");
     dojo.require("dijit.registry");
     dojo.require("dijit.form.Textarea");
+    dojo.require("dojo.Deferred");
     
     
-	// 弹出/收起邀请提示框
-     function ShowMessage(widht,height) {
-        var TopY=0;//初始化元素距父元素的距离
-        $("#invitation").css("width",widht+"px").css("height",height+"px");//设置消息框的大小
-        $("#invitation").slideDown(1000);//弹出
-        $(".closeInvation").click(function() {//当点击关闭按钮的时候
-             if(TopY==0){
-                   $("#invitation").slideUp(1000);//这里之所以用slideUp是为了兼用Firefox浏览器
-             }
-            else
-            {
-                  $("#invitation").animate({top: TopY+height}, "slow", function() { $("#invitation").hide(); });//当TopY不等于0时  ie下和Firefox效果一样
-            }
-         });
-         $(window).scroll(function() {
-             $("#invitation").css("top", $(window).scrollTop() + $(window).height() - $("#invitation").height());//当滚动条滚动的时候始终在屏幕的右下角
-             TopY=$("#invitation").offset().top;//当滚动条滚动的时候随时设置元素距父原素距离
-          });
-    } 
-	
-    function logout() {
-        var xhrArgs = {
-                url : "/weixinAPI/webchat/"+dojo.cookie("WX_STF_UID")+"/logout",
-                handleAs : "text",
+    function weixin_checkin(staff_uuid) {
+      	var url = "/weixinAPI/webchat/"+staff_uuid+"/checkin";
+      	/*       var xhrArgs = {
+                url : "/weixinAPI/webchat/"+staff_uuif+"/checkin",
+                handleAs : "json",
                 load : function(data) {
+                    console.log("weixin_checkin: "+data);
+                    if(data!=null){ 
+                        if(data.errcode == 0) {
+                        	// TODO
+                        	enterChatRoom();
+                        	getMessage();
+                        	return true;
+                        } else {
+                        	return false;
+                        }
+                    }
                 },
-                error : function(error) {
+                error : function(error) {   
+                	return false;
                 }
             }
-            dojo.xhrGet(xhrArgs);
+            return dojo.xhrGet(xhrArgs);  */
+        var ret = false;
+      	$.ajax({
+            url : url,
+            cache : false, 
+            async : false,
+            type : "GET",
+            dataType : 'json',
+            success : function (result){
+            	if(result.errcode ==0) {
+               	    // enterChatRoom();
+               	    weixin_long_poll_flag = true;
+            	    getMessage();
+            	    ret = true;
+            	}
+            }
+        });
+      	return ret;
     }
-	
+    
+    function weixin_checkout(tenantUn, staff_uuid) {
+/*         var xhrArgs = {
+                url : "/weixinAPI/webchat/"+tenantUn+"/checkout/"+staff_uuif,
+                handleAs : "json",
+                load : function(data) {
+                    console.log("weixin_checkout: "+data);
+                    if(data!=null){
+                        if(data.errcode == 0) {
+                            return true;
+                        } else {
+                            return false;
+                        }
+                    }
+                },
+                error : function(error) {
+                    return false;
+                }
+            }
+            dojo.xhrGet(xhrArgs); */
+        var url = "/weixinAPI/webchat/"+tenantUn+"/checkout/"+staff_uuid;
+        var ret = false;
+        $.ajax({
+            url : url,
+            cache : false, 
+            async : false,
+            type : "GET",
+            dataType : 'json',
+            success : function (result){
+            	if(result.errcode ==0) {
+            		weixin_long_poll_flag = false;
+            		console.log("Channel: " + result.errmsg);
+            		for(var i=0; i<result.errmsg.length;i++) {
+            			var room = result.errmsg[i].openid;
+            		    var roomContentPane = dijit.byId(room+"contentPaneId");
+                        chatboardTab.removeChild(roomContentPane);
+                        roomContentPane.destroy();
+                        dijit.byId("weixin_webchat_dialog").hide();
+            		}
+                    ret = true;
+                }
+            }
+        });
+        return ret;
+    }
+    
     // 进入聊天室
     function enterChatRoom() {
         var xhrArgs = {
@@ -74,28 +133,15 @@
                 	if(data!=null){
                 		   for(var i=0; i<data.length;i++){
                 			   var channel = data[i];
-                			   createChannelTab(channel.account, channel.openid);
+                			   createChannelTab(i+1, channel.account, channel.openid);
                 		   }
+                		   dijit.byId("weixin_webchat_dialog").show();
                 	}
                 },
                 error : function(error) {
                 }
             }
             dojo.xhrGet(xhrArgs);
-    }
-	
-    // 尝试加入房间
-    function enterRoom(room) {
-        var xhrArgs = {
-                url : "/weixinAPI/webchat/"+dojo.cookie("WX_STF_UID")+"/enter_room",
-                postData : dojo.toJson({"roomId" : room}),
-                handleAs : "text",
-                load : function(data) {
-                },
-                error : function(error) {
-                }
-            }
-            dojo.xhrPost(xhrArgs);
     }
 	
 	// 尝试退出房间
@@ -112,24 +158,6 @@
 	        dojo.xhrPost(xhrArgs);
 	}
 	
-	// 邀请反馈
-	function ackInvitation(isAccepted){
-		console.log(isAccepted);
-		var xhrArgs = {
-                url : "/weixinAPI/webchat/"+dojo.cookie("WX_STF_UID")+"/ackInvitation",
-                handleAs : "text",
-                postData : dojo.toJson({"roomId" : dojo.byId("invitationRoomId").innerHTML,
-                    "agreed":isAccepted
-                    }),
-                load : function(data) {
-                	console.log("invitation data: "+data);
-                },
-                error : function(error) {
-                    console.log("invitation error: "+error);
-                }
-            }
-            dojo.xhrPost(xhrArgs);
-	}
 
 	// 接收消息，并根据消息类型修改客户端聊天窗口
 	function getMessage() {
@@ -180,16 +208,16 @@
                           newMessageRemaind(receiverTabId);
                       }
                     }
-                } else if(data.msgtype == "disposeRoom"){
-                    console.log("Room disposed: "+room);
-                        var addToBoard = "<div class='sysmsg'>系统消息: 该房间会话已结束</div>";
-                        require(["dojo/dom-construct"], function(domConstruct){
-                        domConstruct.place(addToBoard, chatBoardId);
-                        });
-                        dojo.byId(chatBoardId).scrollTop = dojo.byId(chatBoardId).scrollHeight;
-                      var receiverTabId = escaped_room+"contentPaneId";
-                      if(chatboardTab.selectedChildWidget.id != receiverTabId){
-                          newMessageRemaind(receiverTabId);
+                } else if(data.msgtype == "staffService"){
+                    console.log("staffService: "+room);
+                    var r=confirm(data.content);
+                    if (r==true)
+                      {
+                      alert("You pressed OK!");
+                      }
+                    else
+                      {
+                      alert("You pressed Cancel!");
                       }
                 } else {
                 	var messageContentDiv;
@@ -224,7 +252,9 @@
 						newMessageRemaind(receiverTabId);
 					}
 				}
-				getMessage();
+				if(weixin_long_poll_flag){
+				    getMessage();
+				}
 // 				setTimeout(function() {
 //                   getMessage();
 //               }, 1000);
@@ -232,7 +262,9 @@
 			error : function(error) {
 				console.info("error: " + error);
                 setTimeout(function() {
-                    getMessage();
+                	if(weixin_long_poll_flag){
+                        getMessage();
+                    }
                 }, 1000);
 			}
 		}
@@ -266,7 +298,7 @@
 	}
 	
 	// 创建聊天窗口，设置房间名
-	function createChannelTab(account, openid){
+	function createChannelTab(num, account, openid){
 		  var d = new Date();
 		  var escaped_roomId = escape(openid);
 		  
@@ -286,8 +318,8 @@
 
 		    
 		    var closablePane = new dijit.layout.ContentPane({
-		            title : "客服通道"+room_count,
-		            closable : true,
+		            title : "客服通道"+num,
+		            closable : false,
 		            content : chatContent,
 		            id : escaped_roomId+"contentPaneId",
 		            onClose : function() {
@@ -304,7 +336,6 @@
 		              }
 		            }
 		        });
-		    room_count++;
 		    closablePane.domNode.setAttribute("widgetId", escaped_roomId);
 		    chatboardTab.addChild(closablePane);
 	          $('.emotion').qqFace();
@@ -377,10 +408,10 @@
 	  }
 
 	dojo.ready(function() {
-		room_count = 1;
-		getMessage();
+		//getMessage();
 		//window.onbeforeunload = exitRoom;
-		enterChatRoom();
+		//enterChatRoom();
+		//weixin_checkin("ff808081471526a0014719da8c450007");
 		dojo.parser.parse();
         dojo.aspect.after(chatboardTab, "selectChild", function (event) {
             console.log("You selected ", chatboardTab.selectedChildWidget.id);
@@ -392,17 +423,10 @@
 
 </head>
 <body class="claro">
-
-    <div style="height: 200px;">
-        <div data-dojo-id="chatboardTab" data-dojo-type="dijit/layout/TabContainer" style="width: 600px;height: 100px;" doLayout="false">
+    <div id="weixin_webchat_dialog" data-dojo-type="dijit.Dialog" title="客服IM">
+        <div data-dojo-id="chatboardTab" data-dojo-type="dijit/layout/TabContainer" style="width: 600px;height: 400px;" doLayout="false">
         
 	   </div>
-    </div>
-    
-	<div id="invitation">
-	    <div><span id="invitationSender"></span><span id="invitationRoomId"></span></div>
-        <a id="refuse" class="closeInvation chatSend" onclick='ackInvitation("false")' href="javascript:void(0);">拒绝</a>
-        <a id="accept" class="closeInvation chatSend" onclick='ackInvitation("true")' href="javascript:void(0);">接受</a>
     </div>
     
 </body>

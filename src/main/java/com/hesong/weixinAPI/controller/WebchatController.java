@@ -2,6 +2,7 @@ package com.hesong.weixinAPI.controller;
 
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -24,8 +25,13 @@ import org.springframework.web.bind.annotation.RequestMethod;
 import org.springframework.web.bind.annotation.ResponseBody;
 import org.springframework.web.context.request.async.DeferredResult;
 
+import redis.clients.jedis.Jedis;
+
 import com.hesong.sugarCRM.HttpClientUtil;
+import com.hesong.weixinAPI.context.ContextPreloader;
 import com.hesong.weixinAPI.core.MessageRouter;
+import com.hesong.weixinAPI.job.CheckSessionAvailableJob;
+import com.hesong.weixinAPI.job.CheckWeiboSessionAvailableJob;
 import com.hesong.weixinAPI.model.ChatMessage;
 import com.hesong.weixinAPI.model.Staff;
 import com.hesong.weixinAPI.model.StaffSessionInfo;
@@ -43,21 +49,26 @@ public class WebchatController {
     
     private final Map<String, DeferredResult<ChatMessage>> chatRequests = new ConcurrentHashMap<String, DeferredResult<ChatMessage>>();
     private final Map<String, JSONArray> channelList = new ConcurrentHashMap<String, JSONArray>();
+
     
+    @RequestMapping(value = "/{staff_uuid}/index", method = RequestMethod.GET)
+    public String index(@PathVariable String staff_uuid, HttpServletResponse response){
+        response.addCookie(new Cookie("WX_STF_UID", staff_uuid));
+        return "chatRoom";  
+    }
+    
+    @ResponseBody
     @RequestMapping(value = "/{staff_uuid}/checkin", method = RequestMethod.GET)
     public String checkin(@PathVariable String staff_uuid, HttpSession session, HttpServletResponse response) {
         String url = CHECKIN_URL + staff_uuid;
-        response.addCookie(new Cookie("WX_STF_UID", staff_uuid));
-        session.setAttribute("WX_STF_UID", staff_uuid);
+
         try {
             JSONObject staff_info = JSONObject.fromObject(HttpClientUtil.httpGet(url));
             log.info("Checkin SUA return: " + staff_info.toString());
             if (staff_info.getBoolean("success")) {
                 if (staff_info.getInt("tenantstatus") != 1) {
                     log.warn("Staff no auth");
-                    // String text = "欢迎使用和声云客服系统，您申请成为【商家】客服，正在审核中，请耐心等待...";
-                    // TODO send message
-                    return "error";
+                    return WeChatHttpsUtil.getErrorMsg(1, "客服还未通过审核。").toString();
                 }
                 
                 String wx_account = staff_info.getString("wx_account");
@@ -74,10 +85,9 @@ public class WebchatController {
                         for (StaffSessionInfo s : staff.getSessionChannelList()) {
                             s.setWebStaff(true);
                         }
-                        
-                        //String text = "系统消息:您已经签入了,无需再次签入.";
-                        // TODO send message
-                        return "chatRoom";
+                        response.addCookie(new Cookie("WX_STF_UID", staff_uuid));
+                        session.setAttribute("WX_STF_UID", staff_uuid);
+                        return WeChatHttpsUtil.getErrorMsg(0, "ok").toString();
                     }
                 } else {
                     staff_map = new HashMap<String, Staff>();
@@ -91,7 +101,7 @@ public class WebchatController {
                 channelList.put(staff_uuid, channel_list);
                 
                 List<StaffSessionInfo> sessionChannelList = new ArrayList<StaffSessionInfo>();
-                String text = String.format("系统提示:签到成功,你的工号是%s.", staff_working_num);
+                String text = String.format("系统提示:您的账户已经通过网页签到成功,您的工号是%s.", staff_working_num);
                 
                 for (int i = 0; i < channel_list.size(); i++) {
                     JSONObject channel = channel_list.getJSONObject(i);
@@ -122,38 +132,73 @@ public class WebchatController {
                 Staff staff = new Staff(staff_uuid, staff_name, tenantUn, wx_account, staff_working_num, sessionChannelList, skills);
                 staff_map.put(staff_uuid, staff);
                 log.info("Staff checked in: " + staff.toString());
-                return "chatRoom";
+                response.addCookie(new Cookie("WX_STF_UID", staff_uuid));
+                session.setAttribute("WX_STF_UID", staff_uuid);
+                return WeChatHttpsUtil.getErrorMsg(0, "ok").toString();
             } else {
                 log.error("Staff checkin failed: " + staff_info.getString("msg"));
-                // TODO send message
+                return WeChatHttpsUtil.getErrorMsg(1, staff_info.getString("msg")).toString();
             }
         } catch (Exception e) {
             log.error("Staff checkin failed: " + e.toString());
-            // TODO send message
+            return WeChatHttpsUtil.getErrorMsg(1, e.toString()).toString();
         }
-        return null;
     }
     
     @ResponseBody
-    @RequestMapping(value = "/{tenantUn}/closeTab/{staff_uuid}", method = RequestMethod.GET)
-    public String closeTab(@PathVariable String tenantUn, @PathVariable String staff_uuid) {
+    @RequestMapping(value = "/{tenantUn}/checkout/{staff_uuid}", method = RequestMethod.GET)
+    public String checkout(@PathVariable String tenantUn, @PathVariable String staff_uuid) {
         if (MessageRouter.mulClientStaffMap.containsKey(tenantUn)) {
             Map<String, Staff> staff_map = MessageRouter.mulClientStaffMap.get(tenantUn);
             if (staff_map.containsKey(staff_uuid)) {
                 log.info("Web tab closed: " + staff_uuid);
                 
                 Staff staff = staff_map.get(staff_uuid);
-                for (StaffSessionInfo s : staff.getSessionChannelList()) {
-                    s.setWebStaff(false);
-                }
                 
-                //String text = "系统消息:您已经签入了,无需再次签入.";
-                // TODO send message
-                return "OK";
+                Jedis jedis = ContextPreloader.jedisPool.getResource();
+                
+                for (StaffSessionInfo s : staff.getSessionChannelList()) {
+                    if (s.isBusy()) {
+                        s.setBusy(false);
+                        s.setWebStaff(false);
+                        
+                        if (s.getClient_type().equalsIgnoreCase("wx")) {
+                         // Remaind client that staff is leaving.
+                            String token = jedis.hget(API.REDIS_WEIXIN_ACCESS_TOKEN_KEY, s.getClient_account()); //ContextPreloader.Account_Map.get(s.getClient_account()).getToken();
+                            String text = "对不起，客服MM有急事下线了,会话已结束。您可以使用留言功能,客服MM将会在第一时间给您回复[微笑]";
+                            MessageRouter.sendMessage(s.getClient_openid(), token, text, "text");
+                            // TODO remove session from CheckLeavingMessageJob.leavingMessageClientList
+                            CheckSessionAvailableJob.sessionMap.remove(s.getClient_openid());
+                            CheckSessionAvailableJob.clientMap.remove(s.getClient_openid());
+                        }
+                        
+                        if (CheckWeiboSessionAvailableJob.weiboSessionMap.containsKey(tenantUn) && 
+                                CheckWeiboSessionAvailableJob.weiboSessionMap.get(tenantUn).containsKey(s.getClient_openid())) {
+                            CheckWeiboSessionAvailableJob.weiboSessionMap.get(tenantUn).remove(s.getClient_openid());
+                        }
+                        
+                        s.setEndTime(API.TIME_FORMAT.format(new Date()));
+                        MessageRouter.recordSession(s, 0);
+                    }
+                    String token = jedis.hget(API.REDIS_WEIXIN_ACCESS_TOKEN_KEY, s.getAccount()); // ContextPreloader.Account_Map.get(s.getAccount()).getToken();
+                    MessageRouter.sendMessage(s.getOpenid(), token, "系统消息:您已成功签出!", API.TEXT_MESSAGE);
+                    MessageRouter.activeStaffMap.remove(s.getOpenid());
+                    
+                }
+                String msg = channelList.get(staff_uuid).toString();
+                channelList.remove(staff_uuid);
+                staff_map.remove(staff_uuid);
+                return WeChatHttpsUtil.getErrorMsg(0, msg).toString();
+            } else {
+                return WeChatHttpsUtil.getErrorMsg(1, "客服签出失败，客服ID不存在: " + staff_uuid).toString();
             }
+        } else {
+            return WeChatHttpsUtil.getErrorMsg(1, "客服签出失败，租户标识不存在: " + tenantUn).toString();
         }
-        return "False";
     }
+    
+//    @ResponseBody
+//    @RequestMapping(value = "/{tenantUn}/checkout/{staff_uuid}", method = RequestMethod.GET)
 
     @SuppressWarnings("unchecked")
     @RequestMapping(value = "/{staff_uuid}/sendWebMessage", method = RequestMethod.POST)
@@ -208,9 +253,8 @@ public class WebchatController {
             // 发布消息给所有用户
             processMessage(msg, staff_uuid);
             
-            // TODO send to weixin
-            String sToken = MessageRouter.getAccessToken(account);
             // Send to staff
+            String sToken = MessageRouter.getAccessToken(account);
             MessageRouter.sendMessage(openid, sToken, content, msgtype);
             
             StaffSessionInfo s = MessageRouter.activeStaffMap.get(openid);
@@ -241,7 +285,6 @@ public class WebchatController {
         // 创建DeferredResult<Message>
         DeferredResult<ChatMessage> dr = new DeferredResult<ChatMessage>(DEFFER_TIME);
         final String staff_uuid = (String) session.getAttribute("WX_STF_UID");
-        log.info("staff_uuid: " + staff_uuid);
         // 若用户不存在则直接返回，否则将其放入用户请求列表中然后返回
         if (null == staff_uuid) {
             return dr;

@@ -26,7 +26,6 @@ import com.hesong.weixinAPI.model.AccessToken;
 public class WeChatHttpsUtil {
     private static Logger log = Logger.getLogger(WeChatHttpsUtil.class);
 
-    public final static String ACCESS_TOKEN_URL = "https://api.weixin.qq.com/cgi-bin/token?grant_type=client_credential&appid=APPID&secret=APPSECRET";
     public final static String GET_QRCODE_URL = "https://api.weixin.qq.com/cgi-bin/qrcode/create?access_token=";
     
     public static JSONObject httpsRequest(String requestUrl,
@@ -159,7 +158,7 @@ public class WeChatHttpsUtil {
 
     public static AccessToken getAccessToken(AccessToken ac) {
 
-        String requestUrl = ACCESS_TOKEN_URL.replace("APPID", ac.getAppid()).replace(
+        String requestUrl = API.ACCESS_TOKEN_URL.replace("APPID", ac.getAppid()).replace(
                 "APPSECRET", ac.getAppSecret());
         JSONObject jo = httpsRequest(requestUrl, "GET", null);
 
@@ -183,7 +182,7 @@ public class WeChatHttpsUtil {
     
     public static void setAccessTokenToRedis(Jedis jedis, String account, String appid, String appSecret, String tenantUn, String redisKey) {
 
-        String requestUrl = ACCESS_TOKEN_URL.replace("APPID", appid).replace(
+        String requestUrl = API.ACCESS_TOKEN_URL.replace("APPID", appid).replace(
                 "APPSECRET", appSecret);
         JSONObject jo = httpsRequest(requestUrl, "GET", null);
 

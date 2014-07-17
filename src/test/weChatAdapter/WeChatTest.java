@@ -11,6 +11,8 @@ import java.util.Date;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 import net.coobird.thumbnailator.Thumbnails;
 import net.sf.json.JSONArray;
@@ -33,7 +35,7 @@ public class WeChatTest {
 
     @Test
     public void updateTest(){
-        String requestUrl = WeChatHttpsUtil.ACCESS_TOKEN_URL.replace("APPID", "wx735e58e85eb3614a").replace(
+        String requestUrl = API.ACCESS_TOKEN_URL.replace("APPID", "wx735e58e85eb3614a").replace(
                 "APPSECRET", "d21d943d536c383c9e60053ff15996c2");
         JSONObject jo = WeChatHttpsUtil.httpsRequest(requestUrl, "GET", null);
         System.out.println(jo.toString());
@@ -185,7 +187,31 @@ public class WeChatTest {
     }
     
     @Test
-    public void dateTest(){
+    public void keyWords(){
+        String reg = ".*(你好|大|萨).*";
+        String reg2 = "\b(STAFF|SERVICE)";
+        Pattern p = Pattern.compile(reg);  
+        String text = "你213好";
+        String text1 = "你2好大哈阿萨德你好啊";
+        String text2 = "STAFF";
+        String text3 = "sSTAFFF";
+        Matcher m = p.matcher(text1);
+        if (m.find()) {
+            System.out.println(m.group());
+            System.out.println(m.group(1));
+        }
         
+        Pattern p2 = Pattern.compile(reg2);
+        System.out.println(p2.matcher(text2).matches());
+        m = p2.matcher(text2);
+        if (m.find()) {
+            System.out.println(m.group());
+            System.out.println(m.group(1));
+        }
+        m = p2.matcher(text3);
+        if (m.find()) {
+            System.out.println(m.group());
+            System.out.println(m.group(1));
+        }
     }
 }

@@ -47,6 +47,8 @@ public class ContextPreloader extends HttpServlet{
     static{
         
         try {
+            System.setProperty("jsse.enableSNIExtension", "false");
+            
             ResourceBundle bundle = ResourceBundle.getBundle("redis");
             if (null == bundle) {
                 ContextLog.error("redis.properties not found!");
@@ -66,29 +68,23 @@ public class ContextPreloader extends HttpServlet{
             
             WeChatHttpsUtil.setAccessTokenToRedis(jedis, "gh_0221936c0c16", "wx735e58e85eb3614a", "d21d943d536c383c9e60053ff15996c2", "1", API.REDIS_STAFF_ACCOUNT_INFO_KEY);
             WeChatHttpsUtil.setAccessTokenToRedis(jedis, "gh_510fe6f15310", "wx96bebe11dbeb1c22", "e376af7623f1051fa42693966f13f77c", "2", API.REDIS_STAFF_ACCOUNT_INFO_KEY);
-//            WeChatHttpsUtil.setAccessTokenToRedis(jedis, "gh_52ba029bddaa", "wx6d984869ecb69982", "4400e31365ab8124e98ffb3cbd070888", "3", API.REDIS_STAFF_ACCOUNT_INFO_KEY);
-            
+           
             // Staff service account
             staffAccountList.add("gh_0221936c0c16");
             staffAccountList.add("gh_510fe6f15310");
-//            staffAccountList.add("gh_52ba029bddaa");
 
             channelMap.put("gh_0221936c0c16", "1");
             channelMap.put("gh_510fe6f15310", "2");
-//            channelMap.put("gh_52ba029bddaa", "3");
 
             AccessToken service1 = new AccessToken("gh_0221936c0c16",
                     "wx735e58e85eb3614a", "d21d943d536c383c9e60053ff15996c2");
             AccessToken service2 = new AccessToken("gh_510fe6f15310",
                     "wx96bebe11dbeb1c22", "e376af7623f1051fa42693966f13f77c");
-//            AccessToken service3 = new AccessToken("gh_52ba029bddaa",
-//                    "wx6d984869ecb69982", "4400e31365ab8124e98ffb3cbd070888");
+
             Account_Map.put(service1.getAccount(),
                     WeChatHttpsUtil.getAccessToken(service1));
             Account_Map.put(service2.getAccount(),
                     WeChatHttpsUtil.getAccessToken(service2));
-//            Account_Map.put(service3.getAccount(),
-//                    WeChatHttpsUtil.getAccessToken(service3));
             
             String r = HttpClientUtil
                     .httpGet("http://www.clouduc.cn/sua/rest/n/tenant/listwxparams");

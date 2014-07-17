@@ -3,15 +3,22 @@ package com.hesong.weixinAPI.tools;
 import java.text.SimpleDateFormat;
 
 public class API {
-    
+    public final static String TENANTUN = "tenantUn";
+
     public static String TOKEN = "weixin";
     public static String APPID = "wx5c19ccf5d7bdce97";
     public static String APP_SECRET = "b3b2b1f0cb0babc572adbd48dd072fb6";
     
-    public static String REDIS_WEIXIN_ACCESS_TOKEN_KEY = "weixin_access_token";
-    public static String REDIS_CLIENT_ACCOUNT_INFO_KEY = "weixin_client_account_info";
-    public static String REDIS_STAFF_ACCOUNT_INFO_KEY = "weixin_staff_account_info";
-    public static String REDIS_WEB_STAFF_OPENID_ACCOUNT = "web_staff_openid_account";
+    public final static String REDIS_WEIXIN_ACCESS_TOKEN_KEY = "weixin_access_token";
+    public final static String REDIS_CLIENT_ACCOUNT_INFO_KEY = "weixin_client_account_info";
+    public final static String REDIS_STAFF_ACCOUNT_INFO_KEY = "weixin_staff_account_info";
+    public final static String REDIS_WEB_STAFF_OPENID_ACCOUNT = "web_staff_openid_account";
+    
+    //IVR
+    public final static String REDIS_CLIENT_TEXT_IVR = "weixin_client_text_ivr_";
+    public final static String REDIS_CLIENT_EVENT_IVR = "weixin_client_event_ivr_";
+    public final static String REDIS_CLIENT_KEYWORDS_REGEX = "weixin_client_keywords_regex";
+    public final static String REDIS_CLIENT_EVENT_LIST = "weixin_client_event_list";
 
     public final static String MESSAGE_TYPE_TAG = "MsgType";
     public final static String MESSAGE_FROM_TAG = "FromUserName";
@@ -78,4 +85,6 @@ public class API {
     public static SimpleDateFormat TIME_FORMAT = new SimpleDateFormat(
             "yyyy-MM-dd HH:mm:ss");
     
+    public final static String ACCESS_TOKEN_URL = "https://api.weixin.qq.com/cgi-bin/token?grant_type=client_credential&appid=APPID&secret=APPSECRET";
+    public final static String GET_FOLLOWER_LIST = "https://api.weixin.qq.com/cgi-bin/user/get?access_token=ACCESS_TOKEN&next_openid=";
 }
