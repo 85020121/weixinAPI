@@ -99,9 +99,9 @@ public class ContextPreloader extends HttpServlet{
                 String appid = info.getString("appid");
                 String appSecret = info.getString("secretKey");
                 String account = info.getString("publicid");
-                AccessToken t = new AccessToken(tenantUn, account, appid,
-                        appSecret);
-                Account_Map.put(account, WeChatHttpsUtil.getAccessToken(t));
+//                AccessToken t = new AccessToken(tenantUn, account, appid,
+//                        appSecret);
+//                Account_Map.put(account, WeChatHttpsUtil.getAccessToken(t));
                 
                 WeChatHttpsUtil.setAccessTokenToRedis(jedis, account, appid, appSecret, tenantUn, API.REDIS_CLIENT_ACCOUNT_INFO_KEY);
             }

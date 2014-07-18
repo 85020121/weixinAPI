@@ -17,9 +17,10 @@
 <script src="<c:url value='/resources/js/qqemoji.js'/>"></script>  
 <script src="<c:url value='/resources/js/upclick-min.js'/>"></script>    
 <script src="<c:url value='/resources/js/guid.js'/>"></script>    
+<script src="<c:url value='/resources/js/layer/layer.min.js'/>"></script>    
 
 <script>
-    weixin_long_poll_flag = false;
+    weixin_long_poll_flag = true;
 
 	dojo.require("dojo.on");
     dojo.require("dojo.io-query");
@@ -36,93 +37,6 @@
     dojo.require("dojo.Deferred");
     
     
-    function weixin_checkin(staff_uuid) {
-      	var url = "/weixinAPI/webchat/"+staff_uuid+"/checkin";
-      	/*       var xhrArgs = {
-                url : "/weixinAPI/webchat/"+staff_uuif+"/checkin",
-                handleAs : "json",
-                load : function(data) {
-                    console.log("weixin_checkin: "+data);
-                    if(data!=null){ 
-                        if(data.errcode == 0) {
-                        	// TODO
-                        	enterChatRoom();
-                        	getMessage();
-                        	return true;
-                        } else {
-                        	return false;
-                        }
-                    }
-                },
-                error : function(error) {   
-                	return false;
-                }
-            }
-            return dojo.xhrGet(xhrArgs);  */
-        var ret = false;
-      	$.ajax({
-            url : url,
-            cache : false, 
-            async : false,
-            type : "GET",
-            dataType : 'json',
-            success : function (result){
-            	if(result.errcode ==0) {
-               	    // enterChatRoom();
-               	    weixin_long_poll_flag = true;
-            	    getMessage();
-            	    ret = true;
-            	}
-            }
-        });
-      	return ret;
-    }
-    
-    function weixin_checkout(tenantUn, staff_uuid) {
-/*         var xhrArgs = {
-                url : "/weixinAPI/webchat/"+tenantUn+"/checkout/"+staff_uuif,
-                handleAs : "json",
-                load : function(data) {
-                    console.log("weixin_checkout: "+data);
-                    if(data!=null){
-                        if(data.errcode == 0) {
-                            return true;
-                        } else {
-                            return false;
-                        }
-                    }
-                },
-                error : function(error) {
-                    return false;
-                }
-            }
-            dojo.xhrGet(xhrArgs); */
-        var url = "/weixinAPI/webchat/"+tenantUn+"/checkout/"+staff_uuid;
-        var ret = false;
-        $.ajax({
-            url : url,
-            cache : false, 
-            async : false,
-            type : "GET",
-            dataType : 'json',
-            success : function (result){
-            	if(result.errcode ==0) {
-            		weixin_long_poll_flag = false;
-            		console.log("Channel: " + result.errmsg);
-            		for(var i=0; i<result.errmsg.length;i++) {
-            			var room = result.errmsg[i].openid;
-            		    var roomContentPane = dijit.byId(room+"contentPaneId");
-                        chatboardTab.removeChild(roomContentPane);
-                        roomContentPane.destroy();
-                        dijit.byId("weixin_webchat_dialog").hide();
-            		}
-                    ret = true;
-                }
-            }
-        });
-        return ret;
-    }
-    
     // 进入聊天室
     function enterChatRoom() {
         var xhrArgs = {
@@ -135,7 +49,7 @@
                 			   var channel = data[i];
                 			   createChannelTab(i+1, channel.account, channel.openid);
                 		   }
-                		   dijit.byId("weixin_webchat_dialog").show();
+                		   getMessage();
                 	}
                 },
                 error : function(error) {
@@ -174,12 +88,12 @@
                     dojo.byId("invitationRoomId").innerHTML = room;
 					ShowMessage(180,100);
 					//ackInvitation(true);
-				} else if(data.msgtype == "enteredRoom"){
+				} else if(data.msgtype == "sysMessage"){
 					console.log("Entered in to room: "+room);
 					if(dojo.cookie("WX_STF_UID") == data.sender) {
 						   createRoomTab(room);
 					} else {
-						var addToBoard = "<div class='sysmsg'>系统消息: "+data.sender+" 进入房间</div>";
+						var addToBoard = "<div class='sysmsg'>"+data.content+"</div>";
 		                  require(["dojo/dom-construct"], function(domConstruct){
 	                          domConstruct.place(addToBoard, chatBoardId);
 	                        });
@@ -209,16 +123,31 @@
                       }
                     }
                 } else if(data.msgtype == "staffService"){
-                    console.log("staffService: "+room);
-                    var r=confirm(data.content);
-                    if (r==true)
-                      {
-                      alert("You pressed OK!");
-                      }
-                    else
-                      {
-                      alert("You pressed Cancel!");
-                      }
+                    console.log("staffService: "+ room);
+                    $.layer({
+                        shade: [0],
+                        area: ['auto','auto'],
+                        dialog: {
+                            msg: data.content,
+                            btns: 2,                    
+                            type: 4,
+                            btn: ['确定','忽略'],
+                            yes: function(index){
+                            	var xhrArgs = {
+                                        url : "/weixinAPI/webchat/"+data.channelId+"/takeClient",
+                                        handleAs : "text",
+                                        load : function(data) {
+                                        },
+                                        error : function(error) {
+                                        }
+                                    }
+                                dojo.xhrGet(xhrArgs);
+                            	layer.close(index);
+                            	// $(".xubox_title").html()
+                            }, no: function(){
+                            }
+                        }
+                    });
                 } else {
                 	var messageContentDiv;
                 	if(data.msgtype == "image") {
@@ -410,23 +339,21 @@
 	dojo.ready(function() {
 		//getMessage();
 		//window.onbeforeunload = exitRoom;
-		//enterChatRoom();
+		enterChatRoom();
 		//weixin_checkin("ff808081471526a0014719da8c450007");
 		dojo.parser.parse();
         dojo.aspect.after(chatboardTab, "selectChild", function (event) {
             console.log("You selected ", chatboardTab.selectedChildWidget.id);
             dijit.byId(chatboardTab.selectedChildWidget.id).controlButton.attr("style", "color: black;");
        });
-        
     });
+	
+
 </script> 
 
 </head>
 <body class="claro">
-    <div id="weixin_webchat_dialog" data-dojo-type="dijit.Dialog" title="客服IM">
-        <div data-dojo-id="chatboardTab" data-dojo-type="dijit/layout/TabContainer" style="width: 600px;height: 400px;" doLayout="false">
-        
-	   </div>
+    <div data-dojo-id="chatboardTab" data-dojo-type="dijit/layout/TabContainer" style="width: 580px;height: 400px;" doLayout="false">
     </div>
     
 </body>

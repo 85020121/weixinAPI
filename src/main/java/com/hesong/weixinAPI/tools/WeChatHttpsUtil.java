@@ -21,6 +21,7 @@ import org.apache.log4j.Logger;
 
 import redis.clients.jedis.Jedis;
 
+import com.hesong.weixinAPI.context.ContextPreloader;
 import com.hesong.weixinAPI.model.AccessToken;
 
 public class WeChatHttpsUtil {
@@ -293,4 +294,33 @@ public class WeChatHttpsUtil {
         jsonObject.put("errmsg", errmsg);
         return jsonObject;
     }
+    
+    public static void jedisHSet(String key, String field, String value) {
+        Jedis jedis = ContextPreloader.jedisPool.getResource();
+        jedis.hset(key, field, value);
+        ContextPreloader.jedisPool.returnResource(jedis);
+    }
+    
+    public static String jedisHGet(String key, String field) {
+        Jedis jedis = ContextPreloader.jedisPool.getResource();
+        String r = jedis.hget(key, field);
+        ContextPreloader.jedisPool.returnResource(jedis);
+        return r;
+    }
+    
+    public static void jedisHDel(String key, String field) {
+        Jedis jedis = ContextPreloader.jedisPool.getResource();
+        jedis.hdel(key, field);
+        ContextPreloader.jedisPool.returnResource(jedis);
+    }
+    
+    public static boolean jedisNotExistThenHSet(String key, String field, String value) {
+        Jedis jedis = ContextPreloader.jedisPool.getResource();
+        if (jedis.hexists(key, field)) {
+            return false;
+        }
+        jedis.hset(key, field, value);
+        ContextPreloader.jedisPool.returnResource(jedis);
+        return true;
+    } 
 }

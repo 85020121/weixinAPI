@@ -19,6 +19,9 @@ public class API {
     public final static String REDIS_CLIENT_EVENT_IVR = "weixin_client_event_ivr_";
     public final static String REDIS_CLIENT_KEYWORDS_REGEX = "weixin_client_keywords_regex";
     public final static String REDIS_CLIENT_EVENT_LIST = "weixin_client_event_list";
+    
+    // WebChat
+    public final static String REDIS_WEIXIN_WEBCHAT_SESSIONID = "weixin_webchat_sessionid";
 
     public final static String MESSAGE_TYPE_TAG = "MsgType";
     public final static String MESSAGE_FROM_TAG = "FromUserName";

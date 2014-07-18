@@ -6,6 +6,8 @@ import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Queue;
+import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 
 import javax.servlet.http.Cookie;
@@ -19,6 +21,7 @@ import net.sf.json.JSONObject;
 import org.apache.log4j.Logger;
 import org.codehaus.jackson.map.ObjectMapper;
 import org.springframework.stereotype.Controller;
+import org.springframework.web.bind.annotation.CookieValue;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestMethod;
@@ -35,6 +38,7 @@ import com.hesong.weixinAPI.job.CheckWeiboSessionAvailableJob;
 import com.hesong.weixinAPI.model.ChatMessage;
 import com.hesong.weixinAPI.model.Staff;
 import com.hesong.weixinAPI.model.StaffSessionInfo;
+import com.hesong.weixinAPI.model.WaitingClient;
 import com.hesong.weixinAPI.tools.API;
 import com.hesong.weixinAPI.tools.WeChatHttpsUtil;
 
@@ -48,11 +52,36 @@ public class WebchatController {
     private static String CHECKIN_URL = "http://www.clouduc.cn/sua/rest/n/tenant/kfCheckInInfo?idtype=uuid&id=";
     
     private final Map<String, DeferredResult<ChatMessage>> chatRequests = new ConcurrentHashMap<String, DeferredResult<ChatMessage>>();
-    private final Map<String, JSONArray> channelList = new ConcurrentHashMap<String, JSONArray>();
+    public static Map<String, JSONArray> channelList = new ConcurrentHashMap<String, JSONArray>();
 
     
     @RequestMapping(value = "/{staff_uuid}/index", method = RequestMethod.GET)
     public String index(@PathVariable String staff_uuid, HttpServletResponse response){
+        response.addCookie(new Cookie("WX_STF_UID", staff_uuid));
+        return "webChatIndex";
+    }
+    
+    @RequestMapping(value = "/{tenantUn}/enterChatRoom/{staff_uuid}", method = RequestMethod.GET)
+    public String enterChatRoom(@PathVariable String tenantUn, @PathVariable String staff_uuid,
+            @CookieValue(value="JSESSIONID", defaultValue="") String jsessionid, 
+            HttpServletResponse response){
+        log.info("jsessionid: " + jsessionid);
+        String sessionid = WeChatHttpsUtil.jedisHGet(API.REDIS_WEIXIN_WEBCHAT_SESSIONID, staff_uuid);
+        log.info("redis: "+ sessionid);
+        if (null == sessionid) {
+            log.warn("Sessionid is null");
+        }
+        if (!sessionid.equals(jsessionid)) {
+            log.warn("Not indentical web client.");
+        }
+        
+        if (MessageRouter.mulClientStaffMap.containsKey(tenantUn)
+                && MessageRouter.mulClientStaffMap.get(tenantUn).containsKey(staff_uuid)) {
+            Staff staff = MessageRouter.mulClientStaffMap.get(tenantUn).get(staff_uuid);
+            for (StaffSessionInfo s : staff.getSessionChannelList()) {
+                s.setWebStaff(true);
+            }
+        }
         response.addCookie(new Cookie("WX_STF_UID", staff_uuid));
         return "chatRoom";  
     }
@@ -61,7 +90,10 @@ public class WebchatController {
     @RequestMapping(value = "/{staff_uuid}/checkin", method = RequestMethod.GET)
     public String checkin(@PathVariable String staff_uuid, HttpSession session, HttpServletResponse response) {
         String url = CHECKIN_URL + staff_uuid;
-
+        log.info("session: " + session.getId());
+        if(!WeChatHttpsUtil.jedisNotExistThenHSet(API.REDIS_WEIXIN_WEBCHAT_SESSIONID, staff_uuid, session.getId())) {
+            return WeChatHttpsUtil.getErrorMsg(10011, "请不要重复签入: " + staff_uuid).toString();
+        }
         try {
             JSONObject staff_info = JSONObject.fromObject(HttpClientUtil.httpGet(url));
             log.info("Checkin SUA return: " + staff_info.toString());
@@ -134,6 +166,7 @@ public class WebchatController {
                 log.info("Staff checked in: " + staff.toString());
                 response.addCookie(new Cookie("WX_STF_UID", staff_uuid));
                 session.setAttribute("WX_STF_UID", staff_uuid);
+                WeChatHttpsUtil.jedisNotExistThenHSet(API.REDIS_WEIXIN_WEBCHAT_SESSIONID, staff_uuid, session.getId());
                 return WeChatHttpsUtil.getErrorMsg(0, "ok").toString();
             } else {
                 log.error("Staff checkin failed: " + staff_info.getString("msg"));
@@ -167,9 +200,10 @@ public class WebchatController {
                             String token = jedis.hget(API.REDIS_WEIXIN_ACCESS_TOKEN_KEY, s.getClient_account()); //ContextPreloader.Account_Map.get(s.getClient_account()).getToken();
                             String text = "对不起，客服MM有急事下线了,会话已结束。您可以使用留言功能,客服MM将会在第一时间给您回复[微笑]";
                             MessageRouter.sendMessage(s.getClient_openid(), token, text, "text");
-                            // TODO remove session from CheckLeavingMessageJob.leavingMessageClientList
-                            CheckSessionAvailableJob.sessionMap.remove(s.getClient_openid());
-                            CheckSessionAvailableJob.clientMap.remove(s.getClient_openid());
+
+                            if (CheckSessionAvailableJob.sessionMap.containsKey(tenantUn)) {
+                                CheckSessionAvailableJob.sessionMap.get(tenantUn).remove(s.getClient_openid());
+                            }
                         }
                         
                         if (CheckWeiboSessionAvailableJob.weiboSessionMap.containsKey(tenantUn) && 
@@ -188,6 +222,10 @@ public class WebchatController {
                 String msg = channelList.get(staff_uuid).toString();
                 channelList.remove(staff_uuid);
                 staff_map.remove(staff_uuid);
+                
+                jedis.hdel(API.REDIS_WEIXIN_WEBCHAT_SESSIONID, staff_uuid);
+                ContextPreloader.jedisPool.returnResource(jedis);
+                
                 return WeChatHttpsUtil.getErrorMsg(0, msg).toString();
             } else {
                 return WeChatHttpsUtil.getErrorMsg(1, "客服签出失败，客服ID不存在: " + staff_uuid).toString();
@@ -197,8 +235,89 @@ public class WebchatController {
         }
     }
     
-//    @ResponseBody
-//    @RequestMapping(value = "/{tenantUn}/checkout/{staff_uuid}", method = RequestMethod.GET)
+    @ResponseBody
+    @RequestMapping(value = "/{staff_openid}/takeClient", method = RequestMethod.GET)
+    public void takeClient(@PathVariable String staff_openid){
+        StaffSessionInfo session = MessageRouter.activeStaffMap.get(staff_openid);
+        ChatMessage msg = new ChatMessage();
+        msg.setChannelId(staff_openid);
+        msg.setMsgtype("sysMessage");
+        msg.setSenderName(staff_openid);
+        if (session.isBusy()) {
+            String text = "系统消息：您正在和客户通话,无法实施该操作.";
+            msg.setContent(text);
+            processMessage(msg, session.getStaff_uuid());
+            return;
+        }
+        
+        String tenentUn = session.getTenantUn();
+        if (!MessageRouter.mulClientStaffMap.containsKey(tenentUn) || !MessageRouter.mulClientStaffMap.get(tenentUn).containsKey(session.getStaff_uuid())) {
+            String text = "系统消息：您还没有签到，无法使用此功能!";
+            msg.setContent(text);
+            processMessage(msg, session.getStaff_uuid());
+            return;
+        }
+        
+        if (!MessageRouter.waitingList.containsKey(tenentUn)) {
+            String text = "系统消息：请求已被其他客服抢接或没有客户发起人工请求.";
+            msg.setContent(text);
+            processMessage(msg, session.getStaff_uuid());
+            return;
+        }
+        
+        Staff staff = MessageRouter.mulClientStaffMap.get(tenentUn).get(session.getStaff_uuid());
+        Map<String, Queue<WaitingClient>> c_map = MessageRouter.waitingList.get(tenentUn);
+        WaitingClient client = null;
+        for (String skill : staff.getSkills()) {
+            if (c_map.containsKey(skill) && !c_map.get(skill).isEmpty()) {
+                client = c_map.get(skill).poll();
+                break;
+            }
+        }
+        if (null == client) {
+            String text = "系统消息：请求已被其他坐席抢接或没有客户发起人工请求.";
+            msg.setContent(text);
+            processMessage(msg, session.getStaff_uuid());
+            return;
+        }
+        
+        Map<String, StaffSessionInfo> client_session = CheckSessionAvailableJob.sessionMap.get(session.getTenantUn());
+        if (null == client_session) {
+            client_session = new ConcurrentHashMap<String, StaffSessionInfo>();
+            CheckSessionAvailableJob.sessionMap.put(tenentUn, client_session);
+        }
+        
+        if (!client_session.containsKey(client.getOpenid())) {
+            // Remove client openid from waiting list
+            MessageRouter.waitingListIDs.remove(client.getOpenid());
+
+            session.setBusy(true);
+            session.setLastReceived(new Date());
+            session.setClient_openid(client.getOpenid());
+            session.setClient_account(client.getAccount());
+            session.setClient_name(client.getName());
+            session.setClient_type("wx");
+            session.setSession(UUID.randomUUID().toString());
+            session.setBeginTime(API.TIME_FORMAT.format(new Date()));
+            client_session.put(client.getOpenid(), session);
+            
+            // To staff
+            String text = String.format("系统消息：您已经和客户\"%s\"建立通话.", client.getName());
+            String sToken = MessageRouter.getAccessToken(session.getAccount());
+            MessageRouter.sendMessage(staff_openid, sToken, text, API.TEXT_MESSAGE);
+            // To web
+            msg.setContent(text);
+            processMessage(msg, session.getStaff_uuid());
+            // To client
+            text = String.format("系统消息：会话已建立,客服%s将为您服务[微笑]", session.getStaffid());
+            MessageRouter.sendMessage(client.getOpenid(), MessageRouter.getAccessToken(client.getAccount()), text, API.TEXT_MESSAGE);
+            
+        } else {
+            String text = "系统消息：系统错误，请联系管理员.";
+            msg.setContent(text);
+            processMessage(msg, session.getStaff_uuid());
+        }
+    }
 
     @SuppressWarnings("unchecked")
     @RequestMapping(value = "/{staff_uuid}/sendWebMessage", method = RequestMethod.POST)
@@ -302,8 +421,10 @@ public class WebchatController {
     }
     
     private void processMessage(ChatMessage msg, String staff_uuid) {
+        log.info("processMessage: " + msg.toString());
         DeferredResult<ChatMessage> tmp = chatRequests.get(staff_uuid);
         if (tmp == null) {
+            log.warn("DeferredResult is null.");
             return;
         } else {
             tmp.setResult(msg);

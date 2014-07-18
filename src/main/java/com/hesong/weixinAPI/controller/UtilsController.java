@@ -193,12 +193,34 @@ public class UtilsController {
         }
     }
     
+    @ResponseBody
+    @RequestMapping(value = "/{tenantUn}/isStaffCheckedIn/{staff_uuid}", method = RequestMethod.GET)
+    public boolean isStaffCheckedIn(@PathVariable String tenantUn, @PathVariable String staff_uuid) {
+        return (MessageRouter.mulClientStaffMap.containsKey(tenantUn) 
+                && MessageRouter.mulClientStaffMap.get(tenantUn).containsKey(staff_uuid)); 
+    }
+    
+    @ResponseBody
+    @RequestMapping(value = "/{tenantUn}/setClientSkills", method = RequestMethod.POST)
+    public String setClientSkills(@PathVariable String tenantUn, HttpServletRequest request) {
+        ObjectMapper mapper = new ObjectMapper();
+        try {
+            JSONArray json = JSONArray.fromObject(mapper
+                    .readValue(request.getInputStream(),JSONArray.class));
+            log.info("setClientSkills: " + json.toString());
+            return WeChatHttpsUtil.getErrorMsg(0, "ok").toString();
+        } catch (Exception e) {
+            log.error("Json error.");
+            e.printStackTrace();
+            return WeChatHttpsUtil.getErrorMsg(1, e.toString()).toString();
+        }
+    }
+    
     private String makeRegex(List<String> list) {
         String regex = null;
         for (int i = 0; i < list.size(); i++) {
             if (i == 0) {
                 regex = ".*(" + list.get(i);
-                continue;
             }
             if (i == list.size() - 1) {
                 regex = regex + ").*";
