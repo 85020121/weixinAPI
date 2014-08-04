@@ -6,11 +6,12 @@ import java.security.NoSuchAlgorithmException;
 import java.util.HashMap;
 import java.util.Map;
 
+import com.hesong.weixinAPI.tools.API;
+
 import net.sf.json.JSONArray;
 import net.sf.json.JSONObject;
 
 public class SugarCRMCaller {
-    private String SUGAR_CRM_URL = "http://www.clouduc.cn/crm/service/v4/rest.php";
 //    private String SUGAR_CRM_URL = "http://192.168.88.114/crm/service/v4/rest.php";
 	
 	/**
@@ -25,7 +26,7 @@ public class SugarCRMCaller {
 		paramMap.put("input_type", "JSON");
 		paramMap.put("response_type", "JSON");
 		paramMap.put("rest_data", params);
-		String result = HttpClientUtil.httpPost(SUGAR_CRM_URL, paramMap);
+		String result = HttpClientUtil.httpPost(API.SUGAR_CRM_URL, paramMap);
 		return result; 
 	}
 	

@@ -10,7 +10,6 @@ import org.quartz.Job;
 import org.quartz.JobExecutionContext;
 import org.quartz.JobExecutionException;
 
-import com.hesong.weixinAPI.context.ContextPreloader;
 import com.hesong.weixinAPI.core.MessageRouter;
 import com.hesong.weixinAPI.model.StaffSessionInfo;
 import com.hesong.weixinAPI.tools.API;
@@ -35,7 +34,7 @@ public class CheckWeiboSessionAvailableJob implements Job{
             for (String id : session_map.keySet()) {
                 StaffSessionInfo session = session_map.get(id);
                 if (null != session && (now - session.getLastReceived().getTime() > session_available_duration)) {
-                    String token = ContextPreloader.Account_Map.get(session.getAccount()).getToken();
+                    String token = MessageRouter.getAccessToken(session.getAccount());
                     String text = "系统消息:会话超时,该会话已结束。";
                     MessageRouter.sendMessage(session.getOpenid(), token, text, API.TEXT_MESSAGE);
                     session_map.remove(session.getClient_openid());

@@ -10,6 +10,8 @@
 <link rel="stylesheet" href="<c:url value='/resources/css/emoji184f03.css'/>" />
 <link rel="stylesheet" href="<c:url value='/resources/css/qqemoji.css'/>" />
     <link rel="stylesheet" href="<c:url value='/resources/js/libs/dojo/1.9.1/dijit/themes/claro/claro.css'/>" />
+<link href="<c:url value='/resources/js/bootstrap-3.2.0-dist/css/bootstrap.min.css'/>" rel="stylesheet">
+<link href="<c:url value='/resources/js/offcanvas/offcanvas.css'/>" rel="stylesheet">
 
 <script src="<c:url value='/resources/js/libs/dojo/1.9.1/dojo/dojo.js'/>"></script>    
 <script src="<c:url value='/resources/js/jquery-1.11.0.min.js'/>"></script>    
@@ -17,7 +19,10 @@
 <script src="<c:url value='/resources/js/qqemoji.js'/>"></script>  
 <script src="<c:url value='/resources/js/upclick-min.js'/>"></script>    
 <script src="<c:url value='/resources/js/guid.js'/>"></script>    
-<script src="<c:url value='/resources/js/layer/layer.min.js'/>"></script>    
+<script src="<c:url value='/resources/js/layer/layer.min.js'/>"></script>  
+<script src="<c:url value='/resources/js/bootstrap-3.2.0-dist/js/bootstrap.min.js'/>"></script>  
+<script src="<c:url value='/resources/js/offcanvas/offcanvas.js'/>"></script>  
+
 
 <script>
     weixin_long_poll_flag = true;
@@ -36,6 +41,56 @@
     dojo.require("dijit.form.Textarea");
     dojo.require("dojo.Deferred");
     
+    function clickList(id) {
+        console.log("id: " + id);
+        $(".list-group-item").removeClass("active");
+        $("#"+id).addClass("active");
+        var roomid = id.replace("channel-list", "chatroom");
+        $(".weixin-chat-room").css("display","none"); 
+        $("#" + roomid).css("display","block");
+        console.log("id: " + roomid);
+    }
+    
+    function weixin_checkin(staff_uuid) {
+        var url = "/weixinAPI/webchat/"+staff_uuid+"/checkin";
+        var ret;
+        $.ajax({
+            url : url,
+            cache : false, 
+            async : false,
+            type : "GET",
+            dataType : 'json',
+            success : function (result){
+                if(result.errcode == 0) {
+                    ret = true;
+                } else {
+                	ret = result.errmsg;
+                }
+            }
+        });
+        return ret;
+    }
+
+    function weixin_checkout(tenantUn, staff_uuid) {
+        var url = "/weixinAPI/webchat/"+tenantUn+"/checkout/"+staff_uuid;
+        var ret;
+        $.ajax({
+            url : url,
+            cache : false, 
+            async : false,
+            type : "GET",
+            dataType : 'json',
+            success : function (result){
+                if(result.errcode ==0) {
+                    ret = true;
+                } else {
+                    ret = result.errmsg;
+                }
+            }
+        });
+        return ret;
+    }
+
     
     // 进入聊天室
     function enterChatRoom() {
@@ -47,7 +102,23 @@
                 	if(data!=null){
                 		   for(var i=0; i<data.length;i++){
                 			   var channel = data[i];
-                			   createChannelTab(i+1, channel.account, channel.openid);
+                			   var id = channel.openid + "-channel-list";
+                			   var html = '<a href="#" id="'+id+'" class="list-group-item" onclick=\'clickList("'+id+'")\'>客服通道'+(i+1)+'</a>';
+                			   $(".list-group").append(html);
+                			   
+                			   var d = new Date();
+                			   var chatContent = "<div id='" + channel.openid + "-chatroom' style='display:none; padding:0px' class='weixin-chat-room' data-dojo-type='dijit/layout/ContentPane'>";
+                		       chatContent += "<div id='"+channel.openid+"chatboard' style='height:400px; border:1px solid black; overflow:auto; margin-bottom;background-color: #EFF3F7;'>";
+                		       chatContent += "<div class='time'> <span class='timeBg left'></span> "+d.getHours()+":"+d.getMinutes()+" <span class='timeBg right'></span></div></div>";
+                		            chatContent += "<div id='chat_editor' class='chatOperator lightBorder'>";
+                		            chatContent += "<div class='inputArea'><div class='attach'><a href='javascript:;' class='emotion func expression' title='选择表情'></a>"
+                		            chatContent += "<a href='javascript:;' id='"+channel.openid+"uploader' class='func file' style='position:relative;display:block;margin:0;' title='图片文件'></a>";
+                		            chatContent += "</div><input type='text' id='"+channel.openid+"messageInput' class='chatInput lightBorder'></input>";
+                		            chatContent += "<a href='javascript:;' class='chatSend' onclick='postMessage(\""+channel.account+"\",\""+channel.openid+"\")' id='"+channel.openid+"sendMessage'><b>发送</b></a></div></div></div>";
+                		            
+                		            $(".jumbotron").append(chatContent);
+                		            $('.emotion').qqFace();
+                		              uploadImage(channel.openid+'uploader');
                 		   }
                 		   getMessage();
                 	}
@@ -243,7 +314,7 @@
 		    chatContent += "<div class='inputArea'><div class='attach'><a href='javascript:;' class='emotion func expression' title='选择表情'></a>"
 		    chatContent += "<a href='javascript:;' id='"+escaped_roomId+"uploader' class='func file' style='position:relative;display:block;margin:0;' title='图片文件'></a>";
 		    chatContent += "</div><input type='text' id='"+escaped_roomId+"messageInput' class='chatInput lightBorder'></input>";
-		    chatContent += "<a href='javascript:;' class='chatSend' onclick='postMessage(\""+account+"\",\""+openid+"\")' id='"+escaped_roomId+"sendMessage'><b>发送</b></a></div></div>";
+		    chatContent += "<a href='javascript:;' class='chatSend' onclick='postMessage(\""+account+"\",\""+openid+"\")' id='"+escaped_roomId+"sendMessage'><b>发送</b></a></div></div>"
 
 		    
 		    var closablePane = new dijit.layout.ContentPane({
@@ -335,6 +406,7 @@
 	        }
 	     });
 	  }
+	  
 
 	dojo.ready(function() {
 		//getMessage();
@@ -352,9 +424,58 @@
 </script> 
 
 </head>
-<body class="claro">
-    <div data-dojo-id="chatboardTab" data-dojo-type="dijit/layout/TabContainer" style="width: 580px;height: 400px;" doLayout="false">
+<body class="claro" style="background:#6B747A">
+
+    <div class="container" style="background-color:#6B747A;">
+
+      <div class="row row-offcanvas row-offcanvas-right">
+
+        <div class="col-xs-6 col-sm-3 sidebar-offcanvas" id="sidebar" role="navigation">
+          <div class="list-group">
+          </div>
+        </div><!--/span-->
+
+        <div class="col-xs-12 col-sm-9">
+          <div class="jumbotron" style="padding-top:0;padding:0" >
+<!--             <div id="asda-chatroom" style="display:none; padding:0px" class="weixin-chat-room" data-dojo-type="dijit/layout/ContentPane">
+                 <div id="escaped_roomId" style="height:400px; border:1px solid black; overflow:auto; margin-bottom;background-color: #EFF3F7;">
+                 <div class='time'> <span class='timeBg left'></span> time <span class='timeBg right'></span></div></div>
+                 <div id='chat_editor' class='chatOperator lightBorder'>
+            <div class='inputArea'><div class='attach'><a href='javascript:;' class='emotion func expression' title='选择表情'></a>
+            <a href='javascript:;' id='"+escaped_roomId+"uploader' class='func file' style='position:relative;display:block;margin:0;' title='图片文件'></a>
+            </div><input type='text' id='"+escaped_roomId+"messageInput' class='chatInput lightBorder'></input>
+            <a href='javascript:;' class='chatSend' onclick='postMessage("account","openid")' id='escaped_roomId'><b>发送</b></a></div></div>
+            </div>
+            <div id="asdaaa-chatroom" style="display:none; padding:0px" class="weixin-chat-room" data-dojo-type="dijit/layout/ContentPane">
+                 <div id="escaped_roomId" style="height:400px; border:1px solid black; overflow:auto; margin-bottom;background-color: #EFF3F7;">
+                 <div class='time'> <span class='timeBg left'></span> time <span class='timeBg right'></span></div></div>
+                 <div id='chat_editor' class='chatOperator lightBorder'>
+            <div class='inputArea'><div class='attach'><a href='javascript:;' class='emotion func expression' title='选择表情'></a>
+            <a href='javascript:;' id='"+escaped_roomId+"uploader' class='func file' style='position:relative;display:block;margin:0;' title='图片文件'></a>
+            </div><input type='text' id='"+escaped_roomId+"messageInput' class='chatInput lightBorder'></input>
+            <a href='javascript:;' class='chatSend' onclick='postMessage("account","openid")' id='escaped_roomId'><b>发送</b></a></div></div>
+            </div> -->
+          </div>
+        </div><!--/span-->
+
+
+      </div><!--/row-->
+
     </div>
+
+<script>
+
+$(".list-group-item").click(function(index){
+    console.log("click");
+    $(".list-group-item").removeClass("active");
+    $(this).addClass("active");
+    var id = $(this).attr("id");
+    var roomid = id + "-chatroom";
+    $(".weixin-chat-room").css("display","none"); 
+    $("#" + roomid).css("display","block");
+    console.log("id: " + roomid);
     
+});
+</script>
 </body>
 </html>

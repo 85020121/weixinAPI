@@ -24,6 +24,8 @@ import redis.clients.jedis.Jedis;
 import com.hesong.weixinAPI.context.ContextPreloader;
 import com.hesong.weixinAPI.core.MessageExecutor;
 import com.hesong.weixinAPI.core.MessageRouter;
+import com.hesong.weixinAPI.job.CheckSessionAvailableJob;
+import com.hesong.weixinAPI.job.CheckWaitingListJob;
 import com.hesong.weixinAPI.model.AccessToken;
 import com.hesong.weixinAPI.model.WaitingClient;
 import com.hesong.weixinAPI.tools.API;
@@ -41,7 +43,7 @@ public class UtilsController {
         JSONArray qrCodeList = new JSONArray();
         log.info("Create QRCode with scene_id: " + scene_id);
         for (String account : ContextPreloader.staffAccountList) {
-            String token = ContextPreloader.Account_Map.get(account).getToken();
+            String token = MessageRouter.getAccessToken(account);
             String qrCode = WeChatHttpsUtil.getQRCode(token, scene_id);
             if(null == qrCode) continue;
             qrCodeList.add(qrCode);
@@ -58,7 +60,7 @@ public class UtilsController {
                     .readValue(request.getInputStream(), Map.class));
             String account = json.getString("account");
             json.remove("account");
-            String token = ContextPreloader.Account_Map.get(account).getToken();
+            String token = MessageRouter.getAccessToken(account);
             String type = json.getString("msgtype");
             String content = json.getString("content");
             
@@ -110,7 +112,9 @@ public class UtilsController {
             String appid = json.getString("appid");
             String appsecret = json.getString("appsecret");
             AccessToken ac = new AccessToken(tenantUn, account, appid, appsecret);
-            ContextPreloader.Account_Map.put(account, WeChatHttpsUtil.getAccessToken(ac));
+            Jedis jedis = ContextPreloader.jedisPool.getResource();
+            WeChatHttpsUtil.setAccessTokenToRedis(jedis, account, appid, appsecret, tenantUn, API.REDIS_CLIENT_ACCOUNT_INFO_KEY);
+            ContextPreloader.jedisPool.returnResource(jedis);
             log.info("New client added into Account_Map: " + ac.toString());
             return WeChatHttpsUtil.getErrorMsg(0, "Client added.").toString();
         } catch (Exception e) {
@@ -201,6 +205,28 @@ public class UtilsController {
     }
     
     @ResponseBody
+    @RequestMapping(value = "/{tenantUn}/setSessionDuration/{duration}", method = RequestMethod.GET)
+    public String setSessionDuration(@PathVariable String tenantUn, @PathVariable String duration) {
+        try {
+            CheckSessionAvailableJob.session_available_duration_map.put(tenantUn, Long.parseLong(duration));
+            return WeChatHttpsUtil.getErrorMsg(0, "ok").toString();
+        } catch (Exception e) {
+            return WeChatHttpsUtil.getErrorMsg(1, e.toString()).toString();
+        }
+    }
+    
+    @ResponseBody
+    @RequestMapping(value = "/{tenantUn}/setWaitingDuration/{duration}", method = RequestMethod.GET)
+    public String setWaitingDuration(@PathVariable String tenantUn, @PathVariable String duration) {
+        try {
+            CheckWaitingListJob.waiting_duration_map.put(tenantUn, Long.parseLong(duration));
+            return WeChatHttpsUtil.getErrorMsg(0, "ok").toString();
+        } catch (Exception e) {
+            return WeChatHttpsUtil.getErrorMsg(1, e.toString()).toString();
+        }
+    }
+    
+    @ResponseBody
     @RequestMapping(value = "/{tenantUn}/setClientSkills", method = RequestMethod.POST)
     public String setClientSkills(@PathVariable String tenantUn, HttpServletRequest request) {
         ObjectMapper mapper = new ObjectMapper();
@@ -222,11 +248,13 @@ public class UtilsController {
             if (i == 0) {
                 regex = ".*(" + list.get(i);
             }
+            if (i > 0) {
+                regex = regex + "|" + list.get(i);
+            }
             if (i == list.size() - 1) {
                 regex = regex + ").*";
                 break;
             }
-            regex = regex + "|" + list.get(i);
         }
         return regex;
     }

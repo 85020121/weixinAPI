@@ -181,6 +181,20 @@ public class WeChatHttpsUtil {
         return ac;
     }
     
+    public static String updateAccessToken(String appid, String appSecret) {
+
+        String requestUrl = API.ACCESS_TOKEN_URL.replace("APPID", appid).replace(
+                "APPSECRET", appSecret);
+        JSONObject jo = httpsRequest(requestUrl, "GET", null);
+
+        if (jo != null && jo.containsKey("access_token")) {
+            return jo.getString("access_token");
+        } else {
+            log.error("Update access_token failed: " + jo.toString());
+            return null;
+        }
+    }
+    
     public static void setAccessTokenToRedis(Jedis jedis, String account, String appid, String appSecret, String tenantUn, String redisKey) {
 
         String requestUrl = API.ACCESS_TOKEN_URL.replace("APPID", appid).replace(
@@ -190,10 +204,10 @@ public class WeChatHttpsUtil {
         if (jo != null && jo.containsKey("access_token")) {
             try {
                 JSONObject ac = new JSONObject();
+                ac.put("account", account);
                 ac.put("appid", appid);
                 ac.put("appSecret", appSecret);
                 ac.put("tenantUn", tenantUn);
-                ac.put("access_token", jo.getString("access_token"));
                 jedis.hset(redisKey, account, ac.toString());
                 jedis.hset(API.REDIS_WEIXIN_ACCESS_TOKEN_KEY, account, jo.getString("access_token"));
             } catch (Exception e) {

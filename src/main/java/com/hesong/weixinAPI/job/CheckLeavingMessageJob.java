@@ -8,8 +8,8 @@ import org.quartz.Job;
 import org.quartz.JobExecutionContext;
 import org.quartz.JobExecutionException;
 
-import com.hesong.weixinAPI.context.ContextPreloader;
 import com.hesong.weixinAPI.core.MessageExecutor;
+import com.hesong.weixinAPI.core.MessageRouter;
 import com.hesong.weixinAPI.model.LeavingMessageClient;
 
 public class CheckLeavingMessageJob implements Job {
@@ -27,8 +27,9 @@ public class CheckLeavingMessageJob implements Job {
             for (LeavingMessageClient c : c_map.values()) {
                 if ((now - c.getDate()) > levesMessageDuration) {
                     if (c.getSource().equalsIgnoreCase("wx")) {
-                        String token = ContextPreloader.Account_Map.get(c.getAccount()).getToken();
+                        String token = MessageRouter.getAccessToken(c.getAccount());
                         MessageExecutor.sendMessage(c.getOpenid(), token, text, "text");
+                        MessageRouter.newMessageRemaind(tenantUn);
                     }
                     c_map.remove(c.getOpenid());
                 }

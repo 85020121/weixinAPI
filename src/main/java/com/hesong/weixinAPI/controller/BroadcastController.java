@@ -19,8 +19,8 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestMethod;
 import org.springframework.web.bind.annotation.ResponseBody;
 
-import com.hesong.weixinAPI.context.ContextPreloader;
 import com.hesong.weixinAPI.core.MessageExecutor;
+import com.hesong.weixinAPI.core.MessageRouter;
 import com.hesong.weixinAPI.tools.API;
 import com.hesong.weixinAPI.tools.WeChatHttpsUtil;
 
@@ -42,8 +42,7 @@ public class BroadcastController {
     @RequestMapping(value = "/{account}/sendToAllUsers", method = RequestMethod.POST)
     public JSONObject sendToAllUsers(@PathVariable String account,
             HttpServletRequest request) {
-        String access_token = ContextPreloader.Account_Map.get(account)
-                .getToken();
+        String access_token = MessageRouter.getAccessToken(account);
         ObjectMapper mapper = new ObjectMapper();
         try {
             JSONObject message = (JSONObject) JSONSerializer.toJSON(mapper
@@ -84,8 +83,7 @@ public class BroadcastController {
     @RequestMapping(value = "/{account}/sendToGroup", method = RequestMethod.POST)
     public String sendToGroup(@PathVariable String account,
             HttpServletRequest request) {
-        String access_token = ContextPreloader.Account_Map.get(account) 
-                .getToken();
+        String access_token = MessageRouter.getAccessToken(account);
         ObjectMapper mapper = new ObjectMapper();
         try {
             JSONObject message = (JSONObject) JSONSerializer.toJSON(mapper
@@ -120,8 +118,7 @@ public class BroadcastController {
     @RequestMapping(value = "/{account}/sendToActiveUsers", method = RequestMethod.POST)
     public String sendToActiveUsers(@PathVariable String account,
             HttpServletRequest request) {
-        String access_token = ContextPreloader.Account_Map.get(account)
-                .getToken();
+        String access_token = MessageRouter.getAccessToken(account);
         ObjectMapper mapper = new ObjectMapper();
         try {
             JSONObject message = (JSONObject) JSONSerializer.toJSON(mapper
@@ -141,8 +138,7 @@ public class BroadcastController {
     @RequestMapping(value = "/{account}/sendToWeixinGroup", method = RequestMethod.POST)
     public int sendToWeixinGroup(@PathVariable String account,
             HttpServletRequest request) {
-        String access_token = ContextPreloader.Account_Map.get(account)
-                .getToken();
+        String access_token = MessageRouter.getAccessToken(account);
         ObjectMapper mapper = new ObjectMapper();
         try {
             JSONObject message = (JSONObject) JSONSerializer.toJSON(mapper

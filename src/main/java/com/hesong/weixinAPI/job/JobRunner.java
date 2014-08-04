@@ -72,7 +72,7 @@ public class JobRunner {
                         CheckLeavingMessageJob.CHECK_LEAVING_MESSAGE_GROUP)
                 .withSchedule(cronSchedule(checkLeaveMessageCronExpression)).forJob(leave_message_job).build();
         
-     // Get Leaved Message Job
+        // Get Leaved Message Job
         String getLeavedMessageCronExpression = "0/30 * * * * ?";
         JobDetail get_leaved_message_job = JobBuilder
                 .newJob(GetLeavedMessageJob.class)
@@ -82,6 +82,28 @@ public class JobRunner {
                 .withIdentity("GetLeavedMessageJob",
                         GetLeavedMessageJob.GET_LEAVED_MESSAGE_GROUP)
                 .withSchedule(cronSchedule(getLeavedMessageCronExpression)).forJob(get_leaved_message_job).build();
+        
+        // Check Weixin End Session Job
+        String endSessionCronExpression = "0/10 * * * * ?";
+        JobDetail end_session_job = JobBuilder
+                .newJob(CheckEndSessionJob.class)
+                .withIdentity("CheckEndSessionJob",
+                        CheckEndSessionJob.END_SESSION_GROUP).build();
+        Trigger end_session_trigger = newTrigger()
+                .withIdentity("CheckEndSessionJob",
+                        CheckEndSessionJob.END_SESSION_GROUP)
+                .withSchedule(cronSchedule(endSessionCronExpression)).forJob(end_session_job).build();
+        
+        // Check Waiting list Job
+        String waitingListCronExpression = "0/20 * * * * ?";
+        JobDetail waitingList_job = JobBuilder
+                .newJob(CheckWaitingListJob.class)
+                .withIdentity("CheckWaitingListJob",
+                        CheckWaitingListJob.WAITING_LIST_GROUP).build();
+        Trigger waitingList_trigger = newTrigger()
+                .withIdentity("CheckWaitingListJob",
+                        CheckWaitingListJob.WAITING_LIST_GROUP)
+                .withSchedule(cronSchedule(waitingListCronExpression)).forJob(waitingList_job).build();
 
         scheduler = new StdSchedulerFactory("quartz.properties").getScheduler();
         // Add jobs to scheduler
@@ -89,8 +111,10 @@ public class JobRunner {
         scheduler.scheduleJob(session_job, session_trigger);
         scheduler.scheduleJob(weibo_session_job, weibo_session_trigger);
         scheduler.scheduleJob(leave_message_job, leave_message_trigger);
-        scheduler.scheduleJob(get_leaved_message_job, get_leaved_message_trigger);
-
+        //scheduler.scheduleJob(get_leaved_message_job, get_leaved_message_trigger);
+        scheduler.scheduleJob(end_session_job, end_session_trigger);
+        scheduler.scheduleJob(waitingList_job, waitingList_trigger);
+        
         scheduler.start();
         ContextPreloader.ContextLog.info("Start Job Runner.");
     }

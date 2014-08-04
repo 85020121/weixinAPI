@@ -84,7 +84,7 @@ public class ChannelController {
                         if (session_info != null) {
                             // 首次建立微博--微信会话通道
                             weiboSession.put(user_id, session_info);
-                            String token = ContextPreloader.Account_Map.get(session_info.getAccount()).getToken();
+                            String token = MessageRouter.getAccessToken(session_info.getAccount());
                             String text = String.format("您已经和微博用户\"%s\"建立了会话连接.\n%s:%s", user_name, user_name, content); 
                             MessageRouter.sendMessage(session_info.getOpenid(), token, text, API.TEXT_MESSAGE);
                             log.info("Weibo session info: " + session_info.toString());
@@ -101,7 +101,7 @@ public class ChannelController {
                 }
                 
                 if (session_info != null) {
-                    String token = ContextPreloader.Account_Map.get(session_info.getAccount()).getToken();
+                    String token = MessageRouter.getAccessToken(session_info.getAccount());
                     String wx_content = String.format("%s:%s", user_name, content);
                     MessageRouter.sendMessage(session_info.getOpenid(), token, wx_content, msgtype);
                     recordMessage(session_info, content, msgtype);

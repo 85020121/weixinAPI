@@ -4,10 +4,7 @@ import java.text.SimpleDateFormat;
 
 public class API {
     public final static String TENANTUN = "tenantUn";
-
-    public static String TOKEN = "weixin";
-    public static String APPID = "wx5c19ccf5d7bdce97";
-    public static String APP_SECRET = "b3b2b1f0cb0babc572adbd48dd072fb6";
+    public final static String TOKEN = "weixin";
     
     public final static String REDIS_WEIXIN_ACCESS_TOKEN_KEY = "weixin_access_token";
     public final static String REDIS_CLIENT_ACCOUNT_INFO_KEY = "weixin_client_account_info";
@@ -60,17 +57,6 @@ public class API {
     public final static int MOCK_WEIXIN_CLIENT = 5;
     public final static int MOCK_CLIENT = 6;
     
-    public static String INVITE_REQUEST_URL = "http://localhost:8080/weChatAdapter/client/ACCOUNT/invite";
-    public static String ENTER_ROOM_REQUEST_URL = "http://localhost:8080/weChatAdapter/client/ACCOUNT/entered_room";
-    public static String EXIT_ROOM_REQUEST_URL = "http://localhost:8080/weChatAdapter/client/ACCOUNT/exited_room";
-    public static String SEND_MESSAGE_REQUEST_URL = "http://localhost:8080/weChatAdapter/client/TOUSER/sendMessageRequest";
-    public static String DISPOSE_ROOM_REQUEST_URL = "http://localhost:8080/weChatAdapter/client/ACCOUNT/dispose_room";
-//    public static String INVITE_REQUEST_URL = "http://10.4.62.41:8080/weChatAdapter/client/ACCOUNT/invite";
-//    public static String ENTER_ROOM_REQUEST_URL = "http://10.4.62.41:8080/weChatAdapter/client/ACCOUNT/entered_room";
-//    public static String EXIT_ROOM_REQUEST_URL = "http://10.4.62.41:8080/weChatAdapter/client/ACCOUNT/exited_room";
-//    public static String DISPOSE_ROOM_REQUEST_URL = "http://10.4.62.41:8080/weChatAdapter/client/ACCOUNT/dispose_room";
-//    public static String SEND_MESSAGE_REQUEST_URL = "http://10.4.62.41:8080/weChatAdapter/client/TOUSER/sendMessageRequest";
-    
     public static String PULLING_MEDIA_URL = "http://file.api.weixin.qq.com/cgi-bin/media/get?access_token=ACCESS_TOKEN&media_id=";
     public static String UPLOAD_IMAGE_REQUEST_URL = "http://file.api.weixin.qq.com/cgi-bin/media/upload?access_token=ACCESS_TOKEN&type=";
 
@@ -83,8 +69,34 @@ public class API {
     public static String WEIBO_SEND_MESSAGE_URL = "http://www.clouduc.cn:8080/weibo_robot/send";
     
     // SUA urls
-    public static String SUA_DEL_STAFF_URL = "http://www.clouduc.cn/sua/rest/n/tenant/channel/del?openid=";
-
+//    public static String SUA_DEL_STAFF_URL = "http://www.clouduc.cn/sua/rest/n/tenant/channel/del?openid=";
+//    public static String SUGAR_CRM_URL = "http://www.clouduc.cn/crm/service/v4/rest.php";
+//    public static String SUA_TENANT_LIST_URL = "http://www.clouduc.cn/sua/rest/n/tenant/listwxparams";
+//    public static String CHECKIN_URL = "http://www.clouduc.cn/sua/rest/n/tenant/kfCheckInInfo?idtype=uuid&id=";
+//    public static String GET_QRCODE_TICKETS_URL = "http://www.clouduc.cn/sua/rest/n/tenant/codetokens";
+//    public static String STAFF_OPENID_CHECKIN_URL = "http://www.clouduc.cn/sua/rest/n/tenant/kfCheckInInfo?idtype=openid&id=";
+//    
+//    // CRM urls
+//    public static String CLIENT_INFO_URL = "http://www.clouduc.cn/crm/mobile/weixin/prospectsDetail.php?kh_weixin_openid=%s&channel=%s";
+//    public static String CHAT_HISTORY_URL = "http://www.clouduc.cn/crm/mobile/chathistory/chathistory.php?client_openid=%s&staff_openid=%s&channel=%s";
+//    public static String ALL_CHAT_HISTORY_URL = "http://www.clouduc.cn/crm/mobile/chathistory/chathistorylist.php?staff_openid=%s&channel=%s";
+//    public static String GET_LEAVED_MESSAGE_URL = "http://www.clouduc.cn/crm/mobile/replymessage/messagelist.php?channel=%s";
+    
+    
+    // SUA urls
+    public static String SUA_DEL_STAFF_URL = "http://www.hesyun.com/sua/rest/n/tenant/channel/del?openid=";
+    public static String SUGAR_CRM_URL = "http://www.hesyun.com/crm/service/v4/rest.php";
+    public static String SUA_TENANT_LIST_URL = "http://www.hesyun.com/sua/rest/n/tenant/listwxparams";
+    public static String CHECKIN_URL = "http://www.hesyun.com/sua/rest/n/tenant/kfCheckInInfo?idtype=uuid&id=";
+    public static String GET_QRCODE_TICKETS_URL = "http://www.hesyun.com/sua/rest/n/tenant/codetokens";
+    public static String STAFF_OPENID_CHECKIN_URL = "http://www.hesyun.com/sua/rest/n/tenant/kfCheckInInfo?idtype=openid&id=";
+    
+    // CRM urls
+    public static String CLIENT_INFO_URL = "http://www.hesyun.com/crm/mobile/weixin/prospectsDetail.php?kh_weixin_openid=%s&channel=%s";
+    public static String CHAT_HISTORY_URL = "http://www.hesyun.com/crm/mobile/chathistory/chathistory.php?client_openid=%s&staff_openid=%s&channel=%s";
+    public static String ALL_CHAT_HISTORY_URL = "http://www.hesyun.com/crm/mobile/chathistory/chathistorylist.php?staff_openid=%s&channel=%s";
+    public static String GET_LEAVED_MESSAGE_URL = "http://www.hesyun.com/crm/mobile/replymessage/messagelist.php?channel=%s";
+    
     public static SimpleDateFormat TIME_FORMAT = new SimpleDateFormat(
             "yyyy-MM-dd HH:mm:ss");
     

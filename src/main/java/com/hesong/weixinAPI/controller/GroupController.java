@@ -1,5 +1,6 @@
 package com.hesong.weixinAPI.controller;
 
+
 import net.sf.json.JSONObject;
 
 import org.springframework.stereotype.Controller;
@@ -8,7 +9,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestMethod;
 import org.springframework.web.bind.annotation.ResponseBody;
 
-import com.hesong.weixinAPI.context.ContextPreloader;
+import com.hesong.weixinAPI.core.MessageRouter;
 import com.hesong.weixinAPI.tools.WeChatHttpsUtil;
 
 
@@ -22,7 +23,7 @@ public class GroupController {
     @RequestMapping(value = "/{account}/create/{name}", method = RequestMethod.GET)
     public JSONObject createGroup(@PathVariable String account, @PathVariable String name){
         try {
-            String token = ContextPreloader.Account_Map.get(account).getToken();
+            String token = MessageRouter.getAccessToken(account);
             JSONObject group = new JSONObject();
             JSONObject group_name = new JSONObject();
             group_name.put("name", name);

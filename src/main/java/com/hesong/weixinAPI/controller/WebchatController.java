@@ -49,7 +49,6 @@ public class WebchatController {
     private static Logger log = Logger.getLogger(WebchatController.class);
     
     private static int DEFFER_TIME = 15000;
-    private static String CHECKIN_URL = "http://www.clouduc.cn/sua/rest/n/tenant/kfCheckInInfo?idtype=uuid&id=";
     
     private final Map<String, DeferredResult<ChatMessage>> chatRequests = new ConcurrentHashMap<String, DeferredResult<ChatMessage>>();
     public static Map<String, JSONArray> channelList = new ConcurrentHashMap<String, JSONArray>();
@@ -61,8 +60,15 @@ public class WebchatController {
         return "webChatIndex";
     }
     
+    @RequestMapping(value = "/{staff_uuid}/chatlist", method = RequestMethod.GET)
+    public String chatlist(@PathVariable String staff_uuid, HttpServletResponse response){
+        response.addCookie(new Cookie("WX_STF_UID", staff_uuid));
+        return "chatList";
+    }
+    
+    @ResponseBody
     @RequestMapping(value = "/{tenantUn}/enterChatRoom/{staff_uuid}", method = RequestMethod.GET)
-    public String enterChatRoom(@PathVariable String tenantUn, @PathVariable String staff_uuid,
+    public JSONArray enterChatRoom(@PathVariable String tenantUn, @PathVariable String staff_uuid,
             @CookieValue(value="JSESSIONID", defaultValue="") String jsessionid, 
             HttpServletResponse response){
         log.info("jsessionid: " + jsessionid);
@@ -83,13 +89,13 @@ public class WebchatController {
             }
         }
         response.addCookie(new Cookie("WX_STF_UID", staff_uuid));
-        return "chatRoom";  
+        return channelList.get(staff_uuid);
     }
     
     @ResponseBody
     @RequestMapping(value = "/{staff_uuid}/checkin", method = RequestMethod.GET)
     public String checkin(@PathVariable String staff_uuid, HttpSession session, HttpServletResponse response) {
-        String url = CHECKIN_URL + staff_uuid;
+        String url = API.CHECKIN_URL + staff_uuid;
         log.info("session: " + session.getId());
         if(!WeChatHttpsUtil.jedisNotExistThenHSet(API.REDIS_WEIXIN_WEBCHAT_SESSIONID, staff_uuid, session.getId())) {
             return WeChatHttpsUtil.getErrorMsg(10011, "请不要重复签入: " + staff_uuid).toString();

@@ -6,6 +6,7 @@ public class WaitingClient {
     private String openid;
     private String account;
     private String name;
+    private long time;
     
     public String getTenantUn() {
         return tenantUn;
@@ -31,13 +32,20 @@ public class WaitingClient {
     public void setName(String name) {
         this.name = name;
     }
+    public long getTime() {
+        return time;
+    }
+    public void setTime(long time) {
+        this.time = time;
+    }
     public WaitingClient(String tenantUn, String openid, String account,
-            String name) {
+            String name, long time) {
         super();
         this.tenantUn = tenantUn;
         this.openid = openid;
         this.account = account;
         this.name = name;
+        this.time = time;
     }
     @Override
     public String toString() {

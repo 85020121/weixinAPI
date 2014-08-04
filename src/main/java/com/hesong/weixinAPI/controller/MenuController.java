@@ -15,7 +15,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestMethod;
 import org.springframework.web.bind.annotation.ResponseBody;
 
-import com.hesong.weixinAPI.context.ContextPreloader;
+import com.hesong.weixinAPI.core.MessageRouter;
 import com.hesong.weixinAPI.tools.WeChatHttpsUtil;
 
 
@@ -35,7 +35,7 @@ public class MenuController {
             String menuContent = null;
             menuContent = ((JSONObject) JSONSerializer.toJSON(mapper.readValue(request.getInputStream(), Map.class))).toString();
             log.info("Menu content: "+ menuContent);
-            String accessToken = ContextPreloader.Account_Map.get(account).getToken();
+            String accessToken = MessageRouter.getAccessToken(account);
             JSONObject jo = manageMenu(accessToken, "create", menuContent);
             return jo;
 
@@ -49,7 +49,7 @@ public class MenuController {
     @RequestMapping(value = "/{account}/get", method = RequestMethod.GET, produces = "application/json; charset=utf-8")
     public @ResponseBody JSONObject get(@PathVariable String account, HttpServletRequest request){
         try {
-            String accessToken = ContextPreloader.Account_Map.get(account).getToken();
+            String accessToken = MessageRouter.getAccessToken(account);
             JSONObject jo = manageMenu(accessToken, "get", null);
             return jo;
 
@@ -63,7 +63,7 @@ public class MenuController {
     @RequestMapping(value = "/{account}/delete", method = RequestMethod.GET, produces = "application/json; charset=utf-8")
     public @ResponseBody JSONObject delete(@PathVariable String account, HttpServletRequest request){
         try {
-            String accessToken = ContextPreloader.Account_Map.get(account).getToken();
+            String accessToken = MessageRouter.getAccessToken(account);
             JSONObject jo = manageMenu(accessToken, "delete", null);
             return jo;
 

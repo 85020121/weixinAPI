@@ -24,7 +24,6 @@ public class LeavingMessageClient {
         this.date = new Date().getTime();
         this.uuid = UUID.randomUUID().toString();
     }
-
     public String getAccount() {
         return account;
     }
