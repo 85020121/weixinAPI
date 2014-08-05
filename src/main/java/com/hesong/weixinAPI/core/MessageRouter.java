@@ -1343,6 +1343,7 @@ public class MessageRouter implements Runnable {
                 String text = "感谢您使用在线留言服务,客服MM将在第一时间回复您的消息!";
                 String token = getAccessToken(account); //ContextPreloader.Account_Map.get(account).getToken();
                 sendMessage(openid, token, text, API.TEXT_MESSAGE);
+                newMessageRemaind(tenantUn);
                 return;
             }
         } else {
@@ -1411,24 +1412,29 @@ public class MessageRouter implements Runnable {
             Map<String, Staff> staff_map = mulClientStaffMap.get(tenantUn);
             for (String staff_uuif : staff_map.keySet()) {
                 Staff staff = staff_map.get(staff_uuif);
-                StaffSessionInfo session = staff.getSessionChannelList().get(0);
-                String account = session.getAccount();
-                JSONObject accountInfo = MessageRouter.getAccountInfo(
-                        account, API.REDIS_STAFF_ACCOUNT_INFO_KEY);
-                String url = String
-                        .format(API.GET_LEAVED_MESSAGE_URL,
-                                ContextPreloader.channelMap
-                                        .get(account));
-                String text = null;
-                try {
-                    text = String
-                            .format("系统消息:有新的留言,<a href=\"https://open.weixin.qq.com/connect/oauth2/authorize?appid=%s&redirect_uri=%s&response_type=code&scope=snsapi_base&state=123#wechat_redirect\">点击查看留言</a>",
-                                    accountInfo.getString("appid"),
-                                    URLEncoder.encode(url, "utf8"));
-                    sendMessage(session.getOpenid(), getAccessToken(account), text, API.TEXT_MESSAGE);
-                } catch (UnsupportedEncodingException e) {
-                    e.printStackTrace();
+                for (StaffSessionInfo session : staff.getSessionChannelList()) {
+                    if (!session.isBusy()) {
+                        String account = session.getAccount();
+                        JSONObject accountInfo = MessageRouter.getAccountInfo(
+                                account, API.REDIS_STAFF_ACCOUNT_INFO_KEY);
+                        String url = String
+                                .format(API.GET_LEAVED_MESSAGE_URL,
+                                        ContextPreloader.channelMap
+                                                .get(account));
+                        String text = null;
+                        try {
+                            text = String
+                                    .format("系统消息:有新的留言,<a href=\"https://open.weixin.qq.com/connect/oauth2/authorize?appid=%s&redirect_uri=%s&response_type=code&scope=snsapi_base&state=123#wechat_redirect\">点击查看留言</a>",
+                                            accountInfo.getString("appid"),
+                                            URLEncoder.encode(url, "utf8"));
+                            sendMessage(session.getOpenid(), getAccessToken(account), text, API.TEXT_MESSAGE);
+                            break;
+                        } catch (UnsupportedEncodingException e) {
+                            e.printStackTrace();
+                        }
+                    }
                 }
+                
             }
         }
     }

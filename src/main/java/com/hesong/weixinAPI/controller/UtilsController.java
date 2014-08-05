@@ -64,6 +64,10 @@ public class UtilsController {
             String type = json.getString("msgtype");
             String content = json.getString("content");
             
+            if (null == token) {
+                return WeChatHttpsUtil.getErrorMsg(1, "Account does not exist: " + account).toString();
+            }
+            
             JSONArray openid_list = json.getJSONArray("touser");
             for (Object openid : openid_list) {
                 MessageExecutor.sendMessage((String)openid, token, content, type);

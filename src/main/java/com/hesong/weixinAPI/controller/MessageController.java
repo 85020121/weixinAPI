@@ -72,7 +72,7 @@ public class MessageController {
     }
     
     @RequestMapping(value = "/{tenantUn}/clientChannel", method = RequestMethod.GET)
-    public void checkClientSignature(HttpServletRequest request,
+    public void checkClientSignature(@PathVariable String tenantUn, HttpServletRequest request,
             HttpServletResponse response) throws IOException {
         
         String signature = request.getParameter(SIGNATURE);
@@ -82,7 +82,7 @@ public class MessageController {
                 + " nonce:" + nonce);
 
         if (SignatureChecker.checkSignature(signature, timestamp, nonce,
-                API.TOKEN)) {
+                tenantUn)) {
             PrintWriter out = response.getWriter();
             out.print(request.getParameter(ECHOSTR));
             out.close();
