@@ -82,6 +82,7 @@ public class UtilsController {
     @ResponseBody
     @RequestMapping(value = "/checkClientAccount", method = RequestMethod.POST)
     public String checkClientAccount(HttpServletRequest request) {
+        log.info("IP: " + request.getHeader("x-real-ip"));
         ObjectMapper mapper = new ObjectMapper();
         try {
             JSONObject json = (JSONObject) JSONSerializer.toJSON(mapper

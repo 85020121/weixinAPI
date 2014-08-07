@@ -10,14 +10,14 @@
  http://www.springframework.org/schema/jms http://www.springframework.org/schema/jms/spring-jms-3.0.xsd
  ">
 
-	<!-- Database Configuration -->
+	<!-- Database Configuration 
 	<import resource="../database/DataSource.xml" />
-	<import resource="Hibernate.xml" /> 
+	<import resource="Hibernate.xml" /> -->
 
-	<!-- Beans Declaration -->
+	<!-- Beans Declaration
 	<import resource="../beans/Account.xml" /> 
+    <import resource="SpringJDBC.xml" /> -->
     <import resource="../beans/ApplicationContextProvider.xml" />
-    <import resource="SpringJDBC.xml" />
     
     <!-- 使用annotation 自动注册bean, 并保证@Required、@Autowired的属性被注入 
     <context:component-scan base-package="com.hesong">

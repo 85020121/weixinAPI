@@ -223,7 +223,7 @@ public class WebchatController {
                     String token = jedis.hget(API.REDIS_WEIXIN_ACCESS_TOKEN_KEY, s.getAccount()); // ContextPreloader.Account_Map.get(s.getAccount()).getToken();
                     MessageRouter.sendMessage(s.getOpenid(), token, "系统消息:您已成功签出!", API.TEXT_MESSAGE);
                     MessageRouter.activeStaffMap.remove(s.getOpenid());
-                    
+                    MessageRouter.staffIdList.remove(s.getOpenid());
                 }
                 String msg = channelList.get(staff_uuid).toString();
                 channelList.remove(staff_uuid);

@@ -10,6 +10,7 @@ public class LeavingMessageClient {
     private String headimgurl;
     private String source;
     private String uuid;
+    private int msgCount;
     private long date;
     public LeavingMessageClient(String account, String openid, String name, String headimgurl, String source) {
         super();
@@ -22,6 +23,7 @@ public class LeavingMessageClient {
         this.headimgurl = headimgurl;
         this.source = source;
         this.date = new Date().getTime();
+        this.msgCount = 0;
         this.uuid = UUID.randomUUID().toString();
     }
     public String getAccount() {
@@ -65,6 +67,15 @@ public class LeavingMessageClient {
     }
     public void setSource(String source) {
         this.source = source;
+    }
+    public int getMsgCount() {
+        return msgCount;
+    }
+    public void setMsgCount(int msgCount) {
+        this.msgCount = msgCount;
+    }
+    public void incCount() {
+        this.msgCount = this.msgCount + 1;
     }
     @Override
     public String toString() {

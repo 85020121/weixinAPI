@@ -21,15 +21,20 @@ public class CheckLeavingMessageJob implements Job {
     public void execute(JobExecutionContext context)
             throws JobExecutionException {
         long now = new Date().getTime();
-        String text = "时间到啦[微笑],您的留言已被系统记录,客服MM将在第一时间给您回复,如果您想继续留言请点击在线留言按钮,感谢您的支持!";
+        String withMessage = "系统提示：时间到啦[微笑]，您的留言已被记录，客服MM会尽快回复您，感谢您的支持！";
+        String noMessage = "系统提示：时间到啦，本次留言将不会被记录。";
         for (String tenantUn : leavingMessageClientList.keySet()) {
             Map<String, LeavingMessageClient> c_map = leavingMessageClientList.get(tenantUn);
             for (LeavingMessageClient c : c_map.values()) {
                 if ((now - c.getDate()) > levesMessageDuration) {
                     if (c.getSource().equalsIgnoreCase("wx")) {
                         String token = MessageRouter.getAccessToken(c.getAccount());
-                        MessageExecutor.sendMessage(c.getOpenid(), token, text, "text");
-                        MessageRouter.newMessageRemaind(tenantUn);
+                        if (c.getMsgCount() > 0) {
+                            MessageExecutor.sendMessage(c.getOpenid(), token, withMessage, "text");
+                            MessageRouter.newMessageRemaind(tenantUn);
+                        } else {
+                            MessageExecutor.sendMessage(c.getOpenid(), token, noMessage, "text");
+                        }
                     }
                     c_map.remove(c.getOpenid());
                 }

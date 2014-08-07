@@ -32,6 +32,7 @@ public class MessageController {
     @RequestMapping(method = RequestMethod.GET)
     public void checkSignature(HttpServletRequest request,
             HttpServletResponse response) throws IOException {
+        log.info("IP: "+request.getHeader("x-real-ip"));
         
         String signature = request.getParameter(SIGNATURE);
         String timestamp = request.getParameter(TIMESTAMP);
@@ -56,6 +57,7 @@ public class MessageController {
             HttpServletResponse response) {
         // request.setCharacterEncoding("UTF-8");
         // response.setCharacterEncoding("UTF-8");
+        log.info("IP: "+request.getHeader("x-real-ip"));
         
         try {
             PrintWriter out = response.getWriter();
@@ -74,6 +76,7 @@ public class MessageController {
     @RequestMapping(value = "/{tenantUn}/clientChannel", method = RequestMethod.GET)
     public void checkClientSignature(@PathVariable String tenantUn, HttpServletRequest request,
             HttpServletResponse response) throws IOException {
+        log.info("IP: "+request.getHeader("x-real-ip"));
         
         String signature = request.getParameter(SIGNATURE);
         String timestamp = request.getParameter(TIMESTAMP);
@@ -96,6 +99,7 @@ public class MessageController {
     @RequestMapping(value = "/{tenantUn}/clientChannel", method = RequestMethod.POST)
     public void receiveClientMessage(@PathVariable String tenantUn, HttpServletRequest request,
             HttpServletResponse response) {
+        log.info("IP: "+request.getHeader("x-real-ip"));
         
         try {
             PrintWriter out = response.getWriter();
