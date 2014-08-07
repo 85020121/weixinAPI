@@ -114,7 +114,7 @@ public class WeChatTest {
     
     @Test
     public void postTest(){
-        String request = API.UPLOAD_IMAGE_REQUEST_URL.replace("ACCESS_TOKEN", "k9vE8s1gSnfkK0U_rkr7p6YmeNZQVeXT749jGqJaD7DfwgqysNRNYqwjb9s6GwGOtpS6bLHuIFrbfTasECLkwfij_Uy7YPGraDnuAR1WJwNJLPMFQSAoqHsHqHc6sPznHdmzQ9ZaOsZo2SQv3zBDtw");
+        String request = API.UPLOAD_IMAGE_REQUEST_URL.replace("ACCESS_TOKEN", "l-m8pxzdEFcZzhgAanr7MHuhKHwcYeNAdv3k590h38_FzXFhK2jfYKQHDXxLeza8");
         InputStream in = WeChatHttpsUtil.httpGetInputStream("http://10.4.62.41:8370/image/send/10013/2014-03-24/16-36-55_9450853.jpg", "image");
         JSONObject jo = WeChatHttpsUtil.httpPostFile(request, in);
         System.out.println("Res:"+jo.toString());

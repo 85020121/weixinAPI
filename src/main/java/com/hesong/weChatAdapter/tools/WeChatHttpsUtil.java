@@ -9,6 +9,7 @@ import java.net.HttpURLConnection;
 import java.net.SocketTimeoutException;
 import java.net.URL;
 import java.net.URLConnection;
+import java.util.UUID;
 
 import javax.net.ssl.HttpsURLConnection;
 import javax.net.ssl.SSLContext;
@@ -18,6 +19,7 @@ import javax.net.ssl.TrustManager;
 import net.sf.json.JSONObject;
 
 import org.apache.log4j.Logger;
+
 import com.hesong.weChatAdapter.model.AccessToken;
 
 public class WeChatHttpsUtil {
@@ -197,7 +199,7 @@ public class WeChatHttpsUtil {
             sb.append(BOUNDARY);
             sb.append("\r\n");
             sb.append("Content-Disposition: form-data;name=\"file\";filename=\""
-            + "aa.jpg" + "\"\r\n");
+            + UUID.randomUUID().toString()+".jpg" + "\"\r\n");
             sb.append("Content-Type:application/octet-stream\r\n\r\n");
 
             byte[] head = sb.toString().getBytes("utf-8");
@@ -212,6 +214,7 @@ public class WeChatHttpsUtil {
             input.close();
             byte[] foot = ("\r\n--" + BOUNDARY + "--\r\n").getBytes("utf-8");// 定义最后数据分隔线
             out.write(foot);
+            log.info("Bytes: " + out.toString());
             out.flush();
             out.close();
             in = httpUrlConct.getInputStream();

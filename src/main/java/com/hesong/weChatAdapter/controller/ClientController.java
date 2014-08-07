@@ -50,9 +50,7 @@ public class ClientController {
 
     private static Logger log = Logger.getLogger(ClientController.class);
 
-    
     private static int DEFFER_TIME = 15000;
-
 
     private final Map<String, DeferredResult<ChatMessage>> chatRequests = new ConcurrentHashMap<String, DeferredResult<ChatMessage>>();
     private final Map<String, Set<String>> roomList = new ConcurrentHashMap<String, Set<String>>();
@@ -92,10 +90,10 @@ public class ClientController {
             String ret = ackRet.poll(5, TimeUnit.SECONDS);
             ackRet = null;
             JsonrpcHandlerRunner.loginAckRetQueue.remove(id);
-            
+            log.info("Login ret: " + ret);
             if (ret == null) {
                 log.error("NO LOGIN ACK RETURN for account: "+account);
-                return "chatRoom";
+                return "Failed";
             }
             if (ret.equals("OK")) {
                 // TODO logged in
@@ -104,9 +102,10 @@ public class ClientController {
                 if (!roomList.containsKey(account)) {
                     roomList.put(account, new HashSet<String>());
                 }
+                return "chatRoom";
             }
 
-            return "chatRoom";
+            return "Failed";
         } catch (InterruptedException e) {
             // TODO Auto-generated catch block
             e.printStackTrace();

@@ -8,6 +8,10 @@ import org.apache.log4j.Logger;
 import net.sf.json.JSONObject;
 import net.sf.json.JSONSerializer;
 
+import com.hesong.mq.MQEvent;
+import com.hesong.mq.MQManager;
+import com.hesong.mq.MQWeixinMessageEvent;
+import com.hesong.weChatAdapter.context.AppContext;
 import com.hesong.weChatAdapter.context.ContextPreloader;
 import com.hesong.weChatAdapter.manager.MessageManager;
 import com.hesong.weChatAdapter.model.AccessToken;
@@ -21,8 +25,6 @@ import com.hesong.weChatAdapter.tools.WeChatHttpsUtil;
  * 
  */
 public class WeChatMethodSet {
-
-    private static int TIMEOUT = 120000;
 
     private static Logger log = Logger.getLogger(WeChatMethodSet.class);
 
@@ -76,10 +78,11 @@ public class WeChatMethodSet {
             }
             tmp.put("msgtype", msgtype);
 
-            JSONObject result = WeChatHttpsUtil.httpPostRequest(
-                    API.SEND_MESSAGE_REQUEST_URL.replace("TOUSER", touser),
-                    tmp.toString(), TIMEOUT);
-            return result;
+//            JSONObject result = WeChatHttpsUtil.httpPostRequest(
+//                    API.SEND_MESSAGE_REQUEST_URL.replace("TOUSER", touser),
+//                    tmp.toString(), TIMEOUT);
+//            result = WeChatMessageAnnotation.sendMessage(touser, tmp.toString());
+            return putMessageToMQ(touser, tmp.toString());
         }
 
         jo.put("touser", touser);
@@ -228,10 +231,12 @@ public class WeChatMethodSet {
         post.put("toUser", toUser);
         post.put("roomId", room_id);
         int timeout = Integer.parseInt(expire);
-        JSONObject response = WeChatHttpsUtil.httpPostRequest(
-                API.INVITE_REQUEST_URL.replace("ACCOUNT", toUser),
-                post.toString(), timeout);
-        return response;
+        post.put("expire", timeout);
+//        JSONObject response = WeChatHttpsUtil.httpPostRequest(
+//                API.INVITE_REQUEST_URL.replace("ACCOUNT", toUser),
+//                post.toString(), timeout);
+//        JSONObject response = WeChatMessageAnnotation.sendMessage(toUser, post.toString());
+        return putMessageToMQ(toUser, post.toString());
     }
 
     /**
@@ -263,12 +268,15 @@ public class WeChatMethodSet {
             causeUser = cause_user;
         }
         JSONObject post = new JSONObject();
-        post.put("roomId", room_id);
+        post.put("msgtype", "enteredRoom");
         post.put("sender", causeUser);
-        JSONObject response = WeChatHttpsUtil.httpPostRequest(
-                API.ENTER_ROOM_REQUEST_URL.replace("ACCOUNT", toUser),
-                post.toString(), 0);
-        return response;
+        post.put("toUser", toUser);
+        post.put("roomId", room_id);
+//        JSONObject response = WeChatHttpsUtil.httpPostRequest(
+//                API.ENTER_ROOM_REQUEST_URL.replace("ACCOUNT", toUser),
+//                post.toString(), 0);
+//        JSONObject response = WeChatMessageAnnotation.sendMessage(toUser, post.toString());
+        return putMessageToMQ(toUser, post.toString());
     }
 
     public JSONObject ExitedRoom(String to_account, String to_user,
@@ -289,12 +297,14 @@ public class WeChatMethodSet {
             causeUser = cause_user;
         }
         JSONObject post = new JSONObject();
-        post.put("roomId", room_id);
+        post.put("msgtype", "exitedRoom");
         post.put("sender", causeUser);
-        JSONObject response = WeChatHttpsUtil.httpPostRequest(
-                API.EXIT_ROOM_REQUEST_URL.replace("ACCOUNT", toUser),
-                post.toString(), 0);
-        return response;
+        post.put("toUser", toUser);
+        post.put("roomId", room_id);
+//        JSONObject response = WeChatHttpsUtil.httpPostRequest(
+//                API.EXIT_ROOM_REQUEST_URL.replace("ACCOUNT", toUser),
+//                post.toString(), 0);
+        return putMessageToMQ(toUser, post.toString());
     }
 
     /**
@@ -317,14 +327,30 @@ public class WeChatMethodSet {
             toUser = to_user;
         }
         JSONObject post = new JSONObject();
+        post.put("msgtype", "roomDisposed");
+        post.put("toUser", toUser);
         post.put("roomId", room_id);
-        JSONObject response = WeChatHttpsUtil.httpPostRequest(
-                API.DISPOSE_ROOM_REQUEST_URL.replace("ACCOUNT", toUser),
-                post.toString(), 0);
-        return response;
+//        JSONObject response = WeChatHttpsUtil.httpPostRequest(
+//                API.DISPOSE_ROOM_REQUEST_URL.replace("ACCOUNT", toUser),
+//                post.toString(), 0);
+        return putMessageToMQ(toUser, post.toString());
     }
 
-    private JSONObject createErrorMsg(int errcode, String errmsg) {
+    private static JSONObject putMessageToMQ(String working_num, String info) {
+        try {
+
+            MQEvent event = new MQWeixinMessageEvent(working_num, info);
+            MQManager manager = (MQManager) AppContext.getApplicationContext()
+                    .getBean("MQManager");
+            manager.publishTopicEvent(event);
+            return createErrorMsg(0, "ok");
+        } catch (Exception e) {
+            e.printStackTrace();
+            return createErrorMsg(1, e.toString());
+        }
+    }
+    
+    private static JSONObject createErrorMsg(int errcode, String errmsg) {
         JSONObject jo = new JSONObject();
         jo.put("errcode", errcode);
         jo.put("errmsg", errmsg);

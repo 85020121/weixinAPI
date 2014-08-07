@@ -201,11 +201,37 @@
 			<version>3.1.0</version>
 		</dependency>
 
+		<!-- <dependency> <groupId>net.coobird</groupId> <artifactId>thumbnailator</artifactId> 
+			<version>0.4.7</version> </dependency> -->
+
 		<dependency>
-			<groupId>net.coobird</groupId>
-			<artifactId>thumbnailator</artifactId>
-			<version>0.4.7</version>
+			<groupId>org.apache.activemq</groupId>
+			<artifactId>activemq-all</artifactId>
+			<version>5.9.1</version>
 		</dependency>
+
+		<dependency>
+			<groupId>org.springframework</groupId>
+			<artifactId>spring-jms</artifactId>
+			<version>3.2.6.RELEASE</version>
+		</dependency>
+
+		<dependency>
+			<groupId>org.apache.httpcomponents</groupId>
+			<artifactId>httpclient</artifactId>
+			<version>4.2.1</version>
+		</dependency>
+
+		<!-- <dependency> <groupId>org.apache.activemq</groupId> <artifactId>apollo-broker</artifactId> 
+			<version>1.7</version> </dependency> <dependency> <groupId>org.apache.activemq</groupId> 
+			<artifactId>apollo-stomp</artifactId> <version>1.7</version> </dependency> 
+			<dependency> <groupId>org.apache.activemq</groupId> <artifactId>apollo-jmx</artifactId> 
+			<version>1.7</version> </dependency> -->
+
+		<!-- <dependency> <groupId>org.apache.tomcat</groupId> <artifactId>tomcat-catalina</artifactId> 
+			<version>7.0.47</version> </dependency> <dependency> <groupId>org.apache.tomcat</groupId> 
+			<artifactId>tomcat7-websocket</artifactId> <version>7.0.47</version> </dependency> -->
+
 	</dependencies>
 
 	<build>

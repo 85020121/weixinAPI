@@ -7,3 +7,4 @@ doc/*
 *.log
 src/main/webapp/resources/js/libs/*
 src/main/webapp/resources/images/*
+/bin
