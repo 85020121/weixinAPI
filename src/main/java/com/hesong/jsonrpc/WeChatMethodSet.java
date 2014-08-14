@@ -94,8 +94,9 @@ public class WeChatMethodSet {
                     && jo.getString("msgtype").equals(API.IMAGE_MESSAGE)) {
                 JSONObject imageContent = jo.getJSONObject(API.IMAGE_MESSAGE);
                 String image_url = imageContent.getString("media_id");
-                image_url = API.FTP_HTTP_ADDRESS
-                        + image_url.replace("/weixin", "");
+//                image_url = API.FTP_HTTP_ADDRESS
+//                        + image_url.replace("/weixin", "");
+                image_url = API.FTP_HTTP_ADDRESS + image_url;
                 InputStream input = WeChatHttpsUtil.httpGetInputStream(
                         image_url, "image");
 
@@ -225,6 +226,13 @@ public class WeChatMethodSet {
         } catch (Exception e) {
             fromUser = from_user;
         }
+        
+//        String fromUserNickname = "匿名用户";
+//        if (ContextPreloader.Account_Map.containsKey(account)) {
+//            String token = ContextPreloader.Account_Map.get(account).getToken();
+//            JSONObject userInfo = MessageManager.getClientInfo(token, fromUser);
+//        }
+        
         JSONObject post = new JSONObject();
         post.put("msgtype", "invitation");
         post.put("fromUser", fromUser);

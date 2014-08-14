@@ -222,6 +222,12 @@
 			<version>4.2.1</version>
 		</dependency>
 
+		<dependency>
+			<groupId>redis.clients</groupId>
+			<artifactId>jedis</artifactId>
+			<version>2.5.1</version>
+		</dependency>
+
 		<!-- <dependency> <groupId>org.apache.activemq</groupId> <artifactId>apollo-broker</artifactId> 
 			<version>1.7</version> </dependency> <dependency> <groupId>org.apache.activemq</groupId> 
 			<artifactId>apollo-stomp</artifactId> <version>1.7</version> </dependency> 

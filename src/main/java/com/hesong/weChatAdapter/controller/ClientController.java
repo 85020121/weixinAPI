@@ -681,6 +681,7 @@ public class ClientController {
         return "Failed";
         
     }
+    
 
     private void processMessage(ChatMessage msg, String clientId) {
         DeferredResult<ChatMessage> tmp = chatRequests.get(clientId);

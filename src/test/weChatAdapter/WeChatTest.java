@@ -8,7 +8,6 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.util.Date;
 
-import net.coobird.thumbnailator.Thumbnails;
 import net.sf.json.JSONObject;
 
 import org.apache.commons.net.ftp.FTPClient;
@@ -121,25 +120,30 @@ public class WeChatTest {
         
     }
     
-    @Test
-    public void thumbnailTest() throws IOException{
-        File f = new File("D:\\test.JPG");
-        System.out.println("Length : "+f.length());
-        FTPClient ftp = FTPConnectionFactory.getFTPClientConnection("127.0.0.1", 21, "bowen",
-              "waiwai");
-        ftp.changeToParentDirectory();
-        float scale = 120000f/f.length();
-        OutputStream output = ftp.storeFileStream("/test.jpg");
-
-        try {
-            Thumbnails.of(f).scale(0.9).toOutputStream(output);
-        } catch (IOException e) {
-            // TODO Auto-generated catch block
-            e.printStackTrace();
-        }
-//        if (!ftp.completePendingCommand()) {
-//            System.out.println("File transfer failed");
+//    @Test
+//    public void thumbnailTest() throws IOException{
+//        File f = new File("D:\\test.JPG");
+//        System.out.println("Length : "+f.length());
+//        FTPClient ftp = FTPConnectionFactory.getFTPClientConnection("127.0.0.1", 21, "bowen",
+//              "waiwai");
+//        ftp.changeToParentDirectory();
+//        float scale = 120000f/f.length();
+//        OutputStream output = ftp.storeFileStream("/test.jpg");
+//
+//        try {
+//            Thumbnails.of(f).scale(0.9).toOutputStream(output);
+//        } catch (IOException e) {
+//            // TODO Auto-generated catch block
+//            e.printStackTrace();
 //        }
-
+////        if (!ftp.completePendingCommand()) {
+////            System.out.println("File transfer failed");
+////        }
+//
+//    }
+    
+    @Test
+    public void date(){
+        System.out.println(new Date().getTime());
     }
 }

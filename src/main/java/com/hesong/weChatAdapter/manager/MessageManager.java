@@ -73,7 +73,7 @@ public class MessageManager {
             paramsList.put("msgtype", API.IMAGE_MESSAGE);
             String filename = sdf_time.format(new Date())+"_"+message.get(API.MESSAGE_FROM_TAG)+".jpg";
             String account = message.get(API.MESSAGE_TO_TAG);
-            String dirPath = getDirName("image", account);
+            String dirPath = getDirName("image/received", account);
             if(uploadMediaFile(message, filename, dirPath, API.CONTENT_TYPE_IMAGE)){
                 message.put(API.MESSAGE_PIC_URL_TAG, dirPath+filename);
             }

@@ -5,6 +5,7 @@ import java.io.IOException;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.ResourceBundle;
 import java.util.concurrent.ConcurrentHashMap;
 
 import javax.servlet.http.HttpServlet;
@@ -17,6 +18,9 @@ import org.dom4j.Element;
 import org.dom4j.io.SAXReader;
 import org.quartz.SchedulerException;
 import org.springframework.context.ApplicationContext;
+
+import redis.clients.jedis.JedisPool;
+import redis.clients.jedis.JedisPoolConfig;
 
 import com.hesong.ftp.FTPConnectionFactory;
 import com.hesong.weChatAdapter.account.Account;
@@ -41,8 +45,33 @@ public class ContextPreloader extends HttpServlet{
     public static int srcUnitId;
     public static int srctClientId;
     
+    public static Map<String,String> appid_appsecret = new HashMap<String, String>();
+//    public static JedisPool jedisPool;
+//    public static int redis_db_num;
+//    public static int redis_key_expire;
+    
     static{
-
+        
+        appid_appsecret.put("1001", "abcdef");
+        
+//        ResourceBundle bundle = ResourceBundle.getBundle("redis");
+//        if (null == bundle) {
+//            ContextLog.error("redis.properties not found!");
+//        }
+//        
+//        JedisPoolConfig config = new JedisPoolConfig();
+//        config.setMaxTotal(Integer.parseInt(bundle.getString("redis.pool.maxTotal")));
+//        config.setMaxIdle(Integer.parseInt(bundle.getString("redis.pool.maxIdle")));
+//        config.setMaxWaitMillis(Integer.parseInt(bundle.getString("redis.pool.maxWait")));
+//        config.setTestOnBorrow(true);
+//        config.setTestOnReturn(true);
+//        
+//        redis_db_num = Integer.parseInt(bundle.getString("redis.db_num"));
+//        redis_key_expire = Integer.parseInt(bundle.getString("redis.key_expire"));
+//        
+//        jedisPool = new JedisPool(config, bundle.getString("redis.host"),
+//                Integer.parseInt(bundle.getString("redis.port")), 30000);
+        
         ApplicationContext ctx = AppContext.getApplicationContext();
         File f = new File(getSettingFilePath(ctx));
         Map<String, String> smartbus_setting = null;

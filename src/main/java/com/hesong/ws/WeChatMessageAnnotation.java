@@ -104,6 +104,8 @@ public class WeChatMessageAnnotation {
                 sendMessageToSmartbus(msg.getJSONObject("params"), msg.getString("id"));
             } else if (action.equalsIgnoreCase("ack_invite")) {
                 ackInvitation(msg.getJSONObject("params"), msg.getString("id"));
+            } else if (action.equalsIgnoreCase("exit_room")) {
+                exitRoom(msg.getJSONObject("params"), msg.getString("id"));
             }
             
         } catch (Exception e) {
@@ -143,15 +145,22 @@ public class WeChatMessageAnnotation {
             user.put("user", account);
             user.put("usertype", API.MOCK_CLIENT);
 
+            String msgtype = msg.getString("msgtype");
+            
             paramsList.put("user", user);
             paramsList.put("room_id", msg.getString("room_id"));
-            paramsList.put("msgtype", msg.getString("msgtype"));
+            paramsList.put("msgtype", msgtype);
 
             JSONObject sendmsg = new JSONObject();
             sendmsg.put("msgtype", msg.getString("msgtype"));
             sendmsg.put("room_id", msg.getString("room_id"));
             JSONObject msgcontent = new JSONObject();
-            msgcontent.put("content", msg.getString("content"));
+            if (msgtype.equalsIgnoreCase(API.TEXT_MESSAGE)) {
+                msgcontent.put("content", msg.getString("content"));
+            } else if (msgtype.equalsIgnoreCase(API.IMAGE_MESSAGE)) {
+                msgcontent.put("media_id", msg.getString("content"));
+            }
+            
             sendmsg.put(msg.getString("msgtype"), msgcontent);
             paramsList.put("msgcontent", sendmsg);
 
@@ -208,6 +217,51 @@ public class WeChatMessageAnnotation {
             JSONObject jsonrpc = WeChatMethodSet.createJsonrpcRequest(
                     "imsm.AckInviteEnterRoom", UUID.randomUUID().toString(),
                     paramsList);
+            PackInfo pack = new PackInfo((byte) ContextPreloader.destUnitId,
+                    (byte) ContextPreloader.destClientId,
+                    (byte) ContextPreloader.srcUnitId,
+                    (byte) ContextPreloader.srctClientId, jsonrpc.toString());
+
+            SmartbusExecutor.responseQueue.put(pack);
+            JSONObject ret = new JSONObject();
+            ret.put("id", id);
+            ret.put("errcode", 0);
+            ret.put("errmsg", "ok");
+            ack = ret.toString();
+        } catch (InterruptedException e) {
+            log.error("Response BlockingQueue exception: " + e.toString());
+            JSONObject ret = new JSONObject();
+            ret.put("id", id);
+            ret.put("errcode", 1);
+            ret.put("errmsg", e.toString());
+            ack = ret.toString();
+        }
+        
+        if (session_map.containsKey(account)) {
+            try {
+                session_map.get(account).getBasicRemote().sendText(ack);
+            } catch (IOException e) {
+                // TODO Auto-generated catch block
+                e.printStackTrace();
+            }
+        }
+    }
+    
+    private static void exitRoom(JSONObject message, String id) {
+        String ack;
+        String account = message.getString("working_num");
+        try {
+            Map<String, Object> paramsList = new HashMap<String, Object>();
+            paramsList.put("imtype", "weixin");
+
+            JSONObject user = new JSONObject();
+            user.put("user", account);
+            user.put("usertype", API.MOCK_CLIENT);
+
+            paramsList.put("user", user);
+            paramsList.put("room_id", message.get("room_id"));
+            JSONObject jsonrpc = WeChatMethodSet.createJsonrpcRequest(
+                    "imsm.ExitRoom", UUID.randomUUID().toString(), paramsList);
             PackInfo pack = new PackInfo((byte) ContextPreloader.destUnitId,
                     (byte) ContextPreloader.destClientId,
                     (byte) ContextPreloader.srcUnitId,

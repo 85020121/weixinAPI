@@ -15,6 +15,13 @@ public class SignatureChecker {
         Arrays.sort(checkInfos);
         return signature.equals(SHA1(StringUtils.join(checkInfos)));
     }
+    
+    public static boolean checkAPISignature(String signature, String timestamp,
+            String appid, String appsecret) {
+
+        String checkInfos = appid + appsecret + timestamp;
+        return signature.equals(SHA1(checkInfos));
+    }
 
     public static String SHA1(String inStr) {
         MessageDigest md = null;
