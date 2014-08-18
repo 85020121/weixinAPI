@@ -281,10 +281,7 @@ public class MessageRouter implements Runnable {
                     return;
                 }
                 
-                Jedis jedis = ContextPreloader.jedisPool.getResource();
-//                String cToken = ContextPreloader.Account_Map.get(s.getClient_account()).getToken();
-                String cToken = jedis.hget(API.REDIS_WEIXIN_ACCESS_TOKEN_KEY, s.getClient_account());
-                ContextPreloader.jedisPool.returnResource(jedis);
+                String cToken = getAccessToken(s.getClient_account());
                 
                 sendMessage(s.getClient_openid(), cToken, content, API.TEXT_MESSAGE);
                 s.setLastReceived(new Date());
@@ -297,6 +294,11 @@ public class MessageRouter implements Runnable {
 
                 }
                 
+                return;
+            } else {
+                String text = "系统提示：您目前没有建立会话连接，无法发送消息。";
+                String token = getAccessToken(to_account);
+                sendMessage(from_openid, token, text, API.TEXT_MESSAGE);
                 return;
             }
         }
@@ -343,6 +345,26 @@ public class MessageRouter implements Runnable {
                 img_toToken = jedis.hget(API.REDIS_WEIXIN_ACCESS_TOKEN_KEY, s.getAccount());  // ContextPreloader.Account_Map.get(s.getAccount()).getToken();
                 img_to_openid = s.getOpenid();
                 s.setLastReceived(new Date());
+                
+                String img_id = getMediaId(message.get(API.MESSAGE_MEDIA_ID_TAG), img_Token, img_toToken, "image", API.CONTENT_TYPE_IMAGE);
+                if (img_id.equals("error")) {
+                    sendMessage(img_openid, img_Token, "系统提示：发送图片失败！", API.TEXT_MESSAGE);
+                    return;
+                }
+                sendMessage(img_to_openid, img_toToken, img_id, API.IMAGE_MESSAGE);
+                
+                if (s.isWebStaff()) {
+                    String content = API.WEIXIN_MEDIA_URL.replace("ACCESS_TOKEN", img_toToken) + img_id;
+                    sendWebMessage("image", content, s.getOpenid(), s.getClient_name(), s.getStaff_uuid());
+                }
+                
+                ContextPreloader.jedisPool.returnResource(jedis);
+                return;
+                
+            } else {
+                // TODO 没有会话连接，返回自定义消息
+                ContextPreloader.jedisPool.returnResource(jedis);
+                return;
             }
         } else {
             // Message from staff
@@ -351,17 +373,30 @@ public class MessageRouter implements Runnable {
                 img_toToken = jedis.hget(API.REDIS_WEIXIN_ACCESS_TOKEN_KEY, s.getClient_account()); //ContextPreloader.Account_Map.get(s.getClient_account()).getToken();
                 img_to_openid = s.getClient_openid();
                 s.setLastReceived(new Date());
+                
+                String img_id = getMediaId(message.get(API.MESSAGE_MEDIA_ID_TAG), img_Token, img_toToken, "image", API.CONTENT_TYPE_IMAGE);
+                if (img_id.equals("error")) {
+                    sendMessage(img_openid, img_Token, "系统提示：发送图片失败！", API.TEXT_MESSAGE);
+                    ContextPreloader.jedisPool.returnResource(jedis);
+                    return;
+                }
+                sendMessage(img_to_openid, img_toToken, img_id, API.IMAGE_MESSAGE);
+                
+                if (s.isWebStaff()) {
+                    String content = API.WEIXIN_MEDIA_URL.replace("ACCESS_TOKEN", img_toToken) + img_id;
+                    sendWebMessage("image", content, s.getOpenid(), s.getStaff_uuid(), s.getStaff_uuid());
+                }
+                
+                ContextPreloader.jedisPool.returnResource(jedis);
+                return;
+            } else {
+                String text = "系统提示：您目前没有建立会话连接，无法发送消息。";
+                sendMessage(img_openid, img_Token, text, API.TEXT_MESSAGE);
+                ContextPreloader.jedisPool.returnResource(jedis);
+                return;
             }
         }
         
-        ContextPreloader.jedisPool.returnResource(jedis);
-        
-        String img_id = getMediaId(message.get(API.MESSAGE_MEDIA_ID_TAG), img_Token, img_toToken, "image", API.CONTENT_TYPE_IMAGE);
-        if (img_id.equals("error")) {
-            sendMessage(img_openid, img_Token, "系统提示：发送图片失败,请发送小于120KB的图片", API.TEXT_MESSAGE);
-            return;
-        }
-        sendMessage(img_to_openid, img_toToken, img_id, API.IMAGE_MESSAGE);
     }
     
     private void voiceMessage(Map<String, String> message) {
@@ -381,6 +416,13 @@ public class MessageRouter implements Runnable {
                 voice_toToken = jedis.hget(API.REDIS_WEIXIN_ACCESS_TOKEN_KEY, s.getAccount()); //ContextPreloader.Account_Map.get(s.getAccount()).getToken();
                 voice_to_openid = s.getOpenid();
                 s.setLastReceived(new Date());
+                if (s.isWebStaff()) {
+                    sendWebMessage(API.VOICE_MESSAGE, "", s.getOpenid(), s.getClient_name(), s.getStaff_uuid());
+                }
+            } else {
+                // TODO 没有会话连接，返回自定义消息
+                ContextPreloader.jedisPool.returnResource(jedis);
+                return;
             }
         } else {
             // Message from staff
@@ -389,6 +431,11 @@ public class MessageRouter implements Runnable {
                 voice_toToken = jedis.hget(API.REDIS_WEIXIN_ACCESS_TOKEN_KEY, s.getClient_account()); //ContextPreloader.Account_Map.get(s.getClient_account()).getToken();
                 voice_to_openid = s.getClient_openid();
                 s.setLastReceived(new Date());
+            } else {
+                String text = "系统提示：您目前没有建立会话连接，无法发送消息。";
+                sendMessage(voice_openid, voice_Token, text, API.TEXT_MESSAGE);
+                ContextPreloader.jedisPool.returnResource(jedis);
+                return;
             }
         }
         
@@ -572,7 +619,8 @@ public class MessageRouter implements Runnable {
         String account = message.get(API.MESSAGE_TO_TAG);
         //AccessToken ac = ContextPreloader.Account_Map.get(account);
         JSONObject accountInfo = getAccountInfo(account, API.REDIS_STAFF_ACCOUNT_INFO_KEY);
-        if (s != null && s.isBusy()) {
+        if (s != null && 
+                !s.getClient_openid().equals("") && null != s.getClient_openid()) {
             String url = String.format(API.CLIENT_INFO_URL, s.getClient_openid(), ContextPreloader.channelMap.get(account));
             try {
                 String text = String.format("<a href=\"https://open.weixin.qq.com/connect/oauth2/authorize?appid=%s&redirect_uri=%s&response_type=code&scope=snsapi_base&state=123#wechat_redirect\">请查看</a>", accountInfo.getString("appid"), URLEncoder.encode(url, "utf8"));
@@ -600,9 +648,12 @@ public class MessageRouter implements Runnable {
                             s.getClient_openid(), openid,
                             ContextPreloader.channelMap.get(account));
         } else {
-            url = String
-                    .format(API.ALL_CHAT_HISTORY_URL,
-                            openid, ContextPreloader.channelMap.get(account));
+//            url = String
+//                    .format(API.ALL_CHAT_HISTORY_URL,
+//                            openid, ContextPreloader.channelMap.get(account));
+            String text = "系统提示：您目前并没有接通客户，无法查看聊天记录。";
+            sendMessage(openid, getAccessToken(account), text, API.TEXT_MESSAGE);
+            return;
         }
         try {
             String text = String
@@ -698,11 +749,13 @@ public class MessageRouter implements Runnable {
                 log.info("Staff checked in: " + staff.toString());
             } else {
                 log.error("Staff checkin failed: " + staff_info.getString("msg"));
-                sendMessage(openid, token, "系统提示：签入失败，请联系管理员！", API.TEXT_MESSAGE);
+                String text = "系统提示：座席签入失败，您的客服资料不正确，或者您不是本商户的客服，请联系管理员或取消关注本公众号！";
+                sendMessage(openid, token, text, API.TEXT_MESSAGE);
             }
         } catch (Exception e) {
             log.error("Staff checkin failed: " + e.toString());
-            sendMessage(openid, token, "系统提示：签入失败，请联系管理员！", API.TEXT_MESSAGE);
+            String text = "系统提示：座席签入失败，您的客服资料不正确，或者您不是本商户的客服，请联系管理员或取消关注本公众号！";
+            sendMessage(openid, token, text, API.TEXT_MESSAGE);
         }
     }
     
@@ -835,14 +888,28 @@ public class MessageRouter implements Runnable {
                 for (StaffSessionInfo s : staff.getSessionChannelList()) {
                     if (!s.isBusy()) {
                         isAllBusy = false;
-                        String text = String.format("系统提示：客户'%s'寻求人工服务，请点击抢接按钮接通会话。", client_name);
+                        
+                        String url = String.format(API.CLIENT_INFO_URL, client_openid, ContextPreloader.channelMap.get(s.getAccount()));
                         String sToken = jedis.hget(API.REDIS_WEIXIN_ACCESS_TOKEN_KEY, s.getAccount()); //ContextPreloader.Account_Map.get(s.getAccount()).getToken();
-                        sendMessage(s.getOpenid(), sToken, text, API.TEXT_MESSAGE);
+
+                        try {
+                            JSONObject accountInfo = getAccountInfo(s.getAccount(), API.REDIS_STAFF_ACCOUNT_INFO_KEY);
+                            String text = String.format("系统提示：客户'<a href=\"https://open.weixin.qq.com/connect/oauth2/authorize?appid=%s&redirect_uri=%s&response_type=code&scope=snsapi_base&state=123#wechat_redirect\">%s</a>'寻求人工服务，请点击抢接按钮接通会话。", accountInfo.getString("appid"), URLEncoder.encode(url, "utf8"), client_name);
+                            sendMessage(s.getOpenid(), sToken, text, API.TEXT_MESSAGE);
+                        } catch (Exception e) {
+                            log.error("Error: " + e.toString() + ", URL = " + url);
+                            e.printStackTrace();
+                            
+                            String text = String.format("系统提示：客户'%s'寻求人工服务，请点击抢接按钮接通会话。", client_name);
+                            sendMessage(s.getOpenid(), sToken, text, API.TEXT_MESSAGE);
+                        }
                         
                         if (s.isWebStaff()) {
                             sendWebMessage("staffService", String.format("系统提示：客户'%s'寻求人工服务，请点击抢接按钮接通会话。", client_name),
                                     s.getOpenid(), "", s.getStaff_uuid());
                         }
+                        
+                        s.setClient_openid(client_openid);
                         
                         break; // Only one message for each staff
                     }
@@ -941,7 +1008,7 @@ public class MessageRouter implements Runnable {
         sendMessage(sOpenid, sToken, content, API.TEXT_MESSAGE);
 
         // To client
-        content = "系统消息:30秒内如果您未作任何回复,该会话将自动结束.";
+        content = "系统提示：30秒内如果您未作任何回复,该会话将自动结束.";
         sendMessage(s.getClient_openid(), cToken, content, API.TEXT_MESSAGE);
         
         Map<String, StaffSessionInfo> session_map = null;
@@ -982,7 +1049,7 @@ public class MessageRouter implements Runnable {
         }
         
         if (!waitingList.containsKey(tenentUn)) {
-            String text = "系统消息：请求已被其他客服抢接或没有客户发起人工请求.";
+            String text = "系统提示：请求已被其他客服抢接或没有客户发起人工请求.";
             sendMessage(staff_openid, sToken, text, "text");
             return;
         }
@@ -1425,7 +1492,7 @@ public class MessageRouter implements Runnable {
                         String text = null;
                         try {
                             text = String
-                                    .format("系统消息:有新的留言,<a href=\"https://open.weixin.qq.com/connect/oauth2/authorize?appid=%s&redirect_uri=%s&response_type=code&scope=snsapi_base&state=123#wechat_redirect\">点击查看留言</a>",
+                                    .format("系统提示：有新的留言,<a href=\"https://open.weixin.qq.com/connect/oauth2/authorize?appid=%s&redirect_uri=%s&response_type=code&scope=snsapi_base&state=123#wechat_redirect\">点击查看留言</a>",
                                             accountInfo.getString("appid"),
                                             URLEncoder.encode(url, "utf8"));
                             sendMessage(session.getOpenid(), getAccessToken(account), text, API.TEXT_MESSAGE);

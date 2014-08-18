@@ -331,6 +331,7 @@ public class WeChatHttpsUtil {
     public static boolean jedisNotExistThenHSet(String key, String field, String value) {
         Jedis jedis = ContextPreloader.jedisPool.getResource();
         if (jedis.hexists(key, field)) {
+            ContextPreloader.jedisPool.returnResource(jedis);
             return false;
         }
         jedis.hset(key, field, value);

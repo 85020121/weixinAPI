@@ -54,6 +54,7 @@ public class UtilsController {
     @ResponseBody
     @RequestMapping(value = "/sendMessage", method = RequestMethod.POST)
     public String sendMessage(HttpServletRequest request) {
+        log.info("IP: " + request.getHeader("x-real-ip"));
         ObjectMapper mapper = new ObjectMapper();
         try {
             JSONObject json = (JSONObject) JSONSerializer.toJSON(mapper
@@ -189,7 +190,8 @@ public class UtilsController {
     
     @ResponseBody
     @RequestMapping(value = "/{tenantUn}/waitingListCount", method = RequestMethod.GET)
-    public int waitingListCount(@PathVariable String tenantUn) {
+    public int waitingListCount(@PathVariable String tenantUn, HttpServletRequest request) {
+        log.info("IP: " + request.getHeader("x-real-ip"));
         if (MessageRouter.waitingList.containsKey(tenantUn)) {
             int count = 0;
             Map<String, Queue<WaitingClient>> map = MessageRouter.waitingList.get(tenantUn);

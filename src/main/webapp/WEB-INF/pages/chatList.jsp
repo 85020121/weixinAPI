@@ -45,7 +45,7 @@
         console.log("id: " + id);
         $(".list-group-item").removeClass("active");
         $("#"+id).addClass("active");
-        var roomid = id.replace("channel-list", "chatroom");
+        var roomid = id.replace("channel-list", "chatboard");
         $(".weixin-chat-room").css("display","none"); 
         $("#" + roomid).css("display","block");
         console.log("id: " + roomid);
@@ -102,23 +102,33 @@
                 	if(data!=null){
                 		   for(var i=0; i<data.length;i++){
                 			   var channel = data[i];
+                			   console.log("channel: " + channel);
                 			   var id = channel.openid + "-channel-list";
                 			   var html = '<a href="#" id="'+id+'" class="list-group-item" onclick=\'clickList("'+id+'")\'>客服通道'+(i+1)+'</a>';
                 			   $(".list-group").append(html);
                 			   
-                			   var d = new Date();
-                			   var chatContent = "<div id='" + channel.openid + "-chatroom' style='display:none; padding:0px' class='weixin-chat-room' data-dojo-type='dijit/layout/ContentPane'>";
-                		       chatContent += "<div id='"+channel.openid+"chatboard' style='height:400px; border:1px solid black; overflow:auto; margin-bottom;background-color: #EFF3F7;'>";
-                		       chatContent += "<div class='time'> <span class='timeBg left'></span> "+d.getHours()+":"+d.getMinutes()+" <span class='timeBg right'></span></div></div>";
-                		            chatContent += "<div id='chat_editor' class='chatOperator lightBorder'>";
-                		            chatContent += "<div class='inputArea'><div class='attach'><a href='javascript:;' class='emotion func expression' title='选择表情'></a>"
-                		            chatContent += "<a href='javascript:;' id='"+channel.openid+"uploader' class='func file' style='position:relative;display:block;margin:0;' title='图片文件'></a>";
-                		            chatContent += "</div><input type='text' id='"+channel.openid+"messageInput' class='chatInput lightBorder'></input>";
-                		            chatContent += "<a href='javascript:;' class='chatSend' onclick='postMessage(\""+channel.account+"\",\""+channel.openid+"\")' id='"+channel.openid+"sendMessage'><b>发送</b></a></div></div></div>";
-                		            
-                		            $(".jumbotron").append(chatContent);
+                		        var chatBoard = "<div id='"+channel.openid+"-chatboard' class='panel panel-primary weixin-chat-room' style='display:none;'>";
+                		          chatBoard += "<div class='panel-heading' style='text-align:center'>";
+                		          chatBoard += "<h3 id='"+channel.openid+"-panel-heading' class='panel-title'>客服通道"+(i+1)+"</h3></div>";
+                		          chatBoard += "<div id='"+channel.openid+"-panel-body' class='panel-body' style='height:350px; overflow:auto; margin-bottom;background-color: #EFF3F7;'></div>";
+                		          chatBoard += "<div id='chat-editor' class='chatOperator lightBorder'>";
+                		          chatBoard += "<div class='inputArea'><div class='attach'><a href='javascript:;' class='emotion func expression' title='选择表情'></a>";
+                		          chatBoard += "<a href='javascript:;' id='"+channel.openid+"-uploader' class='func file' style='position:relative;display:block;margin:0;' title='图片文件'></a></div>";
+                		          chatBoard += "<div class='input-group'><input type='text' id='"+channel.openid+"-account-input' style='display:none' value='"+channel.account+"'><input type='text' id='"+channel.openid+"-input-message' class='form-control weixin-input-area'><span class='input-group-btn'>";    
+                		          chatBoard += "<button id='"+channel.openid+"-sendmessage' class='btn btn-primary' onclick='postMessage(\""+channel.account+"\",\""+channel.openid+"\")' type='button'>发送</button></span></div></div></div>";
+                			   
+                		            $(".jumbotron").append(chatBoard);
                 		            $('.emotion').qqFace();
-                		              uploadImage(channel.openid+'uploader');
+                		              uploadImage(channel.openid);
+                		              
+                		              $(".weixin-input-area").keyup(function(event){
+                		                  if(event.keyCode == "13")    
+                		                  {
+                                              var id = this.id.replace("-input-message","");
+                                              var account = $("#"+id+"-account-input").val();
+                                              postMessage(account,id);
+                		                  }
+                		              });
                 		   }
                 		   getMessage();
                 	}
@@ -150,32 +160,12 @@
 			url : "/weixinAPI/webchat/getMessages",
 			handleAs : "json",
 			load : function(data) {
-				console.log("Msttype: "+data.msgtype);
+				console.log("Msttype:"+data.msgtype + " data.channelId:"+data.channelId);
 				var room =  data.channelId;
-				var escaped_room = escape(room);
-                var chatBoardId = escaped_room+"chatboard";
-				if(data.msgtype == "invitation"){
-					dojo.byId("invitationSender").innerHTML = data.sender + " 邀请你加入房间：";
-                    dojo.byId("invitationRoomId").innerHTML = room;
-					ShowMessage(180,100);
-					//ackInvitation(true);
-				} else if(data.msgtype == "sysMessage"){
-					console.log("Entered in to room: "+room);
-					if(dojo.cookie("WX_STF_UID") == data.sender) {
-						   createRoomTab(room);
-					} else {
+                var chatBoardId = room+"-chatboard";
+				if(data.msgtype == "sysMessage"){
 						var addToBoard = "<div class='sysmsg'>"+data.content+"</div>";
-		                  require(["dojo/dom-construct"], function(domConstruct){
-	                          domConstruct.place(addToBoard, chatBoardId);
-	                        });
-	                    dojo.byId(chatBoardId).scrollTop = dojo.byId(chatBoardId).scrollHeight;
-	                    //text += '\r\n' + data.date + ' ' + data.sender + '：' + data.content;
-	                    //dojo.byId(room+"chatboard").innerHTML = text;
-	                    var receiverTabId = escaped_room+"contentPaneId";
-	                    if(chatboardTab.selectedChildWidget.id != receiverTabId){
-	                        newMessageRemaind(receiverTabId);
-	                    }
-					}
+						appendNewContent(room, addToBoard);
 				} else if(data.msgtype == "exitedRoom"){
                     console.log("Exited from room: "+room);
                     if(dojo.cookie("WX_STF_UID") == data.sender) {
@@ -184,14 +174,7 @@
                         roomContentPane.destroy();
                     } else {
                         var addToBoard = "<div class='sysmsg'>系统消息: "+data.sender+" 离开房间</div>";
-                        require(["dojo/dom-construct"], function(domConstruct){
-                            domConstruct.place(addToBoard, chatBoardId);
-                          });
-                      dojo.byId(chatBoardId).scrollTop = dojo.byId(chatBoardId).scrollHeight;
-                      var receiverTabId = escaped_room+"contentPaneId";
-                      if(chatboardTab.selectedChildWidget.id != receiverTabId){
-                          newMessageRemaind(receiverTabId);
-                      }
+                        appendNewContent(room, addToBoard);
                     }
                 } else if(data.msgtype == "staffService"){
                     console.log("staffService: "+ room);
@@ -222,15 +205,17 @@
                 } else {
                 	var messageContentDiv;
                 	if(data.msgtype == "image") {
-                		messageContentDiv = "<img width='240' src='ftp://root:3*)(%40faso@183.61.81.71/../"+data.content.replace("/weixin","")+"' />";
+                		messageContentDiv = "<img width='240' src='"+data.content+"' />";
+                		//messageContentDiv = "[收到一条图片消息，请在手机上查看]";
                 	} else if(data.msgtype == "voice"){
                 		var d = new Date();
                 		var uid = d.getMinutes()+d.getSeconds();
-                		messageContentDiv = "<input type='button' value='播放语音' onclick='return play(\"ftp://root:3*)(%40faso@183.61.81.71/../"+data.content+"\");'/>";
+                		//messageContentDiv = "<input type='button' value='播放语音' onclick='return play(\"ftp://root:3*)(%40faso@183.61.81.71/../"+data.content+"\");'/>";
+                		messageContentDiv = "[收到一条语音消息，请在手机上查看]";
                 	} else {
                 		messageContentDiv = parse_content(data.content);
                 	}
-					console.log("data: "+ data.channelId + ' ' + data.date + ' ' + data.senderName + '：' + messageContentDiv);
+					console.log("data: "+ data.channelId + ' ' + data.date + ' ' + data.senderName + ' ' + messageContentDiv);
 					
 					var row;
 					if(dojo.cookie("WX_STF_UID") == data.senderName){
@@ -241,23 +226,11 @@
 						row = "<div class='senderName'>"+d.getHours()+":"+d.getMinutes()+"  "+data.senderName+"</div><div class='chatItem you'><div class='cloud cloudText'><div class='cloudBody'><div class='cloudContent'>";
 						row += "<pre style='white-space:pre-wrap'>"+messageContentDiv+"</pre></div></div></div></div>";
 					}
-					require(["dojo/dom-construct"], function(domConstruct){
-						  domConstruct.place(row, chatBoardId);
-						});
-					dojo.byId(chatBoardId).scrollTop = dojo.byId(chatBoardId).scrollHeight;
-					//text += '\r\n' + data.date + ' ' + data.sender + '：' + data.content;
-					//dojo.byId(room+"chatboard").innerHTML = text;
-					var receiverTabId = escaped_room+"contentPaneId";
-					if(chatboardTab.selectedChildWidget.id != receiverTabId){
-						newMessageRemaind(receiverTabId);
-					}
+					appendNewContent(room, row);
 				}
 				if(weixin_long_poll_flag){
 				    getMessage();
 				}
-// 				setTimeout(function() {
-//                   getMessage();
-//               }, 1000);
 			},
 			error : function(error) {
 				console.info("error: " + error);
@@ -273,14 +246,16 @@
 
 	// 发送消息
 	function postMessage(account, openid) {
-		var input = dojo.byId(escape(openid+"messageInput"));
-	    if(input.value==""){
+		var input = $("#"+openid+"-input-message");
+		var message = input.val();
+		console.log("Message to send: "+message);
+	    if(message==""){
 	    	return;
 	    }
 			var xhrArgs = {
 				url : "/weixinAPI/webchat/"+dojo.cookie("WX_STF_UID")+"/sendWeixinMsg",
 				postData : dojo.toJson({"account" : account,
-				                        "content" : input.value,
+				                        "content" : message,
 				                        "channelId" : openid,
 			                            "msgtype" : "text",
 			                            "senderName" : dojo.cookie("WX_STF_UID")
@@ -294,19 +269,12 @@
 				}
 			}
 			var deferred = dojo.xhrPost(xhrArgs);
-			input.value = "";
+			input.val("");
 	}
 	
 	// 创建聊天窗口，设置房间名
 	function createChannelTab(num, account, openid){
 		  var d = new Date();
-		  var escaped_roomId = escape(openid);
-		  
-/*           var script = "<script type='text/javascript'>";
-          script += "var uploader = document.getElementById('uploader');console('uploder:'+uploader)";
-          script += "upclick({element: uploader,action: '/path_to/you_server_script.php', onstart:function(filename){alert('Start upload: '+filename);},";
-          script += "oncomplete:function(response_data){alert(response_data);}});";
-          script += "<\/script>"; */
 		  
 		  var chatContent = "<div id='"+escaped_roomId+"chatboard' style='height:250px; border:1px solid black; overflow:auto; margin-bottom;background-color: #EFF3F7;'>";
 		  chatContent += "<div class='time'> <span class='timeBg left'></span> "+d.getHours()+":"+d.getMinutes()+" <span class='timeBg right'></span></div></div>";
@@ -317,7 +285,7 @@
 		    chatContent += "<a href='javascript:;' class='chatSend' onclick='postMessage(\""+account+"\",\""+openid+"\")' id='"+escaped_roomId+"sendMessage'><b>发送</b></a></div></div>"
 
 		    
-		    var closablePane = new dijit.layout.ContentPane({
+ 		    var closablePane = new dijit.layout.ContentPane({
 		            title : "客服通道"+num,
 		            closable : false,
 		            content : chatContent,
@@ -337,43 +305,36 @@
 		            }
 		        });
 		    closablePane.domNode.setAttribute("widgetId", escaped_roomId);
-		    chatboardTab.addChild(closablePane);
+		    chatboardTab.addChild(closablePane); 
 	          $('.emotion').qqFace();
-	          uploadImage(escaped_roomId+'uploader');
+	          uploadImage(openid+'-uploader');
 	}
 	
-	function newMessageRemaind(tabId){
-        var change = true;
-        var intervalRet = 
-	        setInterval(function(){
-	            if(change){
-	                dijit.byId(tabId).controlButton.attr("style", "color: #B2CF73;");
-	                change = false;
-	            } else {
-	                dijit.byId(tabId).controlButton.attr("style", "color: white;");
-	                change = true;
-	            }
-	        },500);
-        setTimeout(function(){
-        	clearInterval(intervalRet);
-        	dijit.byId(tabId).controlButton.attr("style", "color: #B2CF73;");
-        }, 3000);
-
+	function appendNewContent(id, content) {
+		var panel_body = $("#" +id + "-panel-body");
+        panel_body.append(content);
+        panel_body.scrollTop(panel_body[0].scrollHeight);
 	}
 	
 	function parseEmojiToChName(i){
 	    var emoji = qqemoji_ch[i];
 	    if(emoji==null)return;
-	    var inputAreaId = chatboardTab.selectedChildWidget.id.replace("contentPaneId","messageInput");
+	    var openid = getActiveChartboard();
+	    
+	    if(openid == null)return;
+	    openid = openid.replace("chatboard","");
+	    console.log("openid: " + openid);
+	    var input = $("#"+openid+"input-message");
+	    console.log("input:" + input);
 	    //var text = $(inputAreaId).val(); // 
-	    var text = dojo.byId(inputAreaId).value;
-	    dojo.byId(inputAreaId).value = text+emoji;
+	    var text = input.val();
+	    console.log("text:" + text + "  " + emoji);
+	    input.val(text+emoji);
 	}
 	
 	  function uploadImage(uploaderId){
 	   console.log('uploaderId:'+uploaderId);
-	   var uploader = document.getElementById(uploaderId);
-	   var chatboardId = uploaderId.replace("uploader","chatboard");
+	   var uploader = document.getElementById(uploaderId+'-uploader');
 	   var account = dojo.cookie("WX_STF_UID");
 	   var guid;
 	   console.log("uploader:"+uploader);
@@ -381,7 +342,7 @@
 	     {
 	      element: uploader,
 	      action: '/weixinAPI/webchat/'+account+'/upload', 
-	      action_params : {"roomId":unescape(uploaderId).replace("uploader","")},
+	      action_params : {"roomId":uploaderId},
 	      onstart:
 	        function(filename)
 	        {
@@ -389,24 +350,30 @@
 	          console.log('Start upload: '+filename);
 	          var row = "<div class='chatItem me'><div class='cloud cloudText'><div class='cloudBody'><div class='cloudContent'>";
               row += "<pre id='"+guid+"'style='white-space:pre-wrap'><img src='../../resources/images/loading.gif' /></pre></div></div></div></div>";
-              require(["dojo/dom-construct"], function(domConstruct){
-                  domConstruct.place(row, chatboardId);
-                });
-            dojo.byId(chatboardId).scrollTop = dojo.byId(chatboardId).scrollHeight;
+              appendNewContent(uploaderId, row);
 	        },
 	      oncomplete:
 	        function(response_data) 
 	        {
 	    	  console.log("response_data"+response_data);
 	          if(response_data=="Failed"){
-	        	  dojo.byId(guid).innerHTML = "<span style='color:red'>发送图片失败</span>";
+	        	  dojo.byId(guid).innerHTML = "<span style='color:red'>系统提示：发送图片失败！</span>";
 	          } else {
-	        	  dojo.byId(guid).innerHTML = "<img width='240' src='ftp://root:3*)(%40faso@183.61.81.71/../"+response_data.replace("/weixin","")+"' />";
+	        	  dojo.byId(guid).innerHTML = "<img width='240' src='"+response_data+"' />";
 	          }
 	        }
 	     });
 	  }
 	  
+	  function getActiveChartboard() {
+		  var id;
+		  $("div.weixin-chat-room").each(function(){
+			  if(this.style.display == 'block') {
+				  id = this.id;
+			  }
+		  });
+		  return id;
+	  }
 
 	dojo.ready(function() {
 		//getMessage();
@@ -414,47 +381,102 @@
 		enterChatRoom();
 		//weixin_checkin("ff808081471526a0014719da8c450007");
 		dojo.parser.parse();
-        dojo.aspect.after(chatboardTab, "selectChild", function (event) {
-            console.log("You selected ", chatboardTab.selectedChildWidget.id);
-            dijit.byId(chatboardTab.selectedChildWidget.id).controlButton.attr("style", "color: black;");
-       });
+		
     });
 	
 
 </script> 
 
 </head>
-<body class="claro" style="background:#6B747A">
+<body style="background:#6B747A;padding-top:0px">
+	<nav class="navbar navbar-inverse" role="navigation" style="margin-bottom:70px;border-radius:0px;border:0px">
+	  <div class="container-fluid">
+	    <!-- Brand and toggle get grouped for better mobile display -->
+	    <div class="navbar-header">
+	      <a class="navbar-brand" href="#">Brand</a>
+	    </div>
+	
+	    <!-- Collect the nav links, forms, and other content for toggling -->
+	    <div class="collapse navbar-collapse" id="bs-example-navbar-collapse-1">
+	      <ul class="nav navbar-nav">
+	        <li class="active"><a href="#">Link</a></li>
+	        <li class="dropdown">
+	          <a href="#" class="dropdown-toggle" data-toggle="dropdown">技能组 <span class="caret"></span></a>
+	          <ul id="skills-group" class="dropdown-menu" role="menu">
+	            <li><a href="#">售前</a></li>
+	            <li><a href="#">售后</a></li>
+	            <li class="divider"></li>
+	            <li><a href="#">接客</a></li>
+	          </ul>
+	        </li>
+	      </ul>
+	      <ul class="nav navbar-nav navbar-right">
+	        <li><a href="#">Link</a></li>
+	        <li class="dropdown">
+	          <a href="#" class="dropdown-toggle" data-toggle="dropdown">Dropdown <span class="caret"></span></a>
+	          <ul  class="dropdown-menu" role="menu">
+	            <li><a href="#">Action</a></li>
+	            <li><a href="#">Another action</a></li>
+	            <li><a href="#">Something else here</a></li>
+	            <li class="divider"></li>
+	            <li><a href="#">Separated link</a></li>
+	          </ul>
+	        </li>
+	      </ul>
+	    </div><!-- /.navbar-collapse -->
+	  </div><!-- /.container-fluid -->
+	</nav>
 
     <div class="container" style="background-color:#6B747A;">
 
       <div class="row row-offcanvas row-offcanvas-right">
 
         <div class="col-xs-6 col-sm-3 sidebar-offcanvas" id="sidebar" role="navigation">
-          <div class="list-group">
-          </div>
+		  
+		  <div class="panel panel-primary">
+			  <div class="panel-heading">
+			    <a class="pull-left" style="margin-top:-48px;margin-left:-5px;" href="#">
+                  <img id="staff-headerimg" class="media-object img-circle" src="http://wx.qlogo.cn/mmopen/WWxicToNQlgxvdF4V3yM5IncQQjXk7pPgkaeglBxcRg1lHwcREca2OdMxhn6biaoT8qDz2mL8ibvQxVnvZfxpicQLPIvtnagxnKA/64" alt="...">
+                </a>
+			    <h3 class="panel-title">Bowen</h3>
+			  </div>
+			  <div class="panel-body">
+			    <div class="list-group">
+                </div>
+			  </div>
+			</div>
+		  
+          
         </div><!--/span-->
 
         <div class="col-xs-12 col-sm-9">
           <div class="jumbotron" style="padding-top:0;padding:0" >
-<!--             <div id="asda-chatroom" style="display:none; padding:0px" class="weixin-chat-room" data-dojo-type="dijit/layout/ContentPane">
-                 <div id="escaped_roomId" style="height:400px; border:1px solid black; overflow:auto; margin-bottom;background-color: #EFF3F7;">
-                 <div class='time'> <span class='timeBg left'></span> time <span class='timeBg right'></span></div></div>
-                 <div id='chat_editor' class='chatOperator lightBorder'>
-            <div class='inputArea'><div class='attach'><a href='javascript:;' class='emotion func expression' title='选择表情'></a>
-            <a href='javascript:;' id='"+escaped_roomId+"uploader' class='func file' style='position:relative;display:block;margin:0;' title='图片文件'></a>
-            </div><input type='text' id='"+escaped_roomId+"messageInput' class='chatInput lightBorder'></input>
-            <a href='javascript:;' class='chatSend' onclick='postMessage("account","openid")' id='escaped_roomId'><b>发送</b></a></div></div>
-            </div>
-            <div id="asdaaa-chatroom" style="display:none; padding:0px" class="weixin-chat-room" data-dojo-type="dijit/layout/ContentPane">
-                 <div id="escaped_roomId" style="height:400px; border:1px solid black; overflow:auto; margin-bottom;background-color: #EFF3F7;">
-                 <div class='time'> <span class='timeBg left'></span> time <span class='timeBg right'></span></div></div>
-                 <div id='chat_editor' class='chatOperator lightBorder'>
-            <div class='inputArea'><div class='attach'><a href='javascript:;' class='emotion func expression' title='选择表情'></a>
-            <a href='javascript:;' id='"+escaped_roomId+"uploader' class='func file' style='position:relative;display:block;margin:0;' title='图片文件'></a>
-            </div><input type='text' id='"+escaped_roomId+"messageInput' class='chatInput lightBorder'></input>
-            <a href='javascript:;' class='chatSend' onclick='postMessage("account","openid")' id='escaped_roomId'><b>发送</b></a></div></div>
-            </div> -->
+
+            
+            
+<!--              <div class="panel panel-primary">
+			  <div class="panel-heading" style="text-align:center">
+			    <h3 class="panel-title">Panel title</h3>
+			  </div>
+			  <div class="panel-body" id="escaped_roomId" style='height:350px; overflow:auto; margin-bottom;background-color: #EFF3F7;'>
+                    asdasda<br>
+                    asdasda<br>
+               </div>
+                
+                <div id='chat_editor' class='chatOperator lightBorder'>
+                <div class='inputArea'><div class='attach'><a href='javascript:;' class='emotion func expression' title='选择表情'></a>
+                    <a href='javascript:;' id="escaped_roomIduploader" class='func file' style='position:relative;display:block;margin:0;' title='图片文件'></a>
+                    </div>
+                    <div class="input-group">
+				      <input type="text" class="form-control">
+				      <span class="input-group-btn">
+				        <button class="btn btn-primary" onclick='postMessage("account","openid")' type="button">发送</button>
+				      </span>
+				    </div>
+                </div>
+			  </div>
+			</div>  -->
+			
           </div>
         </div><!--/span-->
 
@@ -463,19 +485,5 @@
 
     </div>
 
-<script>
-
-$(".list-group-item").click(function(index){
-    console.log("click");
-    $(".list-group-item").removeClass("active");
-    $(this).addClass("active");
-    var id = $(this).attr("id");
-    var roomid = id + "-chatroom";
-    $(".weixin-chat-room").css("display","none"); 
-    $("#" + roomid).css("display","block");
-    console.log("id: " + roomid);
-    
-});
-</script>
 </body>
 </html>

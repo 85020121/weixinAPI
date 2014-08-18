@@ -6,6 +6,9 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.io.UnsupportedEncodingException;
 import java.net.URLEncoder;
+import java.security.Key;
+import java.security.NoSuchAlgorithmException;
+import java.security.SecureRandom;
 import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.HashMap;
@@ -13,6 +16,13 @@ import java.util.Map;
 import java.util.UUID;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+
+import javax.crypto.Cipher;
+import javax.crypto.KeyGenerator;
+import javax.crypto.NoSuchPaddingException;
+import javax.crypto.SecretKey;
+import javax.crypto.SecretKeyFactory;
+import javax.crypto.spec.DESKeySpec;
 
 import net.coobird.thumbnailator.Thumbnails;
 import net.sf.json.JSONArray;
@@ -213,5 +223,28 @@ public class WeChatTest {
             System.out.println(m.group());
             System.out.println(m.group(1));
         }
+    }
+    
+    @Test
+    public void descTest() throws Exception{
+        
+        String password = "376B4A409E5789CE";
+        try{  
+            SecureRandom random = new SecureRandom();  
+            DESKeySpec desKey = new DESKeySpec(password.getBytes());  
+            //创建一个密匙工厂，然后用它把DESKeySpec转换成  
+            SecretKeyFactory keyFactory = SecretKeyFactory.getInstance("DES");  
+            SecretKey securekey = keyFactory.generateSecret(desKey);  
+            //Cipher对象实际完成加密操作  
+            Cipher cipher = Cipher.getInstance("DES");  
+            //用密匙初始化Cipher对象  
+            cipher.init(Cipher.ENCRYPT_MODE, securekey, random);  
+            //现在，获取数据并加密  
+            //正式执行加密操作  
+            System.out.println(cipher.doFinal("blskyo71ds".getBytes()).toString());  
+            System.out.println("blskyo71ds".getBytes());
+            }catch(Throwable e){  
+                    e.printStackTrace();  
+            }  
     }
 }

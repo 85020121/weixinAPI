@@ -62,7 +62,7 @@ public class CheckSessionAvailableJob implements Job {
                     
                     try {
 
-                        String text = "系统消息:会话超时,您已退出人工对话，感谢您的使用。";
+                        String text = "系统提示：会话超时，您已退出人工对话，感谢您的使用。";
                         // To client
                         if (session.getClient_type().equalsIgnoreCase("wx")) {
                             MessageRouter.sendMessage(client_openid, cToken,
@@ -70,7 +70,7 @@ public class CheckSessionAvailableJob implements Job {
                         }
 
                         // To staff
-                        text = "系统消息:会话超时,该会话已结束。";
+                        text = "系统提示：会话超时，该会话已结束。";
                         MessageRouter.sendMessage(session.getOpenid(), sToken,
                                 text, API.TEXT_MESSAGE);
                         // To web staff
@@ -87,6 +87,9 @@ public class CheckSessionAvailableJob implements Job {
                     session.setBusy(false);
                     session.setEndTime(API.TIME_FORMAT.format(new Date()));
                     MessageRouter.recordSession(session, 0);
+                    
+                    session.setClient_openid("");
+                    session.setClient_account("");
 
                     client_session.remove(client_openid);
                 }

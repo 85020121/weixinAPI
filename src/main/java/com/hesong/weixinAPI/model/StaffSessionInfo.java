@@ -17,6 +17,7 @@ public class StaffSessionInfo {
     private String openid;
     private String staffid; // Staff working num
     private String name;
+    private String image;
     private String client_openid;
     private String client_account;
     private String client_name;
@@ -146,6 +147,12 @@ public class StaffSessionInfo {
     }
     public void setStaff_uuid(String staff_uuid) {
         this.staff_uuid = staff_uuid;
+    }
+    public String getImage() {
+        return image;
+    }
+    public void setImage(String image) {
+        this.image = image;
     }
 
     @Override

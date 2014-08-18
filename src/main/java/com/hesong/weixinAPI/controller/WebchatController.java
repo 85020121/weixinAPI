@@ -25,8 +25,10 @@ import org.springframework.web.bind.annotation.CookieValue;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestMethod;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseBody;
 import org.springframework.web.context.request.async.DeferredResult;
+import org.springframework.web.multipart.MultipartFile;
 
 import redis.clients.jedis.Jedis;
 
@@ -58,6 +60,11 @@ public class WebchatController {
     public String index(@PathVariable String staff_uuid, HttpServletResponse response){
         response.addCookie(new Cookie("WX_STF_UID", staff_uuid));
         return "webChatIndex";
+    }
+    
+    @RequestMapping(value = "/login", method = RequestMethod.GET)
+    public String login(){
+        return "login";
     }
     
     @RequestMapping(value = "/{staff_uuid}/chatlist", method = RequestMethod.GET)
@@ -96,7 +103,6 @@ public class WebchatController {
     @RequestMapping(value = "/{staff_uuid}/checkin", method = RequestMethod.GET)
     public String checkin(@PathVariable String staff_uuid, HttpSession session, HttpServletResponse response) {
         String url = API.CHECKIN_URL + staff_uuid;
-        log.info("session: " + session.getId());
         if(!WeChatHttpsUtil.jedisNotExistThenHSet(API.REDIS_WEIXIN_WEBCHAT_SESSIONID, staff_uuid, session.getId())) {
             return WeChatHttpsUtil.getErrorMsg(10011, "请不要重复签入: " + staff_uuid).toString();
         }
@@ -221,7 +227,7 @@ public class WebchatController {
                         MessageRouter.recordSession(s, 0);
                     }
                     String token = jedis.hget(API.REDIS_WEIXIN_ACCESS_TOKEN_KEY, s.getAccount()); // ContextPreloader.Account_Map.get(s.getAccount()).getToken();
-                    MessageRouter.sendMessage(s.getOpenid(), token, "系统消息:您已成功签出!", API.TEXT_MESSAGE);
+                    MessageRouter.sendMessage(s.getOpenid(), token, "系统提示:您已成功签出!", API.TEXT_MESSAGE);
                     MessageRouter.activeStaffMap.remove(s.getOpenid());
                     MessageRouter.staffIdList.remove(s.getOpenid());
                 }
@@ -250,7 +256,7 @@ public class WebchatController {
         msg.setMsgtype("sysMessage");
         msg.setSenderName(staff_openid);
         if (session.isBusy()) {
-            String text = "系统消息：您正在和客户通话,无法实施该操作.";
+            String text = "系统提示：您正在和客户通话,无法实施该操作.";
             msg.setContent(text);
             processMessage(msg, session.getStaff_uuid());
             return;
@@ -258,14 +264,14 @@ public class WebchatController {
         
         String tenentUn = session.getTenantUn();
         if (!MessageRouter.mulClientStaffMap.containsKey(tenentUn) || !MessageRouter.mulClientStaffMap.get(tenentUn).containsKey(session.getStaff_uuid())) {
-            String text = "系统消息：您还没有签到，无法使用此功能!";
+            String text = "系统提示：您还没有签到，无法使用此功能!";
             msg.setContent(text);
             processMessage(msg, session.getStaff_uuid());
             return;
         }
         
         if (!MessageRouter.waitingList.containsKey(tenentUn)) {
-            String text = "系统消息：请求已被其他客服抢接或没有客户发起人工请求.";
+            String text = "系统提示：请求已被其他客服抢接或没有客户发起人工请求.";
             msg.setContent(text);
             processMessage(msg, session.getStaff_uuid());
             return;
@@ -281,7 +287,7 @@ public class WebchatController {
             }
         }
         if (null == client) {
-            String text = "系统消息：请求已被其他坐席抢接或没有客户发起人工请求.";
+            String text = "系统提示：请求已被其他坐席抢接或没有客户发起人工请求.";
             msg.setContent(text);
             processMessage(msg, session.getStaff_uuid());
             return;
@@ -308,18 +314,18 @@ public class WebchatController {
             client_session.put(client.getOpenid(), session);
             
             // To staff
-            String text = String.format("系统消息：您已经和客户\"%s\"建立通话.", client.getName());
+            String text = String.format("系统提示：您已经和客户\"%s\"建立通话.", client.getName());
             String sToken = MessageRouter.getAccessToken(session.getAccount());
             MessageRouter.sendMessage(staff_openid, sToken, text, API.TEXT_MESSAGE);
             // To web
             msg.setContent(text);
             processMessage(msg, session.getStaff_uuid());
             // To client
-            text = String.format("系统消息：会话已建立,客服%s将为您服务[微笑]", session.getStaffid());
+            text = String.format("系统提示：会话已建立,客服%s将为您服务[微笑]", session.getStaffid());
             MessageRouter.sendMessage(client.getOpenid(), MessageRouter.getAccessToken(client.getAccount()), text, API.TEXT_MESSAGE);
             
         } else {
-            String text = "系统消息：系统错误，请联系管理员.";
+            String text = "系统提示：系统错误，请联系管理员.";
             msg.setContent(text);
             processMessage(msg, session.getStaff_uuid());
         }
@@ -424,6 +430,42 @@ public class WebchatController {
             chatRequests.put(staff_uuid, dr);
             return dr;
         }
+    }
+    
+    @RequestMapping(value = "/{staff_uuid}/upload", method = RequestMethod.POST)
+    @ResponseBody
+    public String upload(@PathVariable String staff_uuid, @RequestParam("Filedata") MultipartFile mulpartFile,
+            @RequestParam("roomId") String roomId, HttpServletRequest request) {
+        if (roomId == null) {
+            log.error("RoomId is not exist.");
+            return "Failed";
+        }
+        
+        StaffSessionInfo s = MessageRouter.activeStaffMap.get(roomId);
+        if (null != s && s.isBusy() && s.isWebStaff()) {
+            String token = MessageRouter.getAccessToken(s.getClient_account());
+            String post_url = API.UPLOAD_IMAGE_REQUEST_URL.replace("ACCESS_TOKEN", token) + "image";
+            
+            JSONObject ret;
+            try {
+                ret = WeChatHttpsUtil.httpPostFile(post_url, mulpartFile.getInputStream(), UUID.randomUUID().toString() + ".jpg");
+                log.info("Upload return: "+ret.toString());
+                if (ret.containsKey("media_id")) {
+                    String media_id = ret.getString("media_id");
+                    MessageRouter.sendMessage(s.getClient_openid(), token, media_id, API.IMAGE_MESSAGE);
+                    return API.WEIXIN_MEDIA_URL.replace("ACCESS_TOKEN", token) + media_id;
+                } 
+            } catch (IOException e) {
+                log.error("Uploader image failed: " + e.toString());
+                e.printStackTrace();
+            }
+            
+        } else {
+            return "Failed";
+        }
+         
+        return "Failed";
+        
     }
     
     private void processMessage(ChatMessage msg, String staff_uuid) {

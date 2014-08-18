@@ -63,7 +63,7 @@ public class ContextPreloader extends HttpServlet{
             config.setTestOnReturn(true);
             
             jedisPool = new JedisPool(config, bundle.getString("redis.host"),
-                    Integer.parseInt(bundle.getString("redis.port")));
+                    Integer.parseInt(bundle.getString("redis.port")), 30000);
             
             Jedis jedis = jedisPool.getResource();
             
