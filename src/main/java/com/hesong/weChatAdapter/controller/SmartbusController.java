@@ -47,8 +47,8 @@ public class SmartbusController {
             byte clientId = Byte.parseByte(smartbusProps.get("clientId"));
 
             log.info(host + " " + port + " " + unitId + " " + clientId);
-            return SmartbusExecutor.execute(unitId, clientId, host, port);
-
+//            return SmartbusExecutor.execute(unitId, clientId, host, port);
+            return null;
         } catch (IOException e) {
             log.info("Json mapper exception: " + e.toString());
             return "failed";

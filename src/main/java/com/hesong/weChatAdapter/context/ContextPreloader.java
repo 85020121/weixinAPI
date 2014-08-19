@@ -2,7 +2,9 @@ package com.hesong.weChatAdapter.context;
 
 import java.io.File;
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.ResourceBundle;
@@ -23,6 +25,9 @@ import redis.clients.jedis.JedisPool;
 import redis.clients.jedis.JedisPoolConfig;
 
 import com.hesong.ftp.FTPConnectionFactory;
+import com.hesong.smartbus.client.WeChatCallback;
+import com.hesong.smartbus.client.net.Client;
+import com.hesong.smartbus.client.net.Client.ConnectError;
 import com.hesong.weChatAdapter.account.Account;
 import com.hesong.weChatAdapter.account.AccountBo;
 import com.hesong.weChatAdapter.model.AccessToken;
@@ -30,6 +35,7 @@ import com.hesong.weChatAdapter.runner.SmartbusExecutor;
 import com.hesong.weChatAdapter.tools.API;
 import com.hesong.weChatAdapter.tools.WeChatHttpsUtil;
 
+@SuppressWarnings("rawtypes")
 public class ContextPreloader extends HttpServlet{
 
     /**
@@ -40,86 +46,101 @@ public class ContextPreloader extends HttpServlet{
     public static Logger ContextLog = Logger.getLogger(ContextPreloader.class);
     
     public static Map<String, AccessToken> Account_Map = new ConcurrentHashMap<String, AccessToken>();
-    public static int destUnitId;
-    public static int destClientId;
-    public static int srcUnitId;
-    public static int srctClientId;
     
-    public static Map<String,String> appid_appsecret = new HashMap<String, String>();
-//    public static JedisPool jedisPool;
-//    public static int redis_db_num;
-//    public static int redis_key_expire;
+    public static Map<String,String> appid_appsecret = new ConcurrentHashMap<String, String>();
     
+    public static List<Map<String, Byte>> busList = new ArrayList<>();
+    
+    public static JedisPool jedisPool;
+    
+    public static int REDIS_DB_NUM;
+    public static int REDIS_KEY_EXPIRE;
+
     static{
+        ContextLog.info("ContextPreloader");
         
-        appid_appsecret.put("1001", "abcdef");
+        ResourceBundle bundle = ResourceBundle.getBundle("redis");
+        if (null == bundle) {
+            ContextLog.error("redis.properties not found!");
+        }
         
-//        ResourceBundle bundle = ResourceBundle.getBundle("redis");
-//        if (null == bundle) {
-//            ContextLog.error("redis.properties not found!");
-//        }
-//        
-//        JedisPoolConfig config = new JedisPoolConfig();
-//        config.setMaxTotal(Integer.parseInt(bundle.getString("redis.pool.maxTotal")));
-//        config.setMaxIdle(Integer.parseInt(bundle.getString("redis.pool.maxIdle")));
-//        config.setMaxWaitMillis(Integer.parseInt(bundle.getString("redis.pool.maxWait")));
-//        config.setTestOnBorrow(true);
-//        config.setTestOnReturn(true);
-//        
-//        redis_db_num = Integer.parseInt(bundle.getString("redis.db_num"));
-//        redis_key_expire = Integer.parseInt(bundle.getString("redis.key_expire"));
-//        
-//        jedisPool = new JedisPool(config, bundle.getString("redis.host"),
-//                Integer.parseInt(bundle.getString("redis.port")), 30000);
+        JedisPoolConfig config = new JedisPoolConfig();
+        config.setMaxTotal(Integer.parseInt(bundle.getString("redis.pool.maxTotal")));
+        config.setMaxIdle(Integer.parseInt(bundle.getString("redis.pool.maxIdle")));
+        config.setMaxWaitMillis(Integer.parseInt(bundle.getString("redis.pool.maxWait")));
+        config.setTestOnBorrow(true);
+        config.setTestOnReturn(true);
+        
+        REDIS_DB_NUM = Integer.parseInt(bundle.getString("redis.pool.db_num"));
+        REDIS_KEY_EXPIRE = Integer.parseInt(bundle.getString("redis.pool.key_expire"));
+        
+        jedisPool = new JedisPool(config, bundle.getString("redis.host"),
+                Integer.parseInt(bundle.getString("redis.port")), 30000);
         
         ApplicationContext ctx = AppContext.getApplicationContext();
         File f = new File(getSettingFilePath(ctx));
-        Map<String, String> smartbus_setting = null;
         Map<String, String> ftp_setting = null;
         if (f.exists()){
             SAXReader reader = new SAXReader();
-            smartbus_setting = new HashMap<String, String>();
             ftp_setting = new HashMap<String, String>();
             try {
                 
                 Document document = reader.read(f);
                 Element rootElmt = document.getRootElement();
                 
-               Element smartbusElmt = rootElmt.element("smartbus");
-                smartbus_setting.put("host", smartbusElmt.elementText("host"));
-                smartbus_setting.put("port", smartbusElmt.elementText("port"));
-                smartbus_setting.put("unitid", smartbusElmt.elementText("unitid"));
-                smartbus_setting.put("clientid", smartbusElmt.elementText("clientid"));
-                smartbus_setting.put("destunitid", smartbusElmt.elementText("destunitid"));
-                smartbus_setting.put("destclientid", smartbusElmt.elementText("destclientid"));
-                ContextLog.info("Smartbus setting: "+smartbus_setting.toString());
+                Element smartbusElmt = rootElmt.element("smartbus");
+                
+                Iterator iter = smartbusElmt.elementIterator();
+                while (iter.hasNext()) {
+                    Element bus = (Element)iter.next();
+                    Map<String, Byte> busInfo = new HashMap<>();
+                    String host = bus.elementText("host");
+                    short port = Short.parseShort(bus.elementText("port"));
+                    byte unitid = Byte.parseByte(bus.elementText("unitid"));
+                    byte clientid = Byte.parseByte(bus.elementText("clientid"));
+                    byte clienttype = Byte.parseByte(bus.elementText("clienttype"));
+                    busInfo.put("unitid", unitid);
+                    busInfo.put("clientid", clientid);
+                    busInfo.put("clienttype", clienttype);
+                    busInfo.put("destunitid", Byte.parseByte(bus.elementText("destunitid")));
+                    busInfo.put("destclientid", Byte.parseByte(bus.elementText("destclientid")));
+                    busList.add(busInfo);
+                    
+                    try {
+                        Client.initialize(unitid);
+                        Client client = new Client(clientid,
+                                (long) clienttype, host, port, "Weixin client");
+                        client.setCallbacks(new WeChatCallback());
+                        client.connect();
+                        SmartbusExecutor.smartbusClients.add(client);
+                    } catch (ConnectError e) {
+                        e.printStackTrace();
+                    }
+                }
+                
+                ContextLog.info("Clients: "+SmartbusExecutor.smartbusClients.toString());
+                SmartbusExecutor.execute();
                 
                 Element ftpElmt = rootElmt.element("ftp");
                 ftp_setting.put("host", ftpElmt.elementText("host"));
                 ftp_setting.put("username", ftpElmt.elementText("username"));
                 ftp_setting.put("password", ftpElmt.elementText("password"));
                 ContextLog.info("FTP setting: "+ftp_setting.toString());
-
+                
+                Element apiElmt = rootElmt.element("apisecurity");
+                Iterator apiIter = apiElmt.elementIterator();
+                while (apiIter.hasNext()) {
+                    Element apiInfo = (Element)apiIter.next();
+                    appid_appsecret.put(apiInfo.elementText("appid"), apiInfo.elementText("appsecret"));
+                }
+                ContextLog.info("Api info: " + appid_appsecret.toString());
+                
+                document.clearContent();
             } catch (Exception e) {
-                smartbus_setting = null;
                 e.printStackTrace();
             }
         } else {
             ContextLog.error("Setting file not exist.");
-        }
-        
-        // Set smartbus connection
-        if (smartbus_setting != null) {
-            srcUnitId = Byte.parseByte(smartbus_setting.get("unitid"));
-            srctClientId = Byte.parseByte(smartbus_setting.get("clientid"));
-            SmartbusExecutor.execute(Byte.parseByte(smartbus_setting.get("unitid")), Byte.parseByte(smartbus_setting.get("clientid")), smartbus_setting.get("host"), Short.parseShort(smartbus_setting.get("port")));
-            destUnitId = Integer.parseInt(smartbus_setting.get("destunitid"));
-            destClientId = Integer.parseInt(smartbus_setting.get("destclientid"));
-        } else {
-            ContextLog.info("Default smartbus.");
-            SmartbusExecutor.execute((byte)33, (byte)33, "10.4.62.45", (short)8089);
-            destUnitId = 0;
-            destClientId = 14;
         }
         
         AccountBo accountBo = (AccountBo) ctx.getBean("accountBo");

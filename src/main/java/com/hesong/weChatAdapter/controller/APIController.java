@@ -75,17 +75,16 @@ public class APIController {
             jsonrpc.put("params", paramsList);
             // JSONRPC END
 
-            PackInfo pack = new PackInfo((byte) ContextPreloader.destUnitId,
-                    (byte) ContextPreloader.destClientId,
-                    (byte) ContextPreloader.srcUnitId,
-                    (byte) ContextPreloader.srctClientId, jsonrpc.toString());
+//            PackInfo pack = new PackInfo((byte) ContextPreloader.destUnitId,
+//                    (byte) ContextPreloader.destClientId,
+//                    (byte) ContextPreloader.srcUnitId,
+//                    (byte) ContextPreloader.srctClientId, jsonrpc.toString());
             try {
-                SmartbusExecutor.responseQueue.put(pack);
+                SmartbusExecutor.responseQueue.put(jsonrpc.toString());
                 return WeChatHttpsUtil.getErrorMsg(0, "ok").toString();
             } catch (InterruptedException e) {
                 e.printStackTrace();
                 log.error("Response BlockingQueue exception: "+e.toString());
-                log.error("Response head: "+pack.toString());
                 return WeChatHttpsUtil.getErrorMsg(30004, e.toString()).toString();
             }
             
@@ -140,17 +139,16 @@ public class APIController {
             jsonrpc.put("params", paramsList);
             // JSONRPC END
 
-            PackInfo pack = new PackInfo((byte) ContextPreloader.destUnitId,
-                    (byte) ContextPreloader.destClientId,
-                    (byte) ContextPreloader.srcUnitId,
-                    (byte) ContextPreloader.srctClientId, jsonrpc.toString());
+//            PackInfo pack = new PackInfo((byte) ContextPreloader.destUnitId,
+//                    (byte) ContextPreloader.destClientId,
+//                    (byte) ContextPreloader.srcUnitId,
+//                    (byte) ContextPreloader.srctClientId, jsonrpc.toString());
             try {
-                SmartbusExecutor.responseQueue.put(pack);
+                SmartbusExecutor.responseQueue.put(jsonrpc.toString());
                 return WeChatHttpsUtil.getErrorMsg(0, "ok").toString();
             } catch (InterruptedException e) {
                 e.printStackTrace();
                 log.error("Response BlockingQueue exception: "+e.toString());
-                log.error("Response head: "+pack.toString());
                 return WeChatHttpsUtil.getErrorMsg(30004, e.toString()).toString();
             }
             

@@ -104,13 +104,13 @@ public class MessageManager {
 
         paramsList.put("msgcontent", message);
         jo.put("params", paramsList);
-        PackInfo pack = new PackInfo((byte)ContextPreloader.destUnitId, (byte)ContextPreloader.destClientId, (byte)ContextPreloader.srcUnitId, (byte)ContextPreloader.srctClientId, jo.toString());
+//        PackInfo pack = new PackInfo((byte)ContextPreloader.destUnitId, (byte)ContextPreloader.destClientId, (byte)ContextPreloader.srcUnitId, (byte)ContextPreloader.srctClientId, jo.toString());
         try {
             log.info("Put pack to SmartbusExecutor.responseQueue");
-            SmartbusExecutor.responseQueue.put(pack);
+            SmartbusExecutor.responseQueue.put(jo.toString());
         } catch (InterruptedException e) {
             log.error("Puc packinfo into response queue failed: " + e.toString());
-            log.error("Packinfo: " + pack.toString());
+//            log.error("Packinfo: " + pack.toString());
         }
 
 //        smartbusSendMessage(jo.toString());

@@ -14,12 +14,12 @@ public class JsonrpcHandlerRunner implements Runnable {
     public static Map<String, BlockingQueue<Object>> getRoomsRetQueue = new ConcurrentHashMap<String, BlockingQueue<Object>>();
 
     private BlockingQueue<PackInfo> messageQueue;
-    private BlockingQueue<PackInfo> responseQueue;
+    private BlockingQueue<String> responseQueue;
     private JsonrpcHandler handler;
     private int id;
 
     public JsonrpcHandlerRunner(BlockingQueue<PackInfo> messageQueue,
-            BlockingQueue<PackInfo> responseQueue, int id) {
+            BlockingQueue<String> responseQueue, int id) {
         super();
         this.messageQueue = messageQueue;
         this.responseQueue = responseQueue;
@@ -45,11 +45,11 @@ public class JsonrpcHandlerRunner implements Runnable {
         this.messageQueue = messageQueue;
     }
 
-    public BlockingQueue<PackInfo> getResponseQueue() {
+    public BlockingQueue<String> getResponseQueue() {
         return responseQueue;
     }
 
-    public void setResponseQueue(BlockingQueue<PackInfo> responseQueue) {
+    public void setResponseQueue(BlockingQueue<String> responseQueue) {
         this.responseQueue = responseQueue;
     }
 
@@ -68,8 +68,8 @@ public class JsonrpcHandlerRunner implements Runnable {
                 PackInfo pack = getMessageQueue().take();
                 String response = handler.handle(pack.getText());
                 if (response != null) {
-                    pack.setText(response);
-                    responseQueue.put(pack);
+//                    pack.setText(response);
+                    responseQueue.put(response);
                 }
             } catch (InterruptedException e) {
                 SmartbusExecutor.SmartbusLog.error("BlockingQueue exception: "

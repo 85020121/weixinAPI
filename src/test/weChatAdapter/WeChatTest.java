@@ -7,17 +7,27 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.util.Date;
+import java.util.Iterator;
+import java.util.List;
+import java.util.Random;
 
 import net.sf.json.JSONObject;
 
 import org.apache.commons.net.ftp.FTPClient;
+import org.dom4j.Document;
+import org.dom4j.DocumentException;
+import org.dom4j.Element;
+import org.dom4j.io.SAXReader;
 import org.junit.Test;
+import org.springframework.context.ApplicationContext;
 
 import com.hesong.ftp.AttachmentPuller;
 import com.hesong.ftp.FTPConnectionFactory;
 import com.hesong.ftp.FTPEngine;
 import com.hesong.jsonrpc.JsonrpcHandler;
 import com.hesong.jsonrpc.WeChatMethodSet;
+import com.hesong.weChatAdapter.context.AppContext;
+import com.hesong.weChatAdapter.context.ContextPreloader;
 import com.hesong.weChatAdapter.manager.MessageManager;
 import com.hesong.weChatAdapter.tools.API;
 import com.hesong.weChatAdapter.tools.SignatureChecker;
@@ -143,7 +153,19 @@ public class WeChatTest {
 //    }
     
     @Test
-    public void date(){
-        System.out.println(new Date().getTime());
+    public void random() throws DocumentException{
+        File f = new File("D:\\setting.xml");
+        System.out.println(f.exists());
+        SAXReader reader = new SAXReader();
+        Document document = reader.read(f);
+        Element rootElmt = document.getRootElement();
+        
+        Element smartbusElmt = rootElmt.element("smartbus");
+        Iterator iter = smartbusElmt.elementIterator();
+        while (iter.hasNext()) {
+            Element elmt = (Element)iter.next();
+            System.out.println(elmt.toString());
+            System.out.println(elmt.elementText("destclientid"));
+        }
     }
 }

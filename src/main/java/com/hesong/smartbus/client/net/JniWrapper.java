@@ -1,6 +1,8 @@
 package com.hesong.smartbus.client.net;
 
 import com.hesong.smartbus.client.PackInfo;
+import com.hesong.weChatAdapter.context.ContextPreloader;
+
 import java.util.Map;
 import java.util.Iterator;
 import java.util.Map.Entry;
@@ -8,7 +10,11 @@ import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.LinkedBlockingDeque;
 
+import net.sf.json.JSONObject;
+
 import org.apache.log4j.Logger;
+
+import redis.clients.jedis.Jedis;
 
 /**
  * smartbus 网络客户端 JNI 包装类
@@ -132,26 +138,24 @@ public class JniWrapper {
     
     public static BlockingQueue<PackInfo> messageQueue = new LinkedBlockingDeque<PackInfo>();
     
-    public static Client CLIENT;
-    
     private static Logger log = Logger.getLogger(JniWrapper.class);
 
     protected static void cb_connection(int arg, byte local_clientid,
             int accesspoint_unitid, int ack) {
-        //Client inst = JniWrapper.instances.get(local_clientid);
-        if (CLIENT != null) {
+        Client inst = JniWrapper.instances.get(local_clientid);
+        if (inst != null) {
             if (ack == 0) {
-                CLIENT.getCallbacks().onConnectSuccess();
+                inst.getCallbacks().onConnectSuccess();
             } else {
-                CLIENT.getCallbacks().onConnectFail(ack);
+                inst.getCallbacks().onConnectFail(ack);
             }
         }
     }
 
     protected static void cb_disconnect(int arg, byte local_clientid) {
-        //Client inst = instances.get(local_clientid);
-        if (CLIENT != null) {
-            CLIENT.getCallbacks().onDisconnect();
+        Client inst = instances.get(local_clientid);
+        if (inst != null) {
+            inst.getCallbacks().onDisconnect();
         }
     }
 
@@ -163,14 +167,24 @@ public class JniWrapper {
         PackInfo head = new PackInfo((byte) arg, cmd, cmdtype, src_unit_id,
                 src_unit_client_id, src_unit_client_type, dest_unit_id,
                 dest_unit_client_id, dest_unit_client_type, txt);
-        if (CLIENT != null) {
-            CLIENT.getCallbacks().onReceiveText(head, txt);
+        Client inst = instances.get(dest_unit_client_id);
+        log.info(src_unit_id + " " + src_unit_client_id + " " + dest_unit_id + " " + dest_unit_client_id);
+        if (inst != null) {
+            JSONObject msg = JSONObject.fromObject(txt);
+            if (msg.containsKey("id")) {
+                String id = msg.getString("id");
+                setDestToRedis(id, src_unit_id, src_unit_client_id, src_unit_client_type);
+            }
+            inst.getCallbacks().onReceiveText(head, txt);
             try {
                 messageQueue.put(head);
             } catch (InterruptedException e) {
                 log.error("JniWrapper put message queue exception: "+e.toString());
                 log.error("Message head: "+ head.toString());
             }
+        } else {
+            log.error("inst is null, local_clientid = "+local_clientid);
+            log.error("instances = " + instances.toString());
         }
     }
 
@@ -180,16 +194,16 @@ public class JniWrapper {
             byte dest_unit_id, byte dest_unit_client_id,
             byte dest_unit_client_type, String projectid, int invoke_id,
             int ret, String param) {
-        //Client inst = instances.get(local_clientid);
-        if (CLIENT != null) {
+        Client inst = instances.get(local_clientid);
+        if (inst != null) {
             PackInfo head = new PackInfo(head_flag, cmd, cmdtype, src_unit_id,
                     src_unit_client_id, src_unit_client_type, dest_unit_id,
                     dest_unit_client_id, dest_unit_client_type, null);
             if (ret == 1) {
-                CLIENT.getCallbacks().onFlowReturn(head, projectid, invoke_id,
+                inst.getCallbacks().onFlowReturn(head, projectid, invoke_id,
                         param);
             } else {
-                CLIENT.getCallbacks().onFlowTimeout(head, projectid, invoke_id);
+                inst.getCallbacks().onFlowTimeout(head, projectid, invoke_id);
             }
         }
     }
@@ -205,6 +219,18 @@ public class JniWrapper {
             inst.getCallbacks().onGlobalConnectInfo(unitid, clientid,
                     clienttype, status, addinfo);
         }
+    }
+    
+    private static void setDestToRedis(String id, byte desUnit, byte desClient, byte desType) {
+        Jedis jedis = ContextPreloader.jedisPool.getResource();
+        jedis.select(ContextPreloader.REDIS_DB_NUM);
+        JSONObject msg = new JSONObject();
+        msg.put("desUnit", (int)desUnit);
+        msg.put("desClient", (int)desClient);
+        msg.put("desType", (int)desType);
+        jedis.set(id, msg.toString());
+        jedis.expire(id, ContextPreloader.REDIS_KEY_EXPIRE);
+        ContextPreloader.jedisPool.returnResource(jedis);
     }
 
 }
