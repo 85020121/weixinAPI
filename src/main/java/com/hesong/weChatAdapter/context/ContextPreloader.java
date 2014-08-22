@@ -71,8 +71,8 @@ public class ContextPreloader extends HttpServlet{
         config.setTestOnBorrow(true);
         config.setTestOnReturn(true);
         
-        REDIS_DB_NUM = Integer.parseInt(bundle.getString("redis.pool.db_num"));
-        REDIS_KEY_EXPIRE = Integer.parseInt(bundle.getString("redis.pool.key_expire"));
+        REDIS_DB_NUM = Integer.parseInt(bundle.getString("redis.db_num"));
+        REDIS_KEY_EXPIRE = Integer.parseInt(bundle.getString("redis.key_expire"));
         
         jedisPool = new JedisPool(config, bundle.getString("redis.host"),
                 Integer.parseInt(bundle.getString("redis.port")), 30000);

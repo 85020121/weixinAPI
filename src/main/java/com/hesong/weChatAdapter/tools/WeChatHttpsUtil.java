@@ -100,6 +100,7 @@ public class WeChatHttpsUtil {
             httpUrlConct.setDoOutput(true);
             httpUrlConct.setUseCaches(false);
             httpUrlConct.setReadTimeout(timeout); // 0 to infini
+            httpUrlConct.setRequestProperty("content-type", "application/json"); 
 
             if (outputStr != null) {
                 OutputStream out = httpUrlConct.getOutputStream();

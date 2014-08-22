@@ -170,11 +170,16 @@ public class JniWrapper {
         Client inst = instances.get(dest_unit_client_id);
         log.info(src_unit_id + " " + src_unit_client_id + " " + dest_unit_id + " " + dest_unit_client_id);
         if (inst != null) {
-            JSONObject msg = JSONObject.fromObject(txt);
-            if (msg.containsKey("id")) {
-                String id = msg.getString("id");
-                setDestToRedis(id, src_unit_id, src_unit_client_id, src_unit_client_type);
+            try {
+                JSONObject msg = JSONObject.fromObject(txt);
+                if (msg.containsKey("id")) {
+                    String id = msg.getString("id");
+                    setDestToRedis(id, src_unit_id, src_unit_client_id, src_unit_client_type);
+                }
+            } catch (Exception e) {
+                e.printStackTrace();
             }
+
             inst.getCallbacks().onReceiveText(head, txt);
             try {
                 messageQueue.put(head);
@@ -230,6 +235,7 @@ public class JniWrapper {
         msg.put("desType", (int)desType);
         jedis.set(id, msg.toString());
         jedis.expire(id, ContextPreloader.REDIS_KEY_EXPIRE);
+        ContextPreloader.ContextLog.info("kye="+id+"  msg="+msg.toString()+"  expire="+jedis.ttl(id));
         ContextPreloader.jedisPool.returnResource(jedis);
     }
 

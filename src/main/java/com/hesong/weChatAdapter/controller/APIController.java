@@ -17,7 +17,6 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestMethod;
 import org.springframework.web.bind.annotation.ResponseBody;
 
-import com.hesong.smartbus.client.PackInfo;
 import com.hesong.weChatAdapter.context.ContextPreloader;
 import com.hesong.weChatAdapter.runner.SmartbusExecutor;
 import com.hesong.weChatAdapter.tools.API;
@@ -43,9 +42,8 @@ public class APIController {
             ObjectMapper mapper = new ObjectMapper();
             Map<String, String> messageMap;
             messageMap = mapper.readValue(request.getInputStream(), Map.class);
-            String content = messageMap.get("content");
-            String msgtype = messageMap.get("msgtype");
-            String room_id = messageMap.get("service_id");
+            String msgtype = messageMap.get("MsgType");
+            String room_id = messageMap.get("ServiceId");
 
             // JSONRPC PARAMS
             JSONObject jsonrpc = new JSONObject();
@@ -53,24 +51,18 @@ public class APIController {
             jsonrpc.put("method", "imsm.ImMessageReceived");
             jsonrpc.put("id", UUID.randomUUID().toString());
             Map<String, Object> paramsList = new HashMap<String, Object>();
-            paramsList.put("imtype", "weixin");
-            paramsList.put("account", null);
+            paramsList.put("imtype", "app");
+            paramsList.put("account", appid);
 
             JSONObject user = new JSONObject();
-            user.put("user", messageMap.get("user_id"));
+            user.put("user", messageMap.get("FromUserId"));
             user.put("usertype", API.MOCK_WEIXIN_CLIENT);
 
             paramsList.put("user", user);
             paramsList.put("room_id", room_id);
             paramsList.put("msgtype", msgtype);
 
-            JSONObject sendmsg = new JSONObject();
-            sendmsg.put("msgtype", msgtype);
-            sendmsg.put("room_id", room_id);
-            JSONObject msgcontent = new JSONObject();
-            msgcontent.put("content", content);
-            sendmsg.put(msgtype, msgcontent);
-            paramsList.put("msgcontent", sendmsg);
+            paramsList.put("msgcontent", messageMap);
 
             jsonrpc.put("params", paramsList);
             // JSONRPC END
@@ -117,8 +109,8 @@ public class APIController {
             jsonrpc.put("method", "imsm.ImMessageReceived");
             jsonrpc.put("id", UUID.randomUUID().toString());
             Map<String, Object> paramsList = new HashMap<String, Object>();
-            paramsList.put("imtype", "weixin");
-            paramsList.put("account", null);
+            paramsList.put("imtype", "app");
+            paramsList.put("account", appid);
 
             JSONObject user = new JSONObject();
             user.put("user", messageMap.get("user_id"));

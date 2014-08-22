@@ -43,7 +43,7 @@ public class WeChatMethodSet {
      *            消息内容
      * @return 消息发送状态回馈，该返回值为JSONObject，errcode为0时表示消息发送成功，反之查看错误消息errmsg
      */
-    public JSONObject SendImMessage(String account, String fromuser,
+    public JSONObject SendImMessage(String imtype, String account, String fromuser,
             String touser, String room, String msgcontent) {
         log.info("SendImMessage have been called, send: " + msgcontent);
         JSONObject jo = getJsonContent(msgcontent);
@@ -51,7 +51,42 @@ public class WeChatMethodSet {
             return createErrorMsg(9922, "Check your json content: "
                     + msgcontent);
         }
+        
+        if (imtype.equalsIgnoreCase("app")) {
+            if (null == account) {
+                // 发给虚拟客户端
+                JSONObject tmp = new JSONObject();
+                tmp.put("sender", fromuser);
+                tmp.put("roomId", room);
+                tmp.put("content", jo.getString("Content"));
+                tmp.put("msgtype", jo.getString("MsgType"));
 
+//                JSONObject result = WeChatHttpsUtil.httpPostRequest(
+//                        API.SEND_MESSAGE_REQUEST_URL.replace("TOUSER", touser),
+//                        tmp.toString(), TIMEOUT);
+//                result = WeChatMessageAnnotation.sendMessage(touser, tmp.toString());
+                return putMessageToMQ(touser, tmp.toString());
+            }
+            
+            
+            JSONObject messageToApp = new JSONObject();
+            messageToApp.put("ToUserId", touser);
+            messageToApp.put("WorkerNum", account);
+            messageToApp.put("WorkerName", "");
+            messageToApp.put("ServiceId", room);
+
+            messageToApp.put("Tag", new JSONObject());
+            
+            JSONObject msg = JSONObject.fromObject(msgcontent);
+            log.info("msgcontent: " + msg.toString());
+            
+            String msgtype = msg.getString("msgtype");
+            messageToApp.put("MsgType", msgtype);
+            messageToApp.put("Content", msg.getJSONObject(msgtype).getString("content"));
+            String url = "http://10.4.60.105:3000/qmtapi/staffService/message";
+            return WeChatHttpsUtil.httpPostRequest(url, messageToApp.toString(), 0);
+        }
+        
         // 给虚拟客户端发送消息
         if (account == null) {
             JSONObject tmp = new JSONObject();
@@ -209,7 +244,7 @@ public class WeChatMethodSet {
      * @param option
      * @return
      */
-    public JSONObject Invited(String account, String from_user, String room_id,
+    public JSONObject Invited(String imtype, String account, String from_user, String room_id,
             String to_user, String txt, String data, String expire,
             String option) {
         String toUser = null;
@@ -227,14 +262,22 @@ public class WeChatMethodSet {
             fromUser = from_user;
         }
         
-//        String fromUserNickname = "匿名用户";
-//        if (ContextPreloader.Account_Map.containsKey(account)) {
-//            String token = ContextPreloader.Account_Map.get(account).getToken();
-//            JSONObject userInfo = MessageManager.getClientInfo(token, fromUser);
-//        }
+        String fromUserNickname = "匿名用户";
+        JSONObject user_info = new JSONObject();
+        if (ContextPreloader.Account_Map.containsKey(account)) {
+            String token = ContextPreloader.Account_Map.get(account).getToken();
+            JSONObject userInfo = MessageManager.getClientInfo(token, fromUser);
+            if (userInfo.containsKey("nickname")) {
+                fromUserNickname = userInfo.getString("nickname");
+                user_info.put("fromUserNickname", fromUserNickname);
+                user_info.put("headimgurl", "");//userInfo.getString("headimgurl"));
+            }
+        }
         
         JSONObject post = new JSONObject();
         post.put("msgtype", "invitation");
+        post.put("imtype", imtype);
+        post.put("fromUserData", user_info);
         post.put("fromUser", fromUser);
         post.put("toUser", toUser);
         post.put("roomId", room_id);
@@ -403,4 +446,7 @@ public class WeChatMethodSet {
         return jsonrpc;
     }
 
+    private static void sendMessageToApp(JSONObject message) {
+        
+    }
 }
