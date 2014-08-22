@@ -24,9 +24,8 @@ import redis.clients.jedis.Jedis;
 import com.hesong.weixinAPI.context.ContextPreloader;
 import com.hesong.weixinAPI.core.MessageExecutor;
 import com.hesong.weixinAPI.core.MessageRouter;
-import com.hesong.weixinAPI.job.CheckSessionAvailableJob;
-import com.hesong.weixinAPI.job.CheckWaitingListJob;
 import com.hesong.weixinAPI.model.AccessToken;
+import com.hesong.weixinAPI.model.StaffSessionInfo;
 import com.hesong.weixinAPI.model.WaitingClient;
 import com.hesong.weixinAPI.tools.API;
 import com.hesong.weixinAPI.tools.WeChatHttpsUtil;
@@ -77,6 +76,37 @@ public class UtilsController {
         } catch (Exception e) {
             e.printStackTrace();
             return WeChatHttpsUtil.getErrorMsg(1, "Send message failed: " + e.toString()).toString();
+        }
+    }
+    
+    @ResponseBody
+    @RequestMapping(value = "/sendExpressMessage", method = RequestMethod.POST)
+    public String sendExpressMessage(HttpServletRequest request) {
+        ObjectMapper mapper = new ObjectMapper();
+        try {
+            JSONObject json = (JSONObject) JSONSerializer.toJSON(mapper
+                    .readValue(request.getInputStream(), Map.class));
+            String openid = json.getString("openid");
+            if (MessageRouter.activeStaffMap.containsKey(openid)) {
+                StaffSessionInfo session = MessageRouter.activeStaffMap.get(openid);
+                if (null != session && session.isBusy()) {
+                    String text = json.getString("text");
+                    String sToken = MessageRouter.getAccessToken(session.getAccount());
+                    MessageRouter.sendMessage(openid, sToken, text, API.TEXT_MESSAGE);
+                    
+                    String cToken = MessageRouter.getAccessToken(session.getClient_account());
+                    MessageRouter.sendMessage(session.getClient_openid(), cToken, text, API.TEXT_MESSAGE);
+                    
+                    return WeChatHttpsUtil.getErrorMsg(0, "ok").toString();
+                } else {
+                    return WeChatHttpsUtil.getErrorMsg(10007, "会话不存在或已结束。").toString();
+                }
+            } else {
+                return WeChatHttpsUtil.getErrorMsg(10007, "会话不存在或已结束。").toString();
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+            return WeChatHttpsUtil.getErrorMsg(10002, "Send message failed: " + e.toString()).toString();
         }
     }
     
@@ -212,28 +242,6 @@ public class UtilsController {
     }
     
     @ResponseBody
-    @RequestMapping(value = "/{tenantUn}/setSessionDuration/{duration}", method = RequestMethod.GET)
-    public String setSessionDuration(@PathVariable String tenantUn, @PathVariable String duration) {
-        try {
-            CheckSessionAvailableJob.session_available_duration_map.put(tenantUn, Long.parseLong(duration));
-            return WeChatHttpsUtil.getErrorMsg(0, "ok").toString();
-        } catch (Exception e) {
-            return WeChatHttpsUtil.getErrorMsg(1, e.toString()).toString();
-        }
-    }
-    
-    @ResponseBody
-    @RequestMapping(value = "/{tenantUn}/setWaitingDuration/{duration}", method = RequestMethod.GET)
-    public String setWaitingDuration(@PathVariable String tenantUn, @PathVariable String duration) {
-        try {
-            CheckWaitingListJob.waiting_duration_map.put(tenantUn, Long.parseLong(duration));
-            return WeChatHttpsUtil.getErrorMsg(0, "ok").toString();
-        } catch (Exception e) {
-            return WeChatHttpsUtil.getErrorMsg(1, e.toString()).toString();
-        }
-    }
-    
-    @ResponseBody
     @RequestMapping(value = "/{tenantUn}/setClientSkills", method = RequestMethod.POST)
     public String setClientSkills(@PathVariable String tenantUn, HttpServletRequest request) {
         ObjectMapper mapper = new ObjectMapper();
@@ -265,5 +273,4 @@ public class UtilsController {
         }
         return regex;
     }
-    
 }

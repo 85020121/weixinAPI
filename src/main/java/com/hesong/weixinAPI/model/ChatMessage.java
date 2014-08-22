@@ -6,6 +6,7 @@ public class ChatMessage {
     private String content;
     private String date;
     private String msgtype;
+    private String action;
     public String getChannelId() {
         return channelId;
     }
@@ -36,11 +37,16 @@ public class ChatMessage {
     public void setMsgtype(String msgtype) {
         this.msgtype = msgtype;
     }
+    public String getAction() {
+        return action;
+    }
+    public void setAction(String action) {
+        this.action = action;
+    }
     @Override
     public String toString() {
         return "ChatMessage [channelId=" + channelId + ", senderName="
                 + senderName + ", content=" + content + ", date=" + date
-                + ", msgtype=" + msgtype + "]";
+                + ", msgtype=" + msgtype + ", action=" + action + "]";
     }
-    
 }

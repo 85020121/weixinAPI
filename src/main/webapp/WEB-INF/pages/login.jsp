@@ -4,21 +4,14 @@
 <!DOCTYPE html>
 <html>
   <head>
-    <meta charset="utf-8">
-    <meta http-equiv="X-UA-Compatible" content="IE=edge">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <meta name="description" content="">
-    <meta name="author" content="">
-    <link rel="icon" href="../../favicon.ico">
-
-    <title>座席登陆</title>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+	<title>和声云客服平台--座席登陆</title>
+	<link rel="icon" href="<c:url value='/resources/images/hesong_logo.jpg'/>" type="image/jpg" />
 
     <!-- Bootstrap core CSS -->
     <link href="<c:url value='/resources/js/bootstrap-3.2.0-dist/css/bootstrap.min.css'/>" rel="stylesheet">
     <link rel="stylesheet" href="<c:url value='/resources/css/signin.css'/>" />
-
-
-
+    <link rel="stylesheet" href="<c:url value='/resources/css/sticky-footer-navbar.css'/>" />
 
   </head>
 
@@ -35,6 +28,11 @@
 
     </div> <!-- /container -->
 
+    <div class="footer" style="background:#eee;">
+      <div class="container">
+        <p class="text-muted" style="color:#333;text-align:center">CopyRight  2013-2014  和声云 版权所有    All Rights Reserved . 京ICP备14034791号</p>
+      </div>
+    </div>
 
     <!-- Bootstrap core JavaScript
     ================================================== -->
@@ -48,7 +46,24 @@
         	var email = $("#email").val();
         	var password = $("#password").val();
         	console.log(email + "  " + password);
-        	$("#warning").css("display","block");
+        	$.ajax({
+                url : "/wx/webchat/loginRequest",
+                type: 'POST',
+                data : '{"account":"'+email+'","password":"'+password+'"}',
+                dataType : "json",
+                success : function(data) {
+                    if(data.success) {
+                    	//window.location.href = "/wx/webchat";
+                    	$.post("/wx/webchat", {staff_uuid : data.person.id}, function() { window.location.href = "/wx/webchat"; });
+                    } else {
+                    	$("#warning").css("display","block");
+                    }
+                },
+                error : function(erorr) {
+                    console.log("error:" + error);
+                    $("#warning").css("display","block");
+                }
+            });
         }
     
     </script>  

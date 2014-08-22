@@ -7,19 +7,18 @@ public class Staff {
     private String id;
     private String name;
     private String tanentUn;
-    private String wx_account;
+    //private String wx_account;
     private String work_num;
     private List<StaffSessionInfo> sessionChannelList;
     private List<String> skills;
     
-    public Staff(String id, String name, String tanentUn, String wx_account,
+    public Staff(String id, String name, String tanentUn,
             String work_num, List<StaffSessionInfo> sessionChannelList,
             List<String> skills) {
         super();
         this.id = id;
         this.name = name;
         this.tanentUn = tanentUn;
-        this.wx_account = wx_account;
         this.work_num = work_num;
         this.sessionChannelList = sessionChannelList;
         this.skills = skills;
@@ -49,14 +48,6 @@ public class Staff {
         this.tanentUn = tanentUn;
     }
 
-    public String getWx_account() {
-        return wx_account;
-    }
-
-    public void setWx_account(String wx_account) {
-        this.wx_account = wx_account;
-    }
-
     public String getWork_num() {
         return work_num;
     }
@@ -84,8 +75,8 @@ public class Staff {
     @Override
     public String toString() {
         return "Staff [id=" + id + ", name=" + name + ", tanentUn=" + tanentUn
-                + ", wx_account=" + wx_account + ", work_num=" + work_num
-                + ", sessionChannelList=" + sessionChannelList + ", skills="
-                + skills + "]";
+                + ", work_num=" + work_num + ", sessionChannelList="
+                + sessionChannelList + ", skills=" + skills + "]";
     }
+
 }

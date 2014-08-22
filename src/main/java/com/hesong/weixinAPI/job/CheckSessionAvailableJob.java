@@ -23,82 +23,93 @@ public class CheckSessionAvailableJob implements Job {
             .getLogger(CheckSessionAvailableJob.class);
 
     public static final String CHECK_SESSION_GROUP = "CheckSessionAvailableJob";
-    public static final Map<String, Long> session_available_duration_map = new ConcurrentHashMap<String, Long>();
     
     /**
      * <tenantUn, <client_openid, session>>
      */
     public static ConcurrentMap<String, Map<String, StaffSessionInfo>> sessionMap = new ConcurrentHashMap<String, Map<String, StaffSessionInfo>>();
 
-    private static long session_available_duration = 120000l;
+    private static long default_session_available_duration = 120000l;
 
     @Override
     public void execute(JobExecutionContext context)
             throws JobExecutionException {
-        for (String tenantUn : sessionMap.keySet()) {
-            Map<String, StaffSessionInfo> client_session = sessionMap
-                    .get(tenantUn);
-            long timeout;
-            if (session_available_duration_map.containsKey(tenantUn)) {
-                timeout = session_available_duration_map.get(tenantUn);
-            } else {
-                timeout = session_available_duration;
-            }
-            
-            for (String client_openid : client_session.keySet()) {
+        Jedis jedis = null;
+        try {
+            jedis = ContextPreloader.jedisPool.getResource();
+            for (String tenantUn : sessionMap.keySet()) {
+                Map<String, StaffSessionInfo> client_session = sessionMap
+                        .get(tenantUn);
+                long timeout;
+                if (jedis.hexists(API.REDIS_TENANT_SESSION_AVAILABLE_DURATION, tenantUn)) {
+                    timeout = Long.parseLong(jedis.hget(API.REDIS_TENANT_SESSION_AVAILABLE_DURATION, tenantUn));
+                } else {
+                    timeout = default_session_available_duration;
+                }
+                
+                for (String client_openid : client_session.keySet()) {
 
-                StaffSessionInfo session = client_session.get(client_openid);
-                if (session != null
-                        && (new Date().getTime() - session.getLastReceived()
-                                .getTime()) > timeout) {
-                    log.info("Time out, remove client.");
-                    
-                    Jedis jedis = ContextPreloader.jedisPool.getResource();
-                    
-                    String cToken = MessageRouter.getAccessToken(session.getClient_account(), jedis);
-                    String sToken = MessageRouter.getAccessToken(session.getAccount(), jedis);
-                    
-                    ContextPreloader.jedisPool.returnResource(jedis);
-                    
-                    try {
+                    StaffSessionInfo session = client_session.get(client_openid);
+                    if (session != null
+                            && (new Date().getTime() - session.getLastReceived()
+                                    .getTime()) > timeout) {
+                        log.info("Time out, remove client.");
+                        
+                        String cToken = MessageRouter.getAccessToken(session.getClient_account(), jedis);
+                        String sToken = MessageRouter.getAccessToken(session.getAccount(), jedis);
+                        
+                        try {
 
-                        String text = "系统提示：会话超时，您已退出人工对话，感谢您的使用。";
-                        // To client
-                        if (session.getClient_type().equalsIgnoreCase("wx")) {
-                            MessageRouter.sendMessage(client_openid, cToken,
+                            String text = "系统提示：会话超时，您已退出人工对话，感谢您的使用。";
+                            // To client
+                            if (session.getClient_type().equalsIgnoreCase("wx")) {
+                                MessageRouter.sendMessage(client_openid, cToken,
+                                        text, API.TEXT_MESSAGE);
+                            }
+
+                            // To staff
+                            text = "系统提示：会话超时，该会话已结束。";
+                            MessageRouter.sendMessage(session.getOpenid(), sToken,
                                     text, API.TEXT_MESSAGE);
+                            // To web staff
+                            if (session.isWebStaff()) {
+                                MessageRouter.sendWebMessage("sysMessage", text,
+                                        session.getOpenid(), "",
+                                        session.getStaff_uuid(), "endSession");
+                            }
+
+                        } catch (Exception e) {
+                            log.error("Send message error: " + e.toString());
                         }
 
-                        // To staff
-                        text = "系统提示：会话超时，该会话已结束。";
-                        MessageRouter.sendMessage(session.getOpenid(), sToken,
-                                text, API.TEXT_MESSAGE);
-                        // To web staff
-                        if (session.isWebStaff()) {
-                            MessageRouter.sendWebMessage("sysMessage", text,
-                                    session.getOpenid(), "",
-                                    session.getStaff_uuid());
-                        }
+                        session.setBusy(false);
+                        session.setEndTime(API.TIME_FORMAT.format(new Date()));
+                        MessageRouter.recordSession(session, 0);
+                        
+                        session.setClient_openid("");
+                        session.setClient_account("");
 
-                    } catch (Exception e) {
-                        log.error("Send message error: " + e.toString());
+                        client_session.remove(client_openid);
+                        
+                        // Remaind staff
+                        int waiting_count = MessageRouter.getWaitingClientCount(tenantUn);
+                        if (waiting_count > 0) {
+                            String text = String.format("系统提示：有%d个客户在等待人工服务，请点击抢接接入客户。", waiting_count);
+                            MessageRouter.sendMessage(session.getOpenid(), sToken, text, API.TEXT_MESSAGE);
+                        }
                     }
-
-                    session.setBusy(false);
-                    session.setEndTime(API.TIME_FORMAT.format(new Date()));
-                    MessageRouter.recordSession(session, 0);
-                    
-                    session.setClient_openid("");
-                    session.setClient_account("");
-
-                    client_session.remove(client_openid);
+                }
+                
+                if (client_session.isEmpty()) {
+                    sessionMap.remove(tenantUn);
                 }
             }
-            
-            if (client_session.isEmpty()) {
-                sessionMap.remove(tenantUn);
-            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        } finally {
+            ContextPreloader.jedisPool.returnResource(jedis);
         }
+
 
     }
 

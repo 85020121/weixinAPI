@@ -42,6 +42,7 @@ public class ContextPreloader extends HttpServlet{
 //    public final static String HESONG_ACCOUNT = "gh_8767e19cb907";
     public final static String HESONG_ACCOUNT = "gh_be994485fbce";
     public static Map<String, String> channelMap = new HashMap<String, String>();
+    public static Map<String, String> accountMap = new HashMap<String, String>();
     
     public static JedisPool jedisPool;
     
@@ -89,6 +90,9 @@ public class ContextPreloader extends HttpServlet{
 
             channelMap.put("gh_0221936c0c16", "1");
             channelMap.put("gh_510fe6f15310", "2");
+            
+            accountMap.put("1", "gh_0221936c0c16");
+            accountMap.put("2", "gh_510fe6f15310");
 
             String r = HttpClientUtil
                     .httpGet(API.SUA_TENANT_LIST_URL);

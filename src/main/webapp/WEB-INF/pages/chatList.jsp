@@ -6,14 +6,16 @@
 <head>
 
 <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+<title>和声云客服平台</title>
+<link rel="icon" href="<c:url value='/resources/images/hesong_logo.jpg'/>" type="image/jpg" />
+
 <link rel="stylesheet" href="<c:url value='/resources/css/chatTab.css'/>" />
 <link rel="stylesheet" href="<c:url value='/resources/css/emoji184f03.css'/>" />
 <link rel="stylesheet" href="<c:url value='/resources/css/qqemoji.css'/>" />
-    <link rel="stylesheet" href="<c:url value='/resources/js/libs/dojo/1.9.1/dijit/themes/claro/claro.css'/>" />
 <link href="<c:url value='/resources/js/bootstrap-3.2.0-dist/css/bootstrap.min.css'/>" rel="stylesheet">
 <link href="<c:url value='/resources/js/offcanvas/offcanvas.css'/>" rel="stylesheet">
+<link rel="stylesheet" href="<c:url value='/resources/css/sticky-footer-navbar.css'/>" />
 
-<script src="<c:url value='/resources/js/libs/dojo/1.9.1/dojo/dojo.js'/>"></script>    
 <script src="<c:url value='/resources/js/jquery-1.11.0.min.js'/>"></script>    
 <script src="<c:url value='/resources/js/vlcPlayer.js'/>"></script>    
 <script src="<c:url value='/resources/js/qqemoji.js'/>"></script>  
@@ -22,38 +24,80 @@
 <script src="<c:url value='/resources/js/layer/layer.min.js'/>"></script>  
 <script src="<c:url value='/resources/js/bootstrap-3.2.0-dist/js/bootstrap.min.js'/>"></script>  
 <script src="<c:url value='/resources/js/offcanvas/offcanvas.js'/>"></script>  
-
+<script src="<c:url value='/resources/js/jquery.cookie.js'/>"></script>    
 
 <script>
-    weixin_long_poll_flag = true;
 
-	dojo.require("dojo.on");
-    dojo.require("dojo.io-query");
-    dojo.require("dojo.query");
-    dojo.require("dojo.aspect");
-    dojo.require("dojo.dom");
-    dojo.require("dojo.cookie");
-    dojo.require("dojo.parser");
-    dojo.require("dijit.layout.TabContainer");
-    dojo.require("dijit.layout.ContentPane");
-    dojo.require("dijit.Dialog");
-    dojo.require("dijit.registry");
-    dojo.require("dijit.form.Textarea");
-    dojo.require("dojo.Deferred");
+    var isWindowOnFocus = true;
+    var titleMessageRemaind;
+    var weixinMessageUrl = "";
+    var isCheckedIn = false;
     
     function clickList(id) {
-        console.log("id: " + id);
+    	console.log("clickList: " + id);
+        $("#my-message-iframe").css("display","none");
         $(".list-group-item").removeClass("active");
+        $("#my-messages").removeClass("active");
         $("#"+id).addClass("active");
+        $("#"+id).find("span.badge").remove();
         var roomid = id.replace("channel-list", "chatboard");
         $(".weixin-chat-room").css("display","none"); 
         $("#" + roomid).css("display","block");
-        console.log("id: " + roomid);
     }
     
-    function weixin_checkin(staff_uuid) {
-        var url = "/weixinAPI/webchat/"+staff_uuid+"/checkin";
-        var ret;
+    function getStaffInfo() {
+    	$(".staff-channel-list").remove();
+        $(".weixin-chat-room").remove();
+        $(".row-offcanvas").css("display","none");
+    	var url = "/wx/webchat/"+$.cookie('WX_STF_UID')+"/getStaffInfo";
+        $.ajax({
+            url : url,
+            cache : false, 
+            async : false,
+            type : "GET",
+            success : function (result){
+                if(result.success) {
+                    var person = result.person;
+                    $(".navbar-brand").html(person.tenant.tenantName);
+                    $("#weixin-staff-checkout").remove();
+                    $("#staff-menu").append("<li id='weixin-staff-checkout'><a href='#' onclick='weixin_checkout(\""+person.tenant.tenantUn+"\",\""+person.id+"\")'><span class='glyphicon glyphicon-log-out'></span><span>&nbsp;&nbsp;签出</span></a></li>");
+                    $("#staff-name").html(person.name);
+                    if(result.isCheckedIn) {
+                    	isCheckedIn = true;
+                    	checkin(person);
+                    }
+                    var skills = person.skills;
+                    for(var i=0;i<skills.length;i++){
+                        if(i>0){
+                            $("#skills-group").append('<li class="divider"></li>');
+                        }
+                        $("#skills-group").append('<li><a href="#">'+skills[i].name+'</a></li>');
+                    }
+                    
+                    getExpressMessage(person.tenant.tenantUn);
+                    
+                    getMessage(person.id);
+                } else {
+                    console.log("msg:"+result.msg);
+                    window.location.href = "/wx/warning";
+                }
+            },
+            error : function(error) {
+                console.log("error:"+error);
+                window.location.href = "/wx/warning";
+            }
+        });
+    }
+    
+    function weixin_checkin() {
+    	if(isCheckedIn) {
+    	    alert("您已经签到了!");
+    	    return;
+    	}
+    	
+    	console.log("weixin_checkin");
+    	console.log("checkin: " + $.cookie('WX_STF_UID'));
+        var url = "/wx/webchat/"+$.cookie('WX_STF_UID')+"/checkin";
         $.ajax({
             url : url,
             cache : false, 
@@ -61,122 +105,169 @@
             type : "GET",
             dataType : 'json',
             success : function (result){
-                if(result.errcode == 0) {
-                    ret = true;
+                if(result.success) {
+                	isCheckedIn = true;
+                	var person = result.person;
+                    checkin(person);
                 } else {
-                	ret = result.errmsg;
+                	$(".row-offcanvas").css("display","none");
                 }
             }
         });
-        return ret;
+    }
+    
+    function mobile_checkin() {
+        console.log("mobile_checkin");
+        console.log("checkin: " + $.cookie('WX_STF_UID'));
+        var url = "/wx/webchat/"+$.cookie('WX_STF_UID')+"/checkin";
+        $.ajax({
+            url : url,
+            cache : false, 
+            async : false,
+            type : "GET",
+            dataType : 'json',
+            success : function (result){
+                if(result.success) {
+                    isCheckedIn = true;
+                    var person = result.person;
+                    checkin(person);
+                } else {
+                    $(".row-offcanvas").css("display","none");
+                }
+            }
+        });
+    }
+    
+    function checkin(person) {
+    	$("#staff-headerimg").attr("src", person.headImgUrl.substring(0, person.headImgUrl.length-1) + 64);
+        $(".staff-working-num").html("工号："+person.number);
+        $(".row-offcanvas").css("display","block");
+        $("#staff-status").html("已签到");
+        $("#staff-status").css("background","#428bca");
+        
+        var channels = person.channels;
+        for(var i=0; i<channels.length;i++){
+            var channel = channels[i];
+            weixinMessageUrl = "http://www.clouduc.cn/crm/mobile/replymessage/messagelist.php?openid="+channel.openId;
+            var id = channel.openId + "-channel-list";
+            var html = '<a href="#" id="'+id+'" class="list-group-item staff-channel-list" onclick=\'clickList("'+id+'")\'>客服通道'+(i+1)+'<input style="display:none" value=0></a>';
+            $(".channel-list").append(html);
+            
+             var chatBoard = "<div id='"+channel.openId+"-chatboard' class='panel panel-primary weixin-chat-room' style='display:none;'>";
+               chatBoard += "<div class='panel-heading' style='text-align:center'>";
+               chatBoard += "<h3 id='"+channel.openId+"-panel-heading' class='panel-title'>客服通道"+(i+1)+"</h3></div>";
+               chatBoard += "<div id='"+channel.openId+"-panel-body' class='panel-body' style='height:350px; overflow:auto; margin-bottom;background-color: #EFF3F7;'></div>";
+               chatBoard += "<div id='"+channel.openId+"-chat-editor' class='chatOperator lightBorder' style='display:none'>";
+               chatBoard += "<div class='inputArea'><div class='attach'><a href='javascript:;' class='emotion func expression' title='选择表情'></a>";
+               chatBoard += "<a href='javascript:;' id='"+channel.openId+"-uploader' class='func file' style='position:relative;display:block;margin:0;' title='图片文件'></a></div>";
+               chatBoard += "<div class='input-group'><input type='text' id='"+channel.openId+"-account-input' style='display:none' value='"+channel.weixinId+"'><input type='text' id='"+channel.openId+"-input-message' class='form-control weixin-input-area'><span class='input-group-btn'>";    
+               chatBoard += "<button id='"+channel.openId+"-sendmessage' class='btn btn-primary' onclick='postMessage(\""+channel.weixinId+"\",\""+channel.openId+"\")' type='button'>发送</button></span></div></div></div>";
+            
+                $(".jumbotron").append(chatBoard);
+                $('.emotion').qqFace();
+                uploadImage(channel.openId);
+                   
+                $('.weixin-message-list').attr("src", weixinMessageUrl);
+                
+                   $(".weixin-input-area").keyup(function(event){
+                       if(event.keyCode == "13")    
+                       {
+                           var id = this.id.replace("-input-message","");
+                           var account = $("#"+id+"-account-input").val();
+                           postMessage(account,id);
+                       }
+                   });
+        }
     }
 
     function weixin_checkout(tenantUn, staff_uuid) {
-        var url = "/weixinAPI/webchat/"+tenantUn+"/checkout/"+staff_uuid;
-        var ret;
+        var url = "/wx/webchat/"+tenantUn+"/checkout/"+staff_uuid;
         $.ajax({
             url : url,
             cache : false, 
             async : false,
             type : "GET",
-            dataType : 'json',
             success : function (result){
                 if(result.errcode ==0) {
-                    ret = true;
+                	isCheckedIn = false;
+                    $(".staff-channel-list").remove();
+                    $(".weixin-chat-room").remove();
+                	$(".row-offcanvas").css("display","none");
+                	$("#staff-status").html("未签到");
+                    $("#staff-status").css("background","rgb(184, 55, 55)");
                 } else {
-                    ret = result.errmsg;
+                    console.log("msg:"+result.errmgs);
                 }
+            },
+            error : function(error) {
+            	console.log("error:"+error);
             }
         });
-        return ret;
     }
-
     
-    // 进入聊天室
-    function enterChatRoom() {
-        var xhrArgs = {
-                url : "/weixinAPI/webchat/"+dojo.cookie("WX_STF_UID")+"/channelList",
-                handleAs : "json",
-                load : function(data) {
-                	console.log("ChannelList:"+data);
-                	if(data!=null){
-                		   for(var i=0; i<data.length;i++){
-                			   var channel = data[i];
-                			   console.log("channel: " + channel);
-                			   var id = channel.openid + "-channel-list";
-                			   var html = '<a href="#" id="'+id+'" class="list-group-item" onclick=\'clickList("'+id+'")\'>客服通道'+(i+1)+'</a>';
-                			   $(".list-group").append(html);
-                			   
-                		        var chatBoard = "<div id='"+channel.openid+"-chatboard' class='panel panel-primary weixin-chat-room' style='display:none;'>";
-                		          chatBoard += "<div class='panel-heading' style='text-align:center'>";
-                		          chatBoard += "<h3 id='"+channel.openid+"-panel-heading' class='panel-title'>客服通道"+(i+1)+"</h3></div>";
-                		          chatBoard += "<div id='"+channel.openid+"-panel-body' class='panel-body' style='height:350px; overflow:auto; margin-bottom;background-color: #EFF3F7;'></div>";
-                		          chatBoard += "<div id='chat-editor' class='chatOperator lightBorder'>";
-                		          chatBoard += "<div class='inputArea'><div class='attach'><a href='javascript:;' class='emotion func expression' title='选择表情'></a>";
-                		          chatBoard += "<a href='javascript:;' id='"+channel.openid+"-uploader' class='func file' style='position:relative;display:block;margin:0;' title='图片文件'></a></div>";
-                		          chatBoard += "<div class='input-group'><input type='text' id='"+channel.openid+"-account-input' style='display:none' value='"+channel.account+"'><input type='text' id='"+channel.openid+"-input-message' class='form-control weixin-input-area'><span class='input-group-btn'>";    
-                		          chatBoard += "<button id='"+channel.openid+"-sendmessage' class='btn btn-primary' onclick='postMessage(\""+channel.account+"\",\""+channel.openid+"\")' type='button'>发送</button></span></div></div></div>";
-                			   
-                		            $(".jumbotron").append(chatBoard);
-                		            $('.emotion').qqFace();
-                		              uploadImage(channel.openid);
-                		              
-                		              $(".weixin-input-area").keyup(function(event){
-                		                  if(event.keyCode == "13")    
-                		                  {
-                                              var id = this.id.replace("-input-message","");
-                                              var account = $("#"+id+"-account-input").val();
-                                              postMessage(account,id);
-                		                  }
-                		              });
-                		   }
-                		   getMessage();
-                	}
-                },
-                error : function(error) {
+    function getExpressMessage(tenantUn) {
+    	var url = "http://www.clouduc.cn/sua/rest/n/getquickreply?tenantUn="+tenantUn;
+        $.ajax({
+            url : url,
+            cache : false, 
+            async : false,
+            type : "GET",
+            success : function (result){
+            	for(var i=0;i<result.length;i++){
+                    if(i>0){
+                        $("#staff-express-message").append('<li class="divider"></li>');
+                    }
+                    $("#staff-express-message").append('<li><a href="#" title='+result[i].replyContent+'>'+result[i].replyName+'</a></li>');
                 }
+            },
+            error : function(error) {
+                console.log("error:"+error);
             }
-            dojo.xhrGet(xhrArgs);
+        });
     }
-	
-	// 尝试退出房间
-	function exitRoom(room) {
-		var xhrArgs = {
-	            url : "/weixinAPI/webchat/"+dojo.cookie("WX_STF_UID")+"/exit_room",
-	            postData : dojo.toJson({"roomId" : room}),
-	            handleAs : "text",
-	            load : function(data) {
-	            },
-	            error : function(error) {
-	            }
-	        }
-	        dojo.xhrPost(xhrArgs);
-	}
-	
 
+	
 	// 接收消息，并根据消息类型修改客户端聊天窗口
-	function getMessage() {
-	var xhrArgs = {
-			url : "/weixinAPI/webchat/getMessages",
-			handleAs : "json",
-			load : function(data) {
-				console.log("Msttype:"+data.msgtype + " data.channelId:"+data.channelId);
+	function getMessage(stff_uuid) {
+		$.ajax({
+			url : "/wx/webchat/"+stff_uuid+"/getMessages",
+			cache : false, 
+            async : true,
+            type : "GET",
+            dataType : 'json',
+            success : function (data) {
+				console.log("Msttype:"+data.msgtype + " data.channelId:"+data.channelId+"  action: "+data.action);
 				var room =  data.channelId;
                 var chatBoardId = room+"-chatboard";
 				if(data.msgtype == "sysMessage"){
-						var addToBoard = "<div class='sysmsg'>"+data.content+"</div>";
-						appendNewContent(room, addToBoard);
-				} else if(data.msgtype == "exitedRoom"){
-                    console.log("Exited from room: "+room);
-                    if(dojo.cookie("WX_STF_UID") == data.sender) {
-                        var roomContentPane = dijit.byId(escaped_room+"contentPaneId");
-                        chatboardTab.removeChild(roomContentPane);
-                        roomContentPane.destroy();
-                    } else {
-                        var addToBoard = "<div class='sysmsg'>系统消息: "+data.sender+" 离开房间</div>";
+					console.log("action: "+data.action);
+					if(data.action == "takeClient") {
+						console.log("takeClient");
+                        clickList(room+"-channel-list");
+                        $('#'+room+"-channel-list").prepend('<span class="glyphicon glyphicon-transfer">&nbsp;</span>')
+                        $('#'+room+"-chat-editor").css("display","block");
+                        var addToBoard = "<div class='sysmsg'>"+data.content+"</div>";
                         appendNewContent(room, addToBoard);
+					} else if(data.action == "endSession") {
+						console.log("endSession");
+						$('#'+room+"-channel-list").find("span.glyphicon").remove();
+                        $('#'+room+"-chat-editor").css("display","none");
+                        var addToBoard = "<div class='sysmsg'>"+data.content+"</div>";
+                        appendNewContent(room, addToBoard);
+					} else if(data.action == "webCheckin") {
+						alert("您已经从手机端签入！");
+						mobile_checkin();
+					} else if(data.action == "webCheckout") {
+						alert("您已经从手机端签出！");
+						isCheckedIn = false;
+	                    $(".staff-channel-list").remove();
+	                    $(".weixin-chat-room").remove();
+	                    $(".row-offcanvas").css("display","none");
+	                    $("#staff-status").html("未签到");
+	                    $("#staff-status").css("background","rgb(184, 55, 55)");
                     }
-                } else if(data.msgtype == "staffService"){
+					
+				} else if(data.msgtype == "staffService"){
                     console.log("staffService: "+ room);
                     $.layer({
                         shade: [0],
@@ -187,15 +278,22 @@
                             type: 4,
                             btn: ['确定','忽略'],
                             yes: function(index){
-                            	var xhrArgs = {
-                                        url : "/weixinAPI/webchat/"+data.channelId+"/takeClient",
-                                        handleAs : "text",
-                                        load : function(data) {
+                            	$.ajax({
+                                        url : "/wx/webchat/"+data.channelId+"/takeClient",
+                                        cache : false, 
+                                        async : true,
+                                        type : "GET",
+                                        dataType : 'text',
+                                        success : function(data) {
+                                        	//$('#'+chatBoardId).css("display","block");
+                                        	//$('#'+room+"-channel-list").addClass("active");
+                                        	//clickList(room);
+                                        	//$('#'+room+"-channel-list").prepend('<span class="glyphicon glyphicon-transfer">&nbsp;</span>')
+                                        	//$('#'+room+"-chat-editor").css("display","block");
                                         },
                                         error : function(error) {
                                         }
-                                    }
-                                dojo.xhrGet(xhrArgs);
+                                    });
                             	layer.close(index);
                             	// $(".xubox_title").html()
                             }, no: function(){
@@ -218,7 +316,7 @@
 					console.log("data: "+ data.channelId + ' ' + data.date + ' ' + data.senderName + ' ' + messageContentDiv);
 					
 					var row;
-					if(dojo.cookie("WX_STF_UID") == data.senderName){
+					if($.cookie("WX_STF_UID") == data.senderName){
 						row = "<div class='chatItem me'><div class='cloud cloudText'><div class='cloudBody'><div class='cloudContent'>";
 			            row += "<pre style='white-space:pre-wrap'>"+messageContentDiv+"</pre></div></div></div></div>";
 					} else {
@@ -228,20 +326,19 @@
 					}
 					appendNewContent(room, row);
 				}
-				if(weixin_long_poll_flag){
-				    getMessage();
+				
+				console.log("isWindowOnFocus"+isWindowOnFocus);
+				if(!isWindowOnFocus){
+					console.log("remaind");
+					titleRemaind();
 				}
+				newMessageRemaind(room);
+				getMessage(stff_uuid);
 			},
 			error : function(error) {
-				console.info("error: " + error);
-                setTimeout(function() {
-                	if(weixin_long_poll_flag){
-                        getMessage();
-                    }
-                }, 1000);
+                getMessage(stff_uuid);
 			}
-		}
-		dojo.xhrGet(xhrArgs);
+		});
 	}
 
 	// 发送消息
@@ -252,24 +349,27 @@
 	    if(message==""){
 	    	return;
 	    }
-			var xhrArgs = {
-				url : "/weixinAPI/webchat/"+dojo.cookie("WX_STF_UID")+"/sendWeixinMsg",
-				postData : dojo.toJson({"account" : account,
-				                        "content" : message,
-				                        "channelId" : openid,
-			                            "msgtype" : "text",
-			                            "senderName" : dojo.cookie("WX_STF_UID")
-					                    }),
-				handleAs : "text",
-				load : function(data) {
+	    
+	    var json = '{"account":"'+account+'","content":"'+message+'","channelId":"'+openid+'","msgtype":"text","senderName":"'+$.cookie("WX_STF_UID")+'"}';
+	    console.log("json: "+json);
+	    $.ajax({
+				url : "/wx/webchat/"+$.cookie("WX_STF_UID")+"/sendWeixinMsg",
+				type: 'POST',
+				cache : false, 
+                async : false,
+				data : json,
+				success : function(data) {
 					console.log("res:" + data);
+					var messageContent = parse_content(message);
+					var row = "<div class='chatItem me'><div class='cloud cloudText'><div class='cloudBody'><div class='cloudContent'>";
+                    row += "<pre style='white-space:pre-wrap'>"+messageContent+"</pre></div></div></div></div>";
+                    appendNewContent(openid, row);
 				},
-				error : function(eror) {
+				error : function(erorr) {
 					console.log("error:" + error);
 				}
-			}
-			var deferred = dojo.xhrPost(xhrArgs);
-			input.val("");
+		});
+		input.val("");
 	}
 	
 	// 创建聊天窗口，设置房间名
@@ -283,7 +383,6 @@
 		    chatContent += "<a href='javascript:;' id='"+escaped_roomId+"uploader' class='func file' style='position:relative;display:block;margin:0;' title='图片文件'></a>";
 		    chatContent += "</div><input type='text' id='"+escaped_roomId+"messageInput' class='chatInput lightBorder'></input>";
 		    chatContent += "<a href='javascript:;' class='chatSend' onclick='postMessage(\""+account+"\",\""+openid+"\")' id='"+escaped_roomId+"sendMessage'><b>发送</b></a></div></div>"
-
 		    
  		    var closablePane = new dijit.layout.ContentPane({
 		            title : "客服通道"+num,
@@ -295,8 +394,6 @@
 		              var close =  confirm("Do you really want to Close this?");
 		              if(close){
 		            	exitRoom(openid);
-		            	//chatboardTab.removeChild(this);
-		            	//this.destroy();
 		            	return true;
 		              } else {
 		            	console.log("Not close");
@@ -333,15 +430,13 @@
 	}
 	
 	  function uploadImage(uploaderId){
-	   console.log('uploaderId:'+uploaderId);
-	   var uploader = document.getElementById(uploaderId+'-uploader');
-	   var account = dojo.cookie("WX_STF_UID");
+	   var uploader = uploaderId+'-uploader';
+	   var account = $.cookie('WX_STF_UID');
 	   var guid;
-	   console.log("uploader:"+uploader);
 	   upclick(
 	     {
 	      element: uploader,
-	      action: '/weixinAPI/webchat/'+account+'/upload', 
+	      action: '/wx/webchat/'+account+'/upload', 
 	      action_params : {"roomId":uploaderId},
 	      onstart:
 	        function(filename)
@@ -349,7 +444,7 @@
 	          guid = get_guid();
 	          console.log('Start upload: '+filename);
 	          var row = "<div class='chatItem me'><div class='cloud cloudText'><div class='cloudBody'><div class='cloudContent'>";
-              row += "<pre id='"+guid+"'style='white-space:pre-wrap'><img src='../../resources/images/loading.gif' /></pre></div></div></div></div>";
+              row += "<pre id='"+guid+"'style='white-space:pre-wrap'><img src='../../wx/resources/images/loading.gif' /></pre></div></div></div></div>";
               appendNewContent(uploaderId, row);
 	        },
 	      oncomplete:
@@ -357,9 +452,9 @@
 	        {
 	    	  console.log("response_data"+response_data);
 	          if(response_data=="Failed"){
-	        	  dojo.byId(guid).innerHTML = "<span style='color:red'>系统提示：发送图片失败！</span>";
+	        	  $('#'+guid).html("<span style='color:red'>系统提示：发送图片失败！</span>");
 	          } else {
-	        	  dojo.byId(guid).innerHTML = "<img width='240' src='"+response_data+"' />";
+	        	  $('#'+guid).html("<img width='240' src='"+response_data+"' />");
 	          }
 	        }
 	     });
@@ -374,74 +469,124 @@
 		  });
 		  return id;
 	  }
+	  
+	 function titleRemaind() {
+         var inter = false;
+         titleMessageRemaind = setInterval(function() {
+             if (inter) {
+                 document.title = '和声云客服平台';
+                 inter = false;
+             } else {
+                 document.title = '新消息';
+                 inter = true;
+             }
+         }, 2000);
+	 }
+	 
+	 function newMessageRemaind(id) {
+		 var channel = $("#"+id+"-channel-list");
+		 if(!isWindowOnFocus || !channel.hasClass("active")) {
+			 if(channel.find("span").hasClass("badge")) {
+				 var i = parseInt(channel.find("span.badge").html());
+				 channel.find("span.badge").html(i+1);
+			 } else {
+				 channel.append('<span class="badge">1</span>');
+			 }
+		 } 
+	 }
 
-	dojo.ready(function() {
-		//getMessage();
-		//window.onbeforeunload = exitRoom;
-		enterChatRoom();
-		//weixin_checkin("ff808081471526a0014719da8c450007");
-		dojo.parser.parse();
+	$(document).ready(function() {
 		
-    });
-	
-
+		window.onblur = function() {
+			isWindowOnFocus = false;
+		};
+		window.onfocus = function() {
+			clearInterval(titleMessageRemaind);
+			isWindowOnFocus = true;
+			document.title = '和声云客服平台';
+		};
+		
+/* 		window.onbeforeunload = function(e) {
+			console.log("refresh");
+			
+             $.ajax({
+                  url : "/wx/webchat/refresh",
+                  cache : false, 
+                  async : false,
+                  type : "GET",
+                  success : function (result){
+                  },
+                  error : function(error) {
+                  }
+              });
+		} */
+		
+ 		$(window).bind('beforeunload',function(){
+		    return "注意：离开页面时数据会丢失！";
+		}); 
+		
+		//weixin_checkin();
+		getStaffInfo();
+		
+	});
 </script> 
 
 </head>
-<body style="background:#6B747A;padding-top:0px">
-	<nav class="navbar navbar-inverse" role="navigation" style="margin-bottom:70px;border-radius:0px;border:0px">
+<body style="background:#6B747A;padding-top:0px;min-height:400px;font-family: 微软雅黑;">
+	<nav class="navbar navbar-inverse" role="navigation" style="border-radius:0px;border:0px">
 	  <div class="container-fluid">
 	    <!-- Brand and toggle get grouped for better mobile display -->
 	    <div class="navbar-header">
-	      <a class="navbar-brand" href="#">Brand</a>
+	      <a class="navbar-brand" href="#"></a>
 	    </div>
 	
 	    <!-- Collect the nav links, forms, and other content for toggling -->
 	    <div class="collapse navbar-collapse" id="bs-example-navbar-collapse-1">
 	      <ul class="nav navbar-nav">
-	        <li class="active"><a href="#">Link</a></li>
+	        <li class="active"><a href="#"><span class="glyphicon glyphicon-cloud"></span></a></li>
+	        <li><a href="#" id="staff-name"></a></li>
 	        <li class="dropdown">
-	          <a href="#" class="dropdown-toggle" data-toggle="dropdown">技能组 <span class="caret"></span></a>
-	          <ul id="skills-group" class="dropdown-menu" role="menu">
-	            <li><a href="#">售前</a></li>
-	            <li><a href="#">售后</a></li>
-	            <li class="divider"></li>
-	            <li><a href="#">接客</a></li>
+	          <a href="#" class="dropdown-toggle" data-toggle="dropdown">技能组<span class="caret"></span></a>
+	          <ul id="skills-group" class="dropdown-menu" style="min-width:50px" role="menu">
 	          </ul>
 	        </li>
+	        <li class="dropdown">
+              <a href="#" class="dropdown-toggle" data-toggle="dropdown">客服菜单<span class="caret"></span></a>
+              <ul id="staff-menu" class="dropdown-menu" style="min-width:50px" role="menu">
+                <li><a id="staff-checkin-button" "href="#" onclick="weixin_checkin()"><span class='glyphicon glyphicon-log-in'></span><span>&nbsp;&nbsp;签到</span></a></li>
+                <li class="divider"></li>
+              </ul>
+            </li>
+            <li class="dropdown">
+              <a href="#" class="dropdown-toggle" data-toggle="dropdown">常用语<span class="caret"></span></a>
+              <ul id="staff-express-message" class="dropdown-menu" style="min-width:50px" role="menu">
+              </ul>
+            </li>
 	      </ul>
 	      <ul class="nav navbar-nav navbar-right">
-	        <li><a href="#">Link</a></li>
-	        <li class="dropdown">
-	          <a href="#" class="dropdown-toggle" data-toggle="dropdown">Dropdown <span class="caret"></span></a>
-	          <ul  class="dropdown-menu" role="menu">
-	            <li><a href="#">Action</a></li>
-	            <li><a href="#">Another action</a></li>
-	            <li><a href="#">Something else here</a></li>
-	            <li class="divider"></li>
-	            <li><a href="#">Separated link</a></li>
-	          </ul>
-	        </li>
+	        <li class="active"><a id="staff-status" href="#" style="background: rgb(184, 55, 55);" >未签到</a></li>
+            <li><a href="#"><span class="glyphicon glyphicon-off"></span></a></li>
 	      </ul>
 	    </div><!-- /.navbar-collapse -->
 	  </div><!-- /.container-fluid -->
 	</nav>
-
-    <div class="container" style="background-color:#6B747A;">
-
-      <div class="row row-offcanvas row-offcanvas-right">
+    <div class="container" style="background-color:#6B747A;padding: 40px 15px 0;">
+      <div class="row row-offcanvas row-offcanvas-right" style="display:none;">
 
         <div class="col-xs-6 col-sm-3 sidebar-offcanvas" id="sidebar" role="navigation">
 		  
 		  <div class="panel panel-primary">
 			  <div class="panel-heading">
-			    <a class="pull-left" style="margin-top:-48px;margin-left:-5px;" href="#">
-                  <img id="staff-headerimg" class="media-object img-circle" src="http://wx.qlogo.cn/mmopen/WWxicToNQlgxvdF4V3yM5IncQQjXk7pPgkaeglBxcRg1lHwcREca2OdMxhn6biaoT8qDz2mL8ibvQxVnvZfxpicQLPIvtnagxnKA/64" alt="...">
+			    <a class="pull-left" style="margin-top:-53px;margin-left:-5px;" href="#">
+                  <img id="staff-headerimg" class="media-object img-circle" src="" style="border:2px solid white">
                 </a>
-			    <h3 class="panel-title">Bowen</h3>
+			    <h3 class="panel-title staff-working-num"></h3>
 			  </div>
 			  <div class="panel-body">
-			    <div class="list-group">
+			    <div class="list-group channel-list">
+                </div>
+                <div class="list-group">
+                    <a href="#" id="my-messages" class="list-group-item">我的留言</a>
                 </div>
 			  </div>
 			</div>
@@ -451,32 +596,11 @@
 
         <div class="col-xs-12 col-sm-9">
           <div class="jumbotron" style="padding-top:0;padding:0" >
-
+          
+            <div id="my-message-iframe" class="embed-responsive embed-responsive-16by9" style="display:none;">
+                <iframe class="embed-responsive-item weixin-message-list" style="border-radius:4px;" src=""></iframe>
+            </div>
             
-            
-<!--              <div class="panel panel-primary">
-			  <div class="panel-heading" style="text-align:center">
-			    <h3 class="panel-title">Panel title</h3>
-			  </div>
-			  <div class="panel-body" id="escaped_roomId" style='height:350px; overflow:auto; margin-bottom;background-color: #EFF3F7;'>
-                    asdasda<br>
-                    asdasda<br>
-               </div>
-                
-                <div id='chat_editor' class='chatOperator lightBorder'>
-                <div class='inputArea'><div class='attach'><a href='javascript:;' class='emotion func expression' title='选择表情'></a>
-                    <a href='javascript:;' id="escaped_roomIduploader" class='func file' style='position:relative;display:block;margin:0;' title='图片文件'></a>
-                    </div>
-                    <div class="input-group">
-				      <input type="text" class="form-control">
-				      <span class="input-group-btn">
-				        <button class="btn btn-primary" onclick='postMessage("account","openid")' type="button">发送</button>
-				      </span>
-				    </div>
-                </div>
-			  </div>
-			</div>  -->
-			
           </div>
         </div><!--/span-->
 
@@ -484,6 +608,21 @@
       </div><!--/row-->
 
     </div>
+    
+    <div class="footer" style="background:#6B747A;">
+      <div class="container">
+        <p class="text-muted" style="color:rgb(182, 182, 182);text-align:center">CopyRight  2013-2014  和声云 版权所有    All Rights Reserved . 京ICP备14034791号</p>
+      </div>
+    </div>
+<script>
+$("#my-messages").click(function(){
+    $('.weixin-message-list').attr("src", weixinMessageUrl);
+	$(".weixin-chat-room").css("display","none");
+    $("#my-message-iframe").css("display","block");
+    $(".list-group-item").removeClass("active");
+    $("#my-messages").addClass("active");
+});
 
+</script>
 </body>
 </html>

@@ -39,6 +39,7 @@ import com.hesong.ftp.FTPConnectionFactory;
 import com.hesong.sugarCRM.HttpClientUtil;
 import com.hesong.sugarCRM.SugarCRMCaller;
 import com.hesong.weixinAPI.tools.API;
+import com.hesong.weixinAPI.tools.EncryptDecryptData;
 import com.hesong.weixinAPI.tools.WeChatHttpsUtil;
 
 public class WeChatTest {
@@ -228,23 +229,18 @@ public class WeChatTest {
     @Test
     public void descTest() throws Exception{
         
-        String password = "376B4A409E5789CE";
-        try{  
-            SecureRandom random = new SecureRandom();  
-            DESKeySpec desKey = new DESKeySpec(password.getBytes());  
-            //创建一个密匙工厂，然后用它把DESKeySpec转换成  
-            SecretKeyFactory keyFactory = SecretKeyFactory.getInstance("DES");  
-            SecretKey securekey = keyFactory.generateSecret(desKey);  
-            //Cipher对象实际完成加密操作  
-            Cipher cipher = Cipher.getInstance("DES");  
-            //用密匙初始化Cipher对象  
-            cipher.init(Cipher.ENCRYPT_MODE, securekey, random);  
-            //现在，获取数据并加密  
-            //正式执行加密操作  
-            System.out.println(cipher.doFinal("blskyo71ds".getBytes()).toString());  
-            System.out.println("blskyo71ds".getBytes());
-            }catch(Throwable e){  
-                    e.printStackTrace();  
-            }  
+        String skey = "376B4A409E5789CE";
+        System.out.println("密匙===>" + skey);
+        String str = "blskyo71ds"; // 待加密数据
+        System.out.println("加密前："+str);
+        // 2.1 >>> 调用加密方法
+        String encryptedData = EncryptDecryptData.encrypt(skey, str);
+        System.out.println("加密后："+encryptedData);
+    }
+    
+    @Test
+    public void chaTest(){
+        System.out.println("#".equals("#"));
+        System.out.println("#".equals("#"));
     }
 }
