@@ -38,6 +38,7 @@ import redis.clients.jedis.JedisPoolConfig;
 import com.hesong.ftp.FTPConnectionFactory;
 import com.hesong.sugarCRM.HttpClientUtil;
 import com.hesong.sugarCRM.SugarCRMCaller;
+import com.hesong.weixinAPI.model.StaffSessionInfo;
 import com.hesong.weixinAPI.tools.API;
 import com.hesong.weixinAPI.tools.EncryptDecryptData;
 import com.hesong.weixinAPI.tools.WeChatHttpsUtil;
@@ -242,5 +243,27 @@ public class WeChatTest {
     public void chaTest(){
         System.out.println("#".equals("#"));
         System.out.println("#".equals("#"));
+    }
+    
+    @Test
+    public void sua(){
+        SugarCRMCaller caller = new SugarCRMCaller();
+        String session = caller.login("admin",
+                "p@ssw0rd");
+        
+        JSONObject request = new JSONObject();
+        request.put("session", session);
+        JSONObject params = new JSONObject();
+        params.put("client_openid", "oPnbFjnlygs0LzzcH24fUlMx926s");
+        params.put("staff_openid", "ogfGduA0yfPY_aET7do8GvE5Bm4w");
+        params.put("isChating", "0");
+        params.put("queryDate", "all");
+        params.put("queryContent", "");
+        
+        request.put("history_params", params);
+        request.put("pageNum", "1");
+        
+        String r = caller.call("getChatHistoryDetail", request.toString());
+        System.out.println(r);
     }
 }

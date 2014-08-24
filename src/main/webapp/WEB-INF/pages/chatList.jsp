@@ -32,6 +32,7 @@
     var titleMessageRemaind;
     var weixinMessageUrl = "";
     var isCheckedIn = false;
+    var layerRemainder;
     
     function clickList(id) {
     	console.log("clickList: " + id);
@@ -43,6 +44,16 @@
         var roomid = id.replace("channel-list", "chatboard");
         $(".weixin-chat-room").css("display","none"); 
         $("#" + roomid).css("display","block");
+    }
+    
+    function sendExpressMessage(message) {
+    	console.log("title="+message.title);
+        var id = getActiveChartboard();
+        console.log("id="+id);
+        if(id == null) return;
+        var inputId = id.replace("chatboard","input-message");
+        console.log("input = "+ "#"+id+" #"+inputId);
+        $('#'+id+' #'+inputId).val(message.title);
     }
     
     function getStaffInfo() {
@@ -66,13 +77,13 @@
                     	isCheckedIn = true;
                     	checkin(person);
                     }
-                    var skills = person.skills;
+/*                     var skills = person.skills;
                     for(var i=0;i<skills.length;i++){
                         if(i>0){
                             $("#skills-group").append('<li class="divider"></li>');
                         }
                         $("#skills-group").append('<li><a href="#">'+skills[i].name+'</a></li>');
-                    }
+                    } */
                     
                     getExpressMessage(person.tenant.tenantUn);
                     
@@ -152,16 +163,16 @@
             var id = channel.openId + "-channel-list";
             var html = '<a href="#" id="'+id+'" class="list-group-item staff-channel-list" onclick=\'clickList("'+id+'")\'>客服通道'+(i+1)+'<input style="display:none" value=0></a>';
             $(".channel-list").append(html);
-            
+            checkIsInSession(channel.openId);
              var chatBoard = "<div id='"+channel.openId+"-chatboard' class='panel panel-primary weixin-chat-room' style='display:none;'>";
                chatBoard += "<div class='panel-heading' style='text-align:center'>";
                chatBoard += "<h3 id='"+channel.openId+"-panel-heading' class='panel-title'>客服通道"+(i+1)+"</h3></div>";
                chatBoard += "<div id='"+channel.openId+"-panel-body' class='panel-body' style='height:350px; overflow:auto; margin-bottom;background-color: #EFF3F7;'></div>";
-               chatBoard += "<div id='"+channel.openId+"-chat-editor' class='chatOperator lightBorder' style='display:none'>";
+               chatBoard += "<div id='"+channel.openId+"-chat-editor' class='chatOperator lightBorder' style=''>";
                chatBoard += "<div class='inputArea'><div class='attach'><a href='javascript:;' class='emotion func expression' title='选择表情'></a>";
                chatBoard += "<a href='javascript:;' id='"+channel.openId+"-uploader' class='func file' style='position:relative;display:block;margin:0;' title='图片文件'></a></div>";
                chatBoard += "<div class='input-group'><input type='text' id='"+channel.openId+"-account-input' style='display:none' value='"+channel.weixinId+"'><input type='text' id='"+channel.openId+"-input-message' class='form-control weixin-input-area'><span class='input-group-btn'>";    
-               chatBoard += "<button id='"+channel.openId+"-sendmessage' class='btn btn-primary' onclick='postMessage(\""+channel.weixinId+"\",\""+channel.openId+"\")' type='button'>发送</button></span></div></div></div>";
+               chatBoard += "<button id='"+channel.openId+"-sendmessage' class='btn btn-primary' onclick='postMessage(\""+channel.weixinId+"\",\""+channel.openId+"\")' type='button'>发送</button><button type='button' class='btn btn-danger' onclick='endSession(\""+channel.openId+"\")' style='margin-left:10px'>结束会话</button></span></div></div></div>";
             
                 $(".jumbotron").append(chatBoard);
                 $('.emotion').qqFace();
@@ -205,19 +216,41 @@
         });
     }
     
-    function getExpressMessage(tenantUn) {
-    	var url = "http://www.clouduc.cn/sua/rest/n/getquickreply?tenantUn="+tenantUn;
+    function checkIsInSession(openid) {
+    	var url = "/wx/webchat/"+openid+"/isInSession";
         $.ajax({
             url : url,
             cache : false, 
-            async : false,
+            async : true,
             type : "GET",
             success : function (result){
-            	for(var i=0;i<result.length;i++){
-                    if(i>0){
-                        $("#staff-express-message").append('<li class="divider"></li>');
-                    }
-                    $("#staff-express-message").append('<li><a href="#" title='+result[i].replyContent+'>'+result[i].replyName+'</a></li>');
+                if(result.isInSession) {
+                	console.log("name: "+result.clientName);
+                	$('#'+openid+"-channel-list").prepend('<span class="glyphicon glyphicon-transfer">&nbsp;</span>')
+                    $('#'+openid+"-chat-editor").css("display","block");
+                	
+                	var history = result.history;
+
+                	for(var i=0; i<history.length; i++) {
+                		var message = history[i];
+                		console.log("message: " + message);
+                		var row;
+                		if(message.sender_type == "client") {
+                			row = "<div class='senderName'>"+message.time+"  "+message.sender_name+"</div><div class='chatItem you'><div class='cloud cloudText'><div class='cloudBody'><div class='cloudContent'>";
+                            row += "<pre style='white-space:pre-wrap'>"+ parse_content(message.content) +"</pre></div></div></div></div>";
+                		} else {
+                			row = "<div class='chatItem me'><div class='cloud cloudText'><div class='cloudBody'><div class='cloudContent'>";
+                            row += "<pre style='white-space:pre-wrap'>"+ parse_content(message.content) +"</pre></div></div></div></div>";
+                		}
+                		appendNewContent(openid, row);
+                	}
+                	
+                	var addToBoard = "<div class='sysmsg'>系统提示：您正在和客户‘"+result.clientName+"’进行对话。</div>";
+                    appendNewContent(openid, addToBoard);
+                    
+                    var chatboard = $('#'+openid+'-panel-body');
+                    var link = "<div class='sysmsg'><a id='"+openid+"-chat-history' onclick='getChatHistory(\""+openid+"\")' href='#'>点击查看聊天记录<input value='2' style='display:none' /></a></div>";
+                    chatboard.prepend(link);
                 }
             },
             error : function(error) {
@@ -225,7 +258,96 @@
             }
         });
     }
+    
+    function getExpressMessage(tenantUn) {
+    	var url = "http://www.clouduc.cn/sua/rest/n/getquickreply?tenantUn="+tenantUn;
+        $.ajax({
+            url : url,
+            cache : false, 
+            async : true,
+            type : "GET",
+            success : function (result){
+            	for(var i=0;i<result.length;i++){
+                    if(i>0){
+                        $("#staff-express-message").append('<li class="divider"></li>');
+                    }
+                    $("#staff-express-message").append('<li><a href="#" onclick="sendExpressMessage(this)" title='+result[i].replyContent+'>'+result[i].replyName+'</a></li>');
+                }
+            },
+            error : function(error) {
+                console.log("error:"+error);
+            }
+        });
+    }
+    
+    function endSession(id) {
+    	var url = "/wx/webchat/"+id+"/endSession";
+        $.ajax({
+            url : url,
+            cache : false, 
+            async : true,
+            type : "GET",
+            success : function (){
+            	var chatboard = $('#'+id+'-panel-body');
+            	chatboard.append("<div class='sysmsg'>系统提示：您已向客户发出结束会话请求，请等待客户反馈。</div>");
+            	chatboard.scrollTop(chatboard[0].scrollHeight);
+            },
+            error : function() {
+            }
+        });
+    }
 
+    function getChatHistory(id){
+    	var page = $('#'+id+'-chat-history input').val();
+    	console.log($('#'+id+'-chat-history input').val());
+    	var url = "/wx/webchat/"+id+"/getChastHistory/"+page;
+    	var a_tag = $('#'+id+'-chat-history');
+    	var chatboard = $('#'+id+'-panel-body');
+    	a_tag.html("<img src='../../wx/resources/images/loading.gif' />");
+        $.ajax({
+            url : url,
+            cache : false, 
+            async : true,
+            type : "GET",
+            success : function (result){
+            	if(result.length > 0) {
+            		for(var i=result.length-1; i>=0; i--) {
+            			var message = result[i];
+                        console.log("message: " + message);
+                        var row;
+                        if(message.sender_type == "client") {
+                            row = "<div class='senderName'>"+message.time+"  "+message.sender_name+"</div><div class='chatItem you'><div class='cloud cloudText'><div class='cloudBody'><div class='cloudContent'>";
+                            row += "<pre style='white-space:pre-wrap'>"+ parse_content(message.content) +"</pre></div></div></div></div>";
+                        } else {
+                            row = "<div class='chatItem me'><div class='cloud cloudText'><div class='cloudBody'><div class='cloudContent'>";
+                            row += "<pre style='white-space:pre-wrap'>"+ parse_content(message.content) +"</pre></div></div></div></div>";
+                        }
+                        chatboard.prepend(row);
+            		}
+                    a_tag.remove();
+                    var nextpage = parseInt(page)+1;
+                    var link = "<div class='sysmsg'><a id='"+id+"-chat-history' onclick='getChatHistory(\""+id+"\")' href='#'>查看更早的聊天记录<input value='"+nextpage+"' style='display:none' /></a></div>";
+                    chatboard.prepend(link);
+
+            	} else {
+            		console.log("No history");
+            		a_tag.remove();
+                    chatboard.prepend("<div class='sysmsg'>没有聊天记录</div>");
+            	}
+                for(var i=0;i<result.length;i++){
+                    if(i>0){
+                        $("#staff-express-message").append('<li class="divider"></li>');
+                    }
+                    $("#staff-express-message").append('<li><a href="#" onclick="sendExpressMessage(this)" title='+result[i].replyContent+'>'+result[i].replyName+'</a></li>');
+                }
+            },
+            error : function(error) {
+                console.log("error:"+error);
+                a_tag.remove();
+                chatboard.prepend("<div class='sysmsg'>没有聊天记录</div>");
+            }
+        });
+    }
 	
 	// 接收消息，并根据消息类型修改客户端聊天窗口
 	function getMessage(stff_uuid) {
@@ -243,12 +365,24 @@
 					console.log("action: "+data.action);
 					if(data.action == "takeClient") {
 						console.log("takeClient");
+						$('#'+room+"-panel-body").empty();
                         clickList(room+"-channel-list");
                         $('#'+room+"-channel-list").prepend('<span class="glyphicon glyphicon-transfer">&nbsp;</span>')
                         $('#'+room+"-chat-editor").css("display","block");
-                        var addToBoard = "<div class='sysmsg'>"+data.content+"</div>";
+                        var addToBoard = "<div class='sysmsg'><a id='"+room+"-chat-history' onclick='getChatHistory(\""+room+"\")' href='#'>点击查看聊天记录<input value='1' style='display:none' /></a></div>";
+                        addToBoard += "<div class='sysmsg'>"+data.content+"</div>";
                         appendNewContent(room, addToBoard);
-					} else if(data.action == "endSession") {
+					} else if(data.action == "takeClientFromMobile") {
+						console.log("takeClientFromMobile");
+						$(".xubox_layer").remove();
+						$('#'+room+"-panel-body").empty();
+                        clickList(room+"-channel-list");
+                        $('#'+room+"-channel-list").prepend('<span class="glyphicon glyphicon-transfer">&nbsp;</span>')
+                        $('#'+room+"-chat-editor").css("display","block");
+                        var addToBoard = "<div class='sysmsg'><a id='"+room+"-chat-history' onclick='getChatHistory(\""+room+"\")' href='#'>点击查看聊天记录<input value='1' style='display:none' /></a></div>";
+                        addToBoard += "<div class='sysmsg'>"+data.content+"</div>";
+                        appendNewContent(room, addToBoard);
+                    }  else if(data.action == "endSession") {
 						console.log("endSession");
 						$('#'+room+"-channel-list").find("span.glyphicon").remove();
                         $('#'+room+"-chat-editor").css("display","none");
@@ -278,18 +412,18 @@
                             type: 4,
                             btn: ['确定','忽略'],
                             yes: function(index){
+                            	layerRemainder = index;
                             	$.ajax({
                                         url : "/wx/webchat/"+data.channelId+"/takeClient",
                                         cache : false, 
                                         async : true,
                                         type : "GET",
-                                        dataType : 'text',
+                                        dataType : 'json',
                                         success : function(data) {
-                                        	//$('#'+chatBoardId).css("display","block");
-                                        	//$('#'+room+"-channel-list").addClass("active");
-                                        	//clickList(room);
-                                        	//$('#'+room+"-channel-list").prepend('<span class="glyphicon glyphicon-transfer">&nbsp;</span>')
-                                        	//$('#'+room+"-chat-editor").css("display","block");
+                                        	console.log("take client failed: "+ data.msg);
+                                        	if(!data.success) {
+                                        		alert(data.msg);
+                                        	}
                                         },
                                         error : function(error) {
                                         }
@@ -545,11 +679,11 @@
 	      <ul class="nav navbar-nav">
 	        <li class="active"><a href="#"><span class="glyphicon glyphicon-cloud"></span></a></li>
 	        <li><a href="#" id="staff-name"></a></li>
-	        <li class="dropdown">
+<!-- 	        <li class="dropdown">
 	          <a href="#" class="dropdown-toggle" data-toggle="dropdown">技能组<span class="caret"></span></a>
 	          <ul id="skills-group" class="dropdown-menu" style="min-width:50px" role="menu">
 	          </ul>
-	        </li>
+	        </li> -->
 	        <li class="dropdown">
               <a href="#" class="dropdown-toggle" data-toggle="dropdown">客服菜单<span class="caret"></span></a>
               <ul id="staff-menu" class="dropdown-menu" style="min-width:50px" role="menu">
@@ -589,16 +723,26 @@
                     <a href="#" id="my-messages" class="list-group-item">我的留言</a>
                 </div>
 			  </div>
-			</div>
+		  </div>
+		  
+		  <div class="panel panel-primary" style="max-height:400px">
+              <div class="panel-heading">
+                <h3 class="panel-title">历史会话</h3>
+              </div>
+              <div class="panel-body">
+                <div class="list-group hitstory-client-list">
+                </div>
+              </div>
+          </div>
 		  
           
         </div><!--/span-->
 
         <div class="col-xs-12 col-sm-9">
-          <div class="jumbotron" style="padding-top:0;padding:0" >
+          <div class="jumbotron" style="padding-top:0;padding:0;" >
           
             <div id="my-message-iframe" class="embed-responsive embed-responsive-16by9" style="display:none;">
-                <iframe class="embed-responsive-item weixin-message-list" style="border-radius:4px;" src=""></iframe>
+                <iframe class="embed-responsive-item weixin-message-list" style="border-radius:4px;max-height:420px" src=""></iframe>
             </div>
             
           </div>

@@ -262,7 +262,7 @@ public class MessageRouter implements Runnable {
                     String content = String.format("%s: %s", s.getClient_name(), message.get(API.MESSAGE_CONTENT_TAG));
                     sendMessage(s.getOpenid(), sToken, content, API.TEXT_MESSAGE);
                     s.setLastReceived(new Date());
-                    recordMessage(s, message, API.TEXT_MESSAGE, "wx", true);
+                    recordMessage(s, message.get(API.MESSAGE_CONTENT_TAG), API.TEXT_MESSAGE, "wx", true);
                     
                     // Remove session from CheckEndSessionJob.endSessionMap
                     if (CheckEndSessionJob.endSessionMap.containsKey(tenantUn)
@@ -297,7 +297,7 @@ public class MessageRouter implements Runnable {
                     JSONObject weibo_ret = WeChatHttpsUtil.httpPostRequest(API.WEIBO_SEND_MESSAGE_URL, weibo_request.toString(), 0);
                     log.info("Send weibo message return: "+ weibo_ret.toString());
                     s.setLastReceived(new Date());
-                    recordMessage(s, message, API.TEXT_MESSAGE, "wb", false);
+                    recordMessage(s, message.get(API.MESSAGE_CONTENT_TAG), API.TEXT_MESSAGE, "wb", false);
                     return;
                 }
                 
@@ -306,7 +306,7 @@ public class MessageRouter implements Runnable {
                 sendMessage(s.getClient_openid(), cToken, content, API.TEXT_MESSAGE);
                 s.setLastReceived(new Date());
                 String message_source = s.getClient_type();
-                recordMessage(s, message, API.TEXT_MESSAGE, message_source, false);
+                recordMessage(s, message.get(API.MESSAGE_CONTENT_TAG), API.TEXT_MESSAGE, message_source, false);
                 
                 // Send to web page
                 if (s.isWebStaff()) {
@@ -1164,7 +1164,7 @@ public class MessageRouter implements Runnable {
             sendMessage(staff_openid, sToken, text, API.TEXT_MESSAGE);
             // To web staff
             if (session.isWebStaff()) {
-                sendWebMessage("sysMessage", text, session.getOpenid(), "", session.getStaff_uuid(), "takeClient");
+                sendWebMessage("sysMessage", text, session.getOpenid(), "", session.getStaff_uuid(), "takeClientFromMobile");
             }
             // To client
             text = String.format("系统提示：客服%s为您服务，请问有什么可以帮助您？如果希望结束此会话，直接输入#号键结束!", session.getStaffid());
@@ -1426,10 +1426,10 @@ public class MessageRouter implements Runnable {
         WeChatHttpsUtil.httpPostRequest(url, json.toString(), 0);
     }
     
-    private void recordMessage(StaffSessionInfo s, Map<String, String> message, String type, String source, boolean isClient) {
+    public static void recordMessage(StaffSessionInfo s, String content, String type, String source, boolean isClient) {
         JSONObject messageToRecord = new JSONObject();
         messageToRecord.put("session_id", s.getSession());
-        messageToRecord.put("content", message.get(API.MESSAGE_CONTENT_TAG));
+        messageToRecord.put("content", content);
         messageToRecord.put("message_type", type);
         messageToRecord.put("message_source", source);
         messageToRecord.put("tenant_code", s.getTenantUn());
@@ -1462,7 +1462,7 @@ public class MessageRouter implements Runnable {
         json_request.put("method", "saveChatHistory");
         
         try {
-            getSuaRequestToExecuteQueue().put(json_request);
+            suaRequestToExecuteQueue.put(json_request);
         } catch (InterruptedException e) {
             log.error("Put message to record queue failed: " + e.toString());
             e.printStackTrace();
