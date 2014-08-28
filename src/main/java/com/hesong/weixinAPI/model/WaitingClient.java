@@ -6,6 +6,10 @@ public class WaitingClient {
     private String openid;
     private String account;
     private String name;
+    private String image;
+    private int sex;
+    private String city;
+    private String province;
     private long time;
     
     public String getTenantUn() {
@@ -38,19 +42,43 @@ public class WaitingClient {
     public void setTime(long time) {
         this.time = time;
     }
+    public String getImage() {
+        return image;
+    }
+    public void setImage(String image) {
+        this.image = image;
+    }
+    public int getSex() {
+        return sex;
+    }
+    public void setSex(int sex) {
+        this.sex = sex;
+    }
+    public String getCity() {
+        return city;
+    }
+    public void setCity(String city) {
+        this.city = city;
+    }
+    public String getProvince() {
+        return province;
+    }
+    public void setProvince(String province) {
+        this.province = province;
+    }
     public WaitingClient(String tenantUn, String openid, String account,
-            String name, long time) {
+            String name, String image, int sex, String city, String province,
+            long time) {
         super();
         this.tenantUn = tenantUn;
         this.openid = openid;
         this.account = account;
         this.name = name;
+        this.image = image;
+        this.sex = sex;
+        this.city = city;
+        this.province = province;
         this.time = time;
-    }
-    @Override
-    public String toString() {
-        return "WaitingClient [tenantUn=" + tenantUn + ", openid=" + openid
-                + ", account=" + account + ", name=" + name + "]";
     }
 
 }

@@ -91,11 +91,19 @@ public class UtilsController {
                 StaffSessionInfo session = MessageRouter.activeStaffMap.get(openid);
                 if (null != session && session.isBusy()) {
                     String text = json.getString("text");
+                    String content = String.format("客服%s：%s", session.getStaffid(), text);
+                    
                     String sToken = MessageRouter.getAccessToken(session.getAccount());
-                    MessageRouter.sendMessage(openid, sToken, text, API.TEXT_MESSAGE);
+                    MessageRouter.sendMessage(openid, sToken, content, API.TEXT_MESSAGE);
                     
                     String cToken = MessageRouter.getAccessToken(session.getClient_account());
-                    MessageRouter.sendMessage(session.getClient_openid(), cToken, text, API.TEXT_MESSAGE);
+                    MessageRouter.sendMessage(session.getClient_openid(), cToken, content, API.TEXT_MESSAGE);
+                    
+                    MessageRouter.recordMessage(session, content, API.TEXT_MESSAGE, "wx", false);
+                    
+                    if (session.isWebStaff()) {
+                        MessageRouter.sendWebMessage("text", text, session.getOpenid(), session.getStaff_uuid(), session.getStaff_uuid(), "", new JSONObject());
+                    }
                     
                     return WeChatHttpsUtil.getErrorMsg(0, "ok").toString();
                 } else {

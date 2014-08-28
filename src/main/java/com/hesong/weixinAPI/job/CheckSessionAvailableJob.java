@@ -5,6 +5,8 @@ import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 
+import net.sf.json.JSONObject;
+
 import org.apache.log4j.Logger;
 import org.quartz.Job;
 import org.quartz.JobExecutionContext;
@@ -73,9 +75,13 @@ public class CheckSessionAvailableJob implements Job {
                                     text, API.TEXT_MESSAGE);
                             // To web staff
                             if (session.isWebStaff()) {
+                                JSONObject data = new JSONObject();
+                                data.put("clientOpenid", session.getClient_openid());
+                                data.put("clientName", session.getClient_name());
+                                data.put("clientImage", session.getClient_image());
                                 MessageRouter.sendWebMessage("sysMessage", text,
                                         session.getOpenid(), "",
-                                        session.getStaff_uuid(), "endSession");
+                                        session.getStaff_uuid(), "endSession", data);
                             }
 
                         } catch (Exception e) {

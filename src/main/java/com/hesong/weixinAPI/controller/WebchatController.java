@@ -34,6 +34,7 @@ import redis.clients.jedis.Jedis;
 
 import com.hesong.sugarCRM.HttpClientUtil;
 import com.hesong.sugarCRM.SugarCRMCaller;
+import com.hesong.weixinAPI.context.AppContext;
 import com.hesong.weixinAPI.context.ContextPreloader;
 import com.hesong.weixinAPI.core.MessageRouter;
 import com.hesong.weixinAPI.core.SUAExecutor;
@@ -44,6 +45,8 @@ import com.hesong.weixinAPI.model.ChatMessage;
 import com.hesong.weixinAPI.model.Staff;
 import com.hesong.weixinAPI.model.StaffSessionInfo;
 import com.hesong.weixinAPI.model.WaitingClient;
+import com.hesong.weixinAPI.mq.MQManager;
+import com.hesong.weixinAPI.mq.events.MQStaffCheckoutEvent;
 import com.hesong.weixinAPI.tools.API;
 import com.hesong.weixinAPI.tools.EncryptDecryptData;
 import com.hesong.weixinAPI.tools.WeChatHttpsUtil;
@@ -63,15 +66,17 @@ public class WebchatController {
             @CookieValue(value = "WX_STF_UID", defaultValue = "") String staff_uuid) {
         log.info("staff_uuid=" + staff_uuid);
         if (staff_uuid.equals("")) {
-            return "webchatError";
+            return "login";
         }
         String url = API.SUA_STAFF_WEB_LOGIN_URL + staff_uuid;
+        log.info("Waiting sua check...");
         JSONObject staff_info = JSONObject.fromObject(HttpClientUtil.httpGet(url));
         if (staff_info.getBoolean("success")){
+            log.info("Sua checked.");
             return "chatList";
         }
         
-        return "webchatError";
+        return "login";
     }
     
     @ResponseBody
@@ -130,8 +135,15 @@ public class WebchatController {
     }
     
     @ResponseBody
-    @RequestMapping(value = "/{staff_openid}/getChastHistory/{page}", method = RequestMethod.GET)
-    public JSONArray getChastHistoryByPage(@PathVariable String staff_openid,
+    @RequestMapping(value = "/{tenantUn}/{staff_working_num}/getHistoryList/{page}", method = RequestMethod.GET)
+    public JSONArray getHistoryList(@PathVariable String tenantUn, @PathVariable String staff_working_num,
+            @PathVariable String page) {
+        return getHistoryList(tenantUn, staff_working_num, Integer.parseInt(page));
+    }
+    
+    @ResponseBody
+    @RequestMapping(value = "/{staff_openid}/getChatHistory/{page}", method = RequestMethod.GET)
+    public JSONArray getChatHistoryByPage(@PathVariable String staff_openid,
             @PathVariable String page) {
         if (MessageRouter.activeStaffMap.containsKey(staff_openid)) {
             StaffSessionInfo s = MessageRouter.activeStaffMap.get(staff_openid);
@@ -151,6 +163,8 @@ public class WebchatController {
             if (null!=session && session.isBusy()) {
                 ret.put("isInSession", true);
                 ret.put("clientName", session.getClient_name());
+                ret.put("clientImage", session.getClient_image());
+                ret.put("clientOpenid", session.getClient_openid());
                 ret.put("history", getChatHistory(session.getOpenid(), session.getClient_openid(), "0"));
             } else {
                 ret.put("isInSession", false);
@@ -290,7 +304,7 @@ public class WebchatController {
                         if (s.getClient_type().equalsIgnoreCase("wx")) {
                          // Remaind client that staff is leaving.
                             String token = jedis.hget(API.REDIS_WEIXIN_ACCESS_TOKEN_KEY, s.getClient_account()); //ContextPreloader.Account_Map.get(s.getClient_account()).getToken();
-                            String text = "对不起，客服MM有急事下线了,会话已结束。您可以使用留言功能,客服MM将会在第一时间给您回复[微笑]";
+                            String text = "系统提示：对不起，客服MM有急事下线了,会话已结束。您可以使用留言功能,客服MM将会在第一时间给您回复[微笑]";
                             MessageRouter.sendMessage(s.getClient_openid(), token, text, "text");
 
                             if (CheckSessionAvailableJob.sessionMap.containsKey(tenantUn)) {
@@ -311,10 +325,17 @@ public class WebchatController {
                     MessageRouter.activeStaffMap.remove(s.getOpenid());
                     MessageRouter.staffIdList.remove(s.getOpenid());
                 }
-                staff_map.remove(staff_uuid);
                 
-                jedis.hdel(API.REDIS_WEIXIN_WEBCHAT_SESSIONID, staff_uuid);
                 ContextPreloader.jedisPool.returnResource(jedis);
+                
+                JSONObject eventMsg = new JSONObject();
+                eventMsg.put("staff_uuid", staff_uuid);
+                MQStaffCheckoutEvent event = new MQStaffCheckoutEvent(eventMsg.toString());
+                MQManager manager = (MQManager) AppContext
+                        .getApplicationContext().getBean("MQManager");
+                manager.publishTopicEvent(event);
+                
+                staff_map.remove(staff_uuid);
                 
                 return WeChatHttpsUtil.getErrorMsg(0, "ok");
             } else {
@@ -338,10 +359,6 @@ public class WebchatController {
         JSONObject response = new JSONObject();
         
         if (session.isBusy()) {
-//            String text = "系统提示：您正在和客户通话,无法实施该操作.";
-//            msg.setContent(text);
-//            processMessage(msg, session.getStaff_uuid());
-            
             response.put("success", false);
             response.put("msg", "系统提示：您正在和客户通话,无法实施该操作.");
             return response;
@@ -349,18 +366,12 @@ public class WebchatController {
         
         String tenentUn = session.getTenantUn();
         if (!MessageRouter.mulClientStaffMap.containsKey(tenentUn) || !MessageRouter.mulClientStaffMap.get(tenentUn).containsKey(session.getStaff_uuid())) {
-//            String text = "系统提示：您还没有签到，无法使用此功能!";
-//            msg.setContent(text);
-//            processMessage(msg, session.getStaff_uuid());
             response.put("success", false);
             response.put("msg", "系统提示：您还没有签到，无法使用此功能!");
             return response;
         }
         
         if (!MessageRouter.waitingList.containsKey(tenentUn)) {
-//            String text = "系统提示：请求已被其他客服抢接或没有客户发起人工请求.";
-//            msg.setContent(text);
-//            processMessage(msg, session.getStaff_uuid());
             response.put("success", false);
             response.put("msg", "系统提示：请求已被其他客服抢接或没有客户发起人工请求.");
             return response;
@@ -376,9 +387,6 @@ public class WebchatController {
             }
         }
         if (null == client) {
-//            String text = "系统提示：请求已被其他坐席抢接或没有客户发起人工请求.";
-//            msg.setContent(text);
-//            processMessage(msg, session.getStaff_uuid());
             response.put("success", false);
             response.put("msg", "系统提示：请求已被其他坐席抢接或没有客户发起人工请求.");
             return response;
@@ -399,6 +407,7 @@ public class WebchatController {
             session.setClient_openid(client.getOpenid());
             session.setClient_account(client.getAccount());
             session.setClient_name(client.getName());
+            session.setClient_image(client.getImage());
             session.setClient_type("wx");
             session.setSession(UUID.randomUUID().toString());
             session.setBeginTime(API.TIME_FORMAT.format(new Date()));
@@ -411,9 +420,19 @@ public class WebchatController {
             // To web
             msg.setContent(text);
             msg.setAction("takeClient");
+            
+            JSONObject data = new JSONObject();
+            data.put("clientOpenid", client.getOpenid());
+            data.put("clientName", client.getName());
+            data.put("clientImage", client.getImage());
+            data.put("clientProvince", client.getProvince());
+            data.put("city", client.getCity());
+            data.put("sex", client.getSex());
+            
+            msg.setData(data);
             processMessage(msg, session.getStaff_uuid());
             // To client
-            text = String.format("系统提示：会话已建立,客服%s将为您服务[微笑]", session.getStaffid());
+            text = String.format("系统提示：客服%s为您服务，请问有什么可以帮助您？如果希望结束此会话，直接输入#号键结束!", session.getStaffid());
             MessageRouter.sendMessage(client.getOpenid(), MessageRouter.getAccessToken(client.getAccount()), text, API.TEXT_MESSAGE);
 
             response.put("success", true);
@@ -422,6 +441,104 @@ public class WebchatController {
             response.put("success", false);
             response.put("msg", "系统提示：系统错误，请联系管理员.");
             return response;
+        }
+    }
+    
+    @ResponseBody
+    @RequestMapping(value = "/{tenantUn}/takeClientFromWeb/{staff_uuid}", method = RequestMethod.GET)
+    public JSONObject takeClientFromWeb(@PathVariable String tenantUn, @PathVariable String staff_uuid){
+        if (!MessageRouter.waitingList.containsKey(tenantUn)) {
+            return createErrMsg("系统提示：请求已被其他客服抢接或没有客户发起人工请求.");
+        }
+        
+        Staff staff = null;
+        if (MessageRouter.mulClientStaffMap.containsKey(tenantUn)
+                && MessageRouter.mulClientStaffMap.get(tenantUn).containsKey(staff_uuid)) {
+            staff = MessageRouter.mulClientStaffMap.get(tenantUn).get(staff_uuid);
+        }
+        if (staff == null) {
+            return createErrMsg("系统提示：坐席还没有签到！");
+        }
+        
+        StaffSessionInfo session = null;
+        for (StaffSessionInfo s : staff.getSessionChannelList()) {
+            if (!s.isBusy()) {
+                session = s;
+                break;
+            }
+        }
+        
+        if (null == session) {
+            return createErrMsg("系统提示：没有空闲的客服通道！");
+        }
+        
+        ChatMessage msg = new ChatMessage();
+        msg.setChannelId(session.getOpenid());
+        msg.setMsgtype("sysMessage");
+        msg.setSenderName(session.getStaff_uuid());
+        msg.setAction("");
+        
+        Map<String, Queue<WaitingClient>> c_map = MessageRouter.waitingList.get(tenantUn);
+        WaitingClient client = null;
+        for (String skill : staff.getSkills()) {
+            if (c_map.containsKey(skill) && !c_map.get(skill).isEmpty()) {
+                client = c_map.get(skill).poll();
+                break;
+            }
+        }
+        if (null == client) {
+            return createErrMsg("系统提示：请求已被其他坐席抢接或没有客户发起人工请求.");
+        }
+        
+        Map<String, StaffSessionInfo> client_session = CheckSessionAvailableJob.sessionMap.get(session.getTenantUn());
+        if (null == client_session) {
+            client_session = new ConcurrentHashMap<String, StaffSessionInfo>();
+            CheckSessionAvailableJob.sessionMap.put(tenantUn, client_session);
+        }
+        
+        if (!client_session.containsKey(client.getOpenid())) {
+            // Remove client openid from waiting list
+            MessageRouter.waitingListIDs.remove(client.getOpenid());
+
+            session.setBusy(true);
+            session.setLastReceived(new Date());
+            session.setClient_openid(client.getOpenid());
+            session.setClient_account(client.getAccount());
+            session.setClient_name(client.getName());
+            session.setClient_image(client.getImage());
+            session.setClient_type("wx");
+            session.setSession(UUID.randomUUID().toString());
+            session.setBeginTime(API.TIME_FORMAT.format(new Date()));
+            client_session.put(client.getOpenid(), session);
+            
+            // To staff
+            String text = String.format("系统提示：您已经和客户\"%s\"建立通话.", client.getName());
+            String sToken = MessageRouter.getAccessToken(session.getAccount());
+            MessageRouter.sendMessage(session.getOpenid(), sToken, text, API.TEXT_MESSAGE);
+            // To web
+            msg.setContent(text);
+            msg.setAction("takeClient");
+            
+            JSONObject data = new JSONObject();
+            data.put("clientOpenid", client.getOpenid());
+            data.put("clientName", client.getName());
+            data.put("clientImage", client.getImage());
+            data.put("clientProvince", client.getProvince());
+            data.put("city", client.getCity());
+            data.put("sex", client.getSex());
+            
+            msg.setData(data);
+            
+            processMessage(msg, session.getStaff_uuid());
+            // To client
+            text = String.format("系统提示：客服%s为您服务，请问有什么可以帮助您？如果希望结束此会话，直接输入#号键结束!", session.getStaffid());
+            MessageRouter.sendMessage(client.getOpenid(), MessageRouter.getAccessToken(client.getAccount()), text, API.TEXT_MESSAGE);
+
+            JSONObject response = new JSONObject();
+            response.put("success", true);
+            return response;
+        } else {
+            return createErrMsg("系统提示：系统错误，请联系管理员.");
         }
     }
     
@@ -485,6 +602,8 @@ public class WebchatController {
             msg.setChannelId(messageMap.get("channelId"));
             msg.setMsgtype(msgtype);
             msg.setAction(messageMap.get("action"));
+            msg.setData(JSONObject.fromObject(messageMap.get("data")));
+            
             // 发布消息给所有用户
             processMessage(msg, staff_uuid);
             log.info("Msg: " + msg.toString());
@@ -542,6 +661,7 @@ public class WebchatController {
     public DeferredResult<ChatMessage> getMessages(@PathVariable final String staff_uuid, HttpServletRequest request) {
         // 创建DeferredResult<Message>
         DeferredResult<ChatMessage> dr = new DeferredResult<ChatMessage>(DEFFER_TIME);
+        log.info("staff_uuid:"+staff_uuid);
         // 若用户不存在则直接返回，否则将其放入用户请求列表中然后返回
         if (null == staff_uuid) {
             log.warn("staff_uuid is null");
@@ -555,6 +675,8 @@ public class WebchatController {
                 }
             });
             chatRequests.put(staff_uuid, dr);
+            log.info("DeferredResult: "+chatRequests.toString());
+            log.info("DeferredResult keys: "+chatRequests.keySet().toString());
             return dr;
         }
     }
@@ -570,9 +692,12 @@ public class WebchatController {
         
         StaffSessionInfo s = MessageRouter.activeStaffMap.get(roomId);
         if (null != s && s.isBusy() && s.isWebStaff()) {
+            String url = "";
+            
+            // To client
             String token = MessageRouter.getAccessToken(s.getClient_account());
             String post_url = API.UPLOAD_IMAGE_REQUEST_URL.replace("ACCESS_TOKEN", token) + "image";
-            
+
             JSONObject ret;
             try {
                 ret = WeChatHttpsUtil.httpPostFile(post_url, mulpartFile.getInputStream(), UUID.randomUUID().toString() + ".jpg");
@@ -580,23 +705,43 @@ public class WebchatController {
                 if (ret.containsKey("media_id")) {
                     String media_id = ret.getString("media_id");
                     MessageRouter.sendMessage(s.getClient_openid(), token, media_id, API.IMAGE_MESSAGE);
-                    return API.WEIXIN_MEDIA_URL.replace("ACCESS_TOKEN", token) + media_id;
+                    url = API.WEIXIN_MEDIA_URL.replace("ACCESS_TOKEN", token) + media_id;
                 } 
             } catch (IOException e) {
                 log.error("Uploader image failed: " + e.toString());
                 e.printStackTrace();
             }
             
+            // To staff
+            String stoken = MessageRouter.getAccessToken(s.getAccount());
+            String sPost_url = API.UPLOAD_IMAGE_REQUEST_URL.replace("ACCESS_TOKEN", stoken) + "image";
+            
+            JSONObject sRet;
+            try {
+                sRet = WeChatHttpsUtil.httpPostFile(sPost_url, mulpartFile.getInputStream(), UUID.randomUUID().toString() + ".jpg");
+                log.info("Upload return: "+sRet.toString());
+                if (sRet.containsKey("media_id")) {
+                    String media_id = sRet.getString("media_id");
+                    MessageRouter.sendMessage(s.getOpenid(), stoken, media_id, API.IMAGE_MESSAGE);
+                } 
+            } catch (IOException e) {
+                log.error("Uploader image failed: " + e.toString());
+                e.printStackTrace();
+            }
+            return url;
         } else {
-            return "Failed";
+            return "";
         }
          
-        return "Failed";
         
     }
     
     private void processMessage(ChatMessage msg, String staff_uuid) {
         log.info("processMessage: " + msg.toString());
+        log.info("staff_uuid: "+staff_uuid);
+        log.info("DeferredResult: "+chatRequests.toString());
+        log.info("DeferredResult keys: "+chatRequests.keySet().toString());
+
         DeferredResult<ChatMessage> tmp = chatRequests.get(staff_uuid);
         if (tmp == null) {
             log.warn("DeferredResult is null.");
@@ -637,6 +782,34 @@ public class WebchatController {
             JSONObject ret = JSONObject.fromObject(r);
             if (ret.getBoolean("success") && ret.containsKey("chatHistoryList")) {
                 return ret.getJSONArray("chatHistoryList");
+            } else {
+                return new JSONArray();
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+            return new JSONArray();
+        }
+    }
+    
+    private JSONArray getHistoryList(String tenantUn, String staff_working_num, int page) {
+        SugarCRMCaller caller = new SugarCRMCaller();
+        if (!caller.check_oauth(SUAExecutor.session)) {
+            SUAExecutor.session = caller.login("admin",
+                    "p@ssw0rd");
+            log.warn("Session_id expired, renew one: " + SUAExecutor.session);
+        }
+        JSONObject request = new JSONObject();
+        request.put("session", SUAExecutor.session);
+        request.put("staffnum", staff_working_num);
+        request.put("tenant_code", tenantUn);
+        request.put("pageNo", page);
+        request.put("pagesize", 5);
+        
+        String r = caller.call("getStaffServiceList", request.toString());
+        try {
+            JSONObject ret = JSONObject.fromObject(r);
+            if (ret.getBoolean("success") && ret.containsKey("serviceList")) {
+                return ret.getJSONArray("serviceList");
             } else {
                 return new JSONArray();
             }

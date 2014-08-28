@@ -1,5 +1,7 @@
 package com.hesong.weixinAPI.model;
 
+import net.sf.json.JSONObject;
+
 public class ChatMessage {
     private String channelId;
     private String senderName;
@@ -7,6 +9,8 @@ public class ChatMessage {
     private String date;
     private String msgtype;
     private String action;
+    private JSONObject data;
+    
     public String getChannelId() {
         return channelId;
     }
@@ -43,10 +47,11 @@ public class ChatMessage {
     public void setAction(String action) {
         this.action = action;
     }
-    @Override
-    public String toString() {
-        return "ChatMessage [channelId=" + channelId + ", senderName="
-                + senderName + ", content=" + content + ", date=" + date
-                + ", msgtype=" + msgtype + ", action=" + action + "]";
+    public JSONObject getData() {
+        return data;
     }
+    public void setData(JSONObject data) {
+        this.data = data;
+    }
+    
 }

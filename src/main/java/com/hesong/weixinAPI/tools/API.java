@@ -68,14 +68,14 @@ public class API {
     public static String WEIBO_SEND_MESSAGE_URL = "http://www.clouduc.cn:8080/weibo_robot/send";
     
     // SUA urls
-    public static String SUA_DEL_STAFF_URL = "http://www.clouduc.cn/sua/rest/n/tenant/channel/del?openid=";
+    public static String SUA_DEL_STAFF_URL = "http://www.clouduc.cn/hsy/rest/n/tenant/channel/del?openid=";
     public static String SUGAR_CRM_URL = "http://www.clouduc.cn/crm/service/v4/rest.php";
-    public static String SUA_TENANT_LIST_URL = "http://www.clouduc.cn/sua/rest/n/tenant/listwxparams";
-    public static String CHECKIN_URL = "http://www.clouduc.cn/sua/rest/n/tenant/kfCheckInInfo?idtype=uuid&id=";
-    public static String GET_QRCODE_TICKETS_URL = "http://www.clouduc.cn/sua/rest/n/tenant/codetokens";
-    public static String STAFF_OPENID_CHECKIN_URL = "http://www.clouduc.cn/sua/rest/n/tenant/kfCheckInInfo?idtype=openid&id=";
-    public static String SUA_STAFF_WEB_LOGIN_URL = "http://www.clouduc.cn/sua/rest/n/loginbyuid?uid=";
-    public static String SUA_STAFF_WEB_LOGIN_REQUEST = "http://www.clouduc.cn/sua/rest/n/login";
+    public static String SUA_TENANT_LIST_URL = "http://www.clouduc.cn/hsy/rest/n/tenant/listwxparams";
+    public static String CHECKIN_URL = "http://www.clouduc.cn/hsy/rest/n/tenant/kfCheckInInfo?idtype=uuid&id=";
+    public static String GET_QRCODE_TICKETS_URL = "http://www.clouduc.cn/hsy/rest/n/tenant/codetokens";
+    public static String STAFF_OPENID_CHECKIN_URL = "http://www.clouduc.cn/hsy/rest/n/tenant/kfCheckInInfo?idtype=openid&id=";
+    public static String SUA_STAFF_WEB_LOGIN_URL = "http://www.clouduc.cn/hsy/rest/n/loginbyuid?uid=";
+    public static String SUA_STAFF_WEB_LOGIN_REQUEST = "http://www.clouduc.cn/hsy/rest/n/login";
     
     // CRM urls
     public static String CLIENT_INFO_URL = "http://www.clouduc.cn/crm/mobile/weixin/prospectsDetail.php?kh_weixin_openid=%s&channel=%s";
@@ -85,14 +85,14 @@ public class API {
     
     
     // SUA urls
-//    public static String SUA_DEL_STAFF_URL = "http://www.hesyun.com/sua/rest/n/tenant/channel/del?openid=";
+//    public static String SUA_DEL_STAFF_URL = "http://www.hesyun.com/hsy/rest/n/tenant/channel/del?openid=";
 //    public static String SUGAR_CRM_URL = "http://www.hesyun.com/crm/service/v4/rest.php";
-//    public static String SUA_TENANT_LIST_URL = "http://www.hesyun.com/sua/rest/n/tenant/listwxparams";
-//    public static String CHECKIN_URL = "http://www.hesyun.com/sua/rest/n/tenant/kfCheckInInfo?idtype=uuid&id=";
-//    public static String GET_QRCODE_TICKETS_URL = "http://www.hesyun.com/sua/rest/n/tenant/codetokens";
-//    public static String STAFF_OPENID_CHECKIN_URL = "http://www.hesyun.com/sua/rest/n/tenant/kfCheckInInfo?idtype=openid&id=";
-//    public static String SUA_STAFF_WEB_LOGIN_URL = "http://www.hesyun.com/sua/rest/n/loginbyuid?uid=";
-//    public static String SUA_STAFF_WEB_LOGIN_REQUEST = "http://www.hesyun.com/sua/rest/n/login";
+//    public static String SUA_TENANT_LIST_URL = "http://www.hesyun.com/hsy/rest/n/tenant/listwxparams";
+//    public static String CHECKIN_URL = "http://www.hesyun.com/hsy/rest/n/tenant/kfCheckInInfo?idtype=uuid&id=";
+//    public static String GET_QRCODE_TICKETS_URL = "http://www.hesyun.com/hsy/rest/n/tenant/codetokens";
+//    public static String STAFF_OPENID_CHECKIN_URL = "http://www.hesyun.com/hsy/rest/n/tenant/kfCheckInInfo?idtype=openid&id=";
+//    public static String SUA_STAFF_WEB_LOGIN_URL = "http://www.hesyun.com/hsy/rest/n/loginbyuid?uid=";
+//    public static String SUA_STAFF_WEB_LOGIN_REQUEST = "http://www.hesyun.com/hsy/rest/n/login";
 //
 //    // CRM urls
 //    public static String CLIENT_INFO_URL = "http://www.hesyun.com/crm/mobile/weixin/prospectsDetail.php?kh_weixin_openid=%s&channel=%s";

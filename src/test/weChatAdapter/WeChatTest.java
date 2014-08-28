@@ -253,17 +253,11 @@ public class WeChatTest {
         
         JSONObject request = new JSONObject();
         request.put("session", session);
-        JSONObject params = new JSONObject();
-        params.put("client_openid", "oPnbFjnlygs0LzzcH24fUlMx926s");
-        params.put("staff_openid", "ogfGduA0yfPY_aET7do8GvE5Bm4w");
-        params.put("isChating", "0");
-        params.put("queryDate", "all");
-        params.put("queryContent", "");
+        request.put("openid", "ogfGduA0yfPY_aET7do8GvE5Bm4w");
+        request.put("pageNo", 2);
+        request.put("pagesize", 5);
         
-        request.put("history_params", params);
-        request.put("pageNum", "1");
-        
-        String r = caller.call("getChatHistoryDetail", request.toString());
+        String r = caller.call("getStaffServiceList", request.toString());
         System.out.println(r);
     }
 }

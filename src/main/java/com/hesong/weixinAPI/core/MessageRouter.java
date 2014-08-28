@@ -41,6 +41,7 @@ import com.hesong.weixinAPI.mq.MQEvent;
 import com.hesong.weixinAPI.mq.MQManager;
 import com.hesong.weixinAPI.mq.events.MQClientSubscribeEvent;
 import com.hesong.weixinAPI.mq.events.MQStaffCheckinEvent;
+import com.hesong.weixinAPI.mq.events.MQStaffCheckoutEvent;
 import com.hesong.weixinAPI.mq.events.MQStaffSubscribeEvent;
 import com.hesong.weixinAPI.mq.events.MQStaffUnsubscribeEvent;
 import com.hesong.weixinAPI.tools.API;
@@ -268,11 +269,11 @@ public class MessageRouter implements Runnable {
                     if (CheckEndSessionJob.endSessionMap.containsKey(tenantUn)
                             && CheckEndSessionJob.endSessionMap.get(tenantUn).containsKey(from_openid)) {
                         CheckEndSessionJob.endSessionMap.get(tenantUn).remove(from_openid);
-                    }
-                    
-                    // Send to web page
-                    if (s.isWebStaff()) {
-                        sendWebMessage("text", message.get(API.MESSAGE_CONTENT_TAG), s.getOpenid(), s.getClient_name(), s.getStaff_uuid(), "");
+                        if (s.isWebStaff()) {
+                            sendWebMessage("sysMessage", message.get(API.MESSAGE_CONTENT_TAG), s.getOpenid(), s.getClient_name(), s.getStaff_uuid(), "reactiveClient", new JSONObject());
+                        }
+                    } else if (s.isWebStaff()) {
+                        sendWebMessage("text", message.get(API.MESSAGE_CONTENT_TAG), s.getOpenid(), s.getClient_name(), s.getStaff_uuid(), "", new JSONObject());
                     }
 
                 }
@@ -310,7 +311,7 @@ public class MessageRouter implements Runnable {
                 
                 // Send to web page
                 if (s.isWebStaff()) {
-                    sendWebMessage(API.TEXT_MESSAGE, message.get(API.MESSAGE_CONTENT_TAG), s.getOpenid(), s.getStaff_uuid(), s.getStaff_uuid(), "");
+                    sendWebMessage(API.TEXT_MESSAGE, message.get(API.MESSAGE_CONTENT_TAG), s.getOpenid(), s.getStaff_uuid(), s.getStaff_uuid(), "", new JSONObject());
                 }
                 
                 return;
@@ -392,7 +393,7 @@ public class MessageRouter implements Runnable {
                 
                 if (s.isWebStaff()) {
                     String content = API.WEIXIN_MEDIA_URL.replace("ACCESS_TOKEN", img_toToken) + img_id;
-                    sendWebMessage("image", content, s.getOpenid(), s.getClient_name(), s.getStaff_uuid(), "");
+                    sendWebMessage("image", content, s.getOpenid(), s.getClient_name(), s.getStaff_uuid(), "", new JSONObject());
                 }
                 
                 ContextPreloader.jedisPool.returnResource(jedis);
@@ -421,7 +422,7 @@ public class MessageRouter implements Runnable {
                 
                 if (s.isWebStaff()) {
                     String content = API.WEIXIN_MEDIA_URL.replace("ACCESS_TOKEN", img_toToken) + img_id;
-                    sendWebMessage("image", content, s.getOpenid(), s.getStaff_uuid(), s.getStaff_uuid(), "");
+                    sendWebMessage("image", content, s.getOpenid(), s.getStaff_uuid(), s.getStaff_uuid(), "", new JSONObject());
                 }
                 
                 ContextPreloader.jedisPool.returnResource(jedis);
@@ -464,7 +465,7 @@ public class MessageRouter implements Runnable {
                 voice_to_openid = s.getOpenid();
                 s.setLastReceived(new Date());
                 if (s.isWebStaff()) {
-                    sendWebMessage(API.VOICE_MESSAGE, "", s.getOpenid(), s.getClient_name(), s.getStaff_uuid(), "");
+                    sendWebMessage(API.VOICE_MESSAGE, "", s.getOpenid(), s.getClient_name(), s.getStaff_uuid(), "", new JSONObject());
                 }
             } else {
                 // TODO 没有会话连接，返回自定义消息
@@ -797,7 +798,7 @@ public class MessageRouter implements Runnable {
                 
                 log.info("Staff checked in: " + staff.toString());
                 
-                sendWebMessage("sysMessage", "", "", "", staff_uuid, "webCheckin");
+                sendWebMessage("sysMessage", "", "", "", staff_uuid, "webCheckin", new JSONObject());
             } else {
                 log.error("Staff checkin failed: " + staff_info.getString("msg"));
                 String text = "系统提示：座席签入失败，您的客服资料不正确，或者您不是本商户的客服，请联系管理员或取消关注本公众号！";
@@ -850,15 +851,23 @@ public class MessageRouter implements Runnable {
                 }
                 String token = jedis.hget(API.REDIS_WEIXIN_ACCESS_TOKEN_KEY, s.getAccount()); // ContextPreloader.Account_Map.get(s.getAccount()).getToken();
                 sendMessage(s.getOpenid(), token, "系统提示：您已成功签出！", API.TEXT_MESSAGE);
+                
                 activeStaffMap.remove(s.getOpenid());
                 staffIdList.remove(s.getOpenid());
                 
             }
-            jedis.hdel(API.REDIS_WEIXIN_WEBCHAT_SESSIONID, staff_id);
+            
             ContextPreloader.jedisPool.returnResource(jedis);
+
+            JSONObject eventMsg = new JSONObject();
+            eventMsg.put("staff_uuid", staff_id);
+            MQStaffCheckoutEvent event = new MQStaffCheckoutEvent(eventMsg.toString());
+            MQManager manager = (MQManager) AppContext
+                    .getApplicationContext().getBean("MQManager");
+            manager.publishTopicEvent(event);
             
             // TODO send checkout message to web
-            sendWebMessage("sysMessage", "", "", "", staff_id, "webCheckout");
+            sendWebMessage("sysMessage", "", "", "", staff_id, "webCheckout", new JSONObject());
             
             staff_map.remove(staff_id);
             log.info("staff_map after remove: "+staff_map.toString());
@@ -909,26 +918,19 @@ public class MessageRouter implements Runnable {
         String query = USER_INFO_URL.replace("ACCESS_TOKEN", cToken).replace("OPENID", client_openid);
         JSONObject user_info = WeChatHttpsUtil.httpsRequest(query, "GET", null);
         String client_name = "";
+        String client_image = "";
+        String city = "";
+        String province = "";
+        int sex = 0;
         if (user_info.containsKey("errcode")) {
             log.error("Get client info failed: "+user_info.toString());
             client_name = "匿名客户";
         } else {
             client_name = user_info.getString("nickname");
-        }
-        
-        WaitingClient c = new WaitingClient(tenantUn, client_openid, client_account, client_name, new Date().getTime());
-        if (!waitingList.containsKey(tenantUn)) {
-            Queue<WaitingClient> queue = new LinkedList<WaitingClient>();
-            queue.offer(c);
-            Map<String, Queue<WaitingClient>> m = new ConcurrentHashMap<String, Queue<WaitingClient>>();
-            m.put(skill_category, queue);
-            waitingList.put(tenantUn, m);
-        } else if (!waitingList.get(tenantUn).containsKey(skill_category)) {
-            Queue<WaitingClient> queue = new LinkedList<WaitingClient>();
-            queue.offer(c);
-            waitingList.get(tenantUn).put(skill_category, queue);
-        } else {
-            waitingList.get(tenantUn).get(skill_category).offer(c);
+            client_image = user_info.getString("headimgurl");
+            city = user_info.getString("city");
+            province = user_info.getString("province");
+            sex = user_info.getInt("sex");
         }
         
         // Broadcast client request to all staffs
@@ -958,7 +960,7 @@ public class MessageRouter implements Runnable {
                         
                         if (s.isWebStaff()) {
                             sendWebMessage("staffService", String.format("系统提示：客户'%s'寻求人工服务，请点击抢接按钮接通会话。", client_name),
-                                    s.getOpenid(), "", s.getStaff_uuid(), "");
+                                    s.getOpenid(), "", s.getStaff_uuid(), "", new JSONObject());
                         }
                         
                         s.setClient_openid(client_openid);
@@ -975,6 +977,22 @@ public class MessageRouter implements Runnable {
             sendMessage(client_openid, cToken, text, API.TEXT_MESSAGE);
             return;
         } else {
+            // Add client to waiting list
+            WaitingClient c = new WaitingClient(tenantUn, client_openid, client_account, client_name, client_image, sex, city, province, new Date().getTime());
+            if (!waitingList.containsKey(tenantUn)) {
+                Queue<WaitingClient> queue = new LinkedList<WaitingClient>();
+                queue.offer(c);
+                Map<String, Queue<WaitingClient>> m = new ConcurrentHashMap<String, Queue<WaitingClient>>();
+                m.put(skill_category, queue);
+                waitingList.put(tenantUn, m);
+            } else if (!waitingList.get(tenantUn).containsKey(skill_category)) {
+                Queue<WaitingClient> queue = new LinkedList<WaitingClient>();
+                queue.offer(c);
+                waitingList.get(tenantUn).put(skill_category, queue);
+            } else {
+                waitingList.get(tenantUn).get(skill_category).offer(c);
+            }
+            
             waitingListIDs.add(client_openid);
             String content = "系统提示：正在为您接通人工服务，请稍等...";
             sendMessage(client_openid, cToken, content, API.TEXT_MESSAGE);
@@ -1013,7 +1031,11 @@ public class MessageRouter implements Runnable {
         
         // To web staff
         if (s.isWebStaff()) {
-            sendWebMessage("sysMessage", content, s.getOpenid(), "", s.getStaff_uuid(), "endSession");
+            JSONObject data = new JSONObject();
+            data.put("clientOpenid", s.getClient_openid());
+            data.put("clientName", s.getClient_name());
+            data.put("clientImage", s.getClient_image());
+            sendWebMessage("sysMessage", content, s.getOpenid(), "", s.getStaff_uuid(), "endSession", data);
         }
 
         // To client
@@ -1154,6 +1176,7 @@ public class MessageRouter implements Runnable {
             session.setClient_openid(client.getOpenid());
             session.setClient_account(client.getAccount());
             session.setClient_name(client.getName());
+            session.setClient_image(client.getImage());
             session.setClient_type("wx");
             session.setSession(UUID.randomUUID().toString());
             session.setBeginTime(API.TIME_FORMAT.format(new Date()));
@@ -1164,7 +1187,13 @@ public class MessageRouter implements Runnable {
             sendMessage(staff_openid, sToken, text, API.TEXT_MESSAGE);
             // To web staff
             if (session.isWebStaff()) {
-                sendWebMessage("sysMessage", text, session.getOpenid(), "", session.getStaff_uuid(), "takeClientFromMobile");
+                JSONObject data = new JSONObject();
+                data.put("clientNamt", client.getName());
+                data.put("clientImage", client.getImage());
+                data.put("clientProvince", client.getProvince());
+                data.put("city", client.getCity());
+                data.put("sex", client.getSex());
+                sendWebMessage("sysMessage", text, session.getOpenid(), "", session.getStaff_uuid(), "takeClientFromMobile", data);
             }
             // To client
             text = String.format("系统提示：客服%s为您服务，请问有什么可以帮助您？如果希望结束此会话，直接输入#号键结束!", session.getStaffid());
@@ -1415,13 +1444,15 @@ public class MessageRouter implements Runnable {
         }
     }
     
-    public static void sendWebMessage(String msgtype, String content, String channelId, String sender, String staff_uuid, String action) {
+    public static void sendWebMessage(String msgtype, String content, String channelId, String sender, 
+            String staff_uuid, String action, JSONObject data) {
         JSONObject json = new JSONObject();
         json.put("msgtype", msgtype);
         json.put("content", content);
         json.put("channelId", channelId);
         json.put("senderName", sender);
         json.put("action", action);
+        json.put("data", data);
         String url = String.format("http://localhost:8080/weixinAPI/webchat/%s/sendWebMessage", staff_uuid);
         WeChatHttpsUtil.httpPostRequest(url, json.toString(), 0);
     }
@@ -1532,6 +1563,7 @@ public class MessageRouter implements Runnable {
         messageToRecord.put("session_id", s.getSession());
         messageToRecord.put("staff_openid", s.getOpenid());
         messageToRecord.put("staff_name", s.getName());
+        messageToRecord.put("staff_working_num", s.getStaffid());
         messageToRecord.put("client_openid", s.getClient_openid());
         messageToRecord.put("client_name", s.getClient_name());
         messageToRecord.put("tenant_code", s.getTenantUn());
