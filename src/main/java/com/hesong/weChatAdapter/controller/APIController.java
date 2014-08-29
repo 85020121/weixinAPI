@@ -18,6 +18,7 @@ import org.springframework.web.bind.annotation.RequestMethod;
 import org.springframework.web.bind.annotation.ResponseBody;
 
 import com.hesong.weChatAdapter.context.ContextPreloader;
+import com.hesong.weChatAdapter.model.AppInfo;
 import com.hesong.weChatAdapter.runner.SmartbusExecutor;
 import com.hesong.weChatAdapter.tools.API;
 import com.hesong.weChatAdapter.tools.SignatureChecker;
@@ -156,11 +157,11 @@ public class APIController {
         if (null == signature || null == timestamp) {
             return WeChatHttpsUtil.getErrorMsg(30001, "signature或timestamp参数不存在。");
         }
-        String appsecret = ContextPreloader.appid_appsecret.get(appid);
-        if (null == appsecret) {
-            return WeChatHttpsUtil.getErrorMsg(30002, "Appsecret不存在，请检查appid参数。");
+        AppInfo app = ContextPreloader.app_info.get(appid);
+        if (null == app) {
+            return WeChatHttpsUtil.getErrorMsg(30002, "Appsecret不存在，请检查appid参数, appid = "+appid);
         }
-        if (!SignatureChecker.checkAPISignature(signature, timestamp, appid, appsecret)) {
+        if (!SignatureChecker.checkAPISignature(signature, timestamp, appid, app.getAppsecret())) {
             return WeChatHttpsUtil.getErrorMsg(30003, "Signature验证失败。");
         }
         return WeChatHttpsUtil.getErrorMsg(0, "ok");

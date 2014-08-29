@@ -26,10 +26,18 @@
 	    <password>Ky6241</password>
 	</ftp>
 	
-	<apisecurity>
-	    <apiinfo>
+	<api_setting>
+	    <appinfo>
 	        <appid>1001</appid>
 	        <appsecret>abcdef</appsecret>
-	    </apiinfo>
-	</apisecurity>
+	        <access_token>123456abcdef</access_token>
+	        <url_prefix>http://10.4.60.105:3000/qmtapi</url_prefix>  <!-- http://10.4.60.105:3000/qmtapi/staffService/message -->
+	    </appinfo>
+	    <appinfo>
+            <appid>1002</appid>
+            <appsecret>abcdef</appsecret>
+            <access_token>123456abcdef</access_token>
+            <url_prefix>http://10.4.60.105:3000/qmtapi</url_prefix>  <!-- http://10.4.60.105:3000/qmtapi/staffService/message -->
+        </appinfo>
+	</api_setting>
 </setting>

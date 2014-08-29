@@ -31,6 +31,7 @@ import com.hesong.smartbus.client.net.Client.ConnectError;
 import com.hesong.weChatAdapter.account.Account;
 import com.hesong.weChatAdapter.account.AccountBo;
 import com.hesong.weChatAdapter.model.AccessToken;
+import com.hesong.weChatAdapter.model.AppInfo;
 import com.hesong.weChatAdapter.runner.SmartbusExecutor;
 import com.hesong.weChatAdapter.tools.API;
 import com.hesong.weChatAdapter.tools.WeChatHttpsUtil;
@@ -47,7 +48,7 @@ public class ContextPreloader extends HttpServlet{
     
     public static Map<String, AccessToken> Account_Map = new ConcurrentHashMap<String, AccessToken>();
     
-    public static Map<String,String> appid_appsecret = new ConcurrentHashMap<String, String>();
+    public static Map<String, AppInfo> app_info = new ConcurrentHashMap<String, AppInfo>();
     
     public static List<Map<String, Byte>> busList = new ArrayList<>();
     
@@ -121,19 +122,27 @@ public class ContextPreloader extends HttpServlet{
                 ContextLog.info("Clients: "+SmartbusExecutor.smartbusClients.toString());
                 SmartbusExecutor.execute();
                 
+                
                 Element ftpElmt = rootElmt.element("ftp");
                 ftp_setting.put("host", ftpElmt.elementText("host"));
                 ftp_setting.put("username", ftpElmt.elementText("username"));
                 ftp_setting.put("password", ftpElmt.elementText("password"));
                 ContextLog.info("FTP setting: "+ftp_setting.toString());
                 
-                Element apiElmt = rootElmt.element("apisecurity");
+                Element apiElmt = rootElmt.element("api_setting");
                 Iterator apiIter = apiElmt.elementIterator();
                 while (apiIter.hasNext()) {
                     Element apiInfo = (Element)apiIter.next();
-                    appid_appsecret.put(apiInfo.elementText("appid"), apiInfo.elementText("appsecret"));
+                    AppInfo app = new AppInfo();
+                    String appid = apiInfo.elementText("appid");
+                    app.setAppid(appid);
+                    app.setAppsecret(apiInfo.elementText("appsecret"));
+                    app.setAccess_token(apiInfo.elementText("access_token"));
+                    app.setUrl_prefix(apiInfo.elementText("url_prefix"));
+                    app_info.put(appid, app);
+                    
                 }
-                ContextLog.info("Api info: " + appid_appsecret.toString());
+                ContextLog.info("Api info: " + app_info.toString());
                 
                 document.clearContent();
             } catch (Exception e) {

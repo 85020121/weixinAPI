@@ -15,6 +15,7 @@ import com.hesong.weChatAdapter.context.AppContext;
 import com.hesong.weChatAdapter.context.ContextPreloader;
 import com.hesong.weChatAdapter.manager.MessageManager;
 import com.hesong.weChatAdapter.model.AccessToken;
+import com.hesong.weChatAdapter.model.AppInfo;
 import com.hesong.weChatAdapter.tools.API;
 import com.hesong.weChatAdapter.tools.WeChatHttpsUtil;
 
@@ -83,7 +84,12 @@ public class WeChatMethodSet {
             String msgtype = msg.getString("msgtype");
             messageToApp.put("MsgType", msgtype);
             messageToApp.put("Content", msg.getJSONObject(msgtype).getString("content"));
-            String url = "http://10.4.60.105:3000/qmtapi/staffService/message";
+            AppInfo app = ContextPreloader.app_info.get(account);
+            if (null == app) {
+                return createErrorMsg(9929, "Check your appid: "
+                        + account);
+            }
+            String url = app.getUrl_prefix()+"/staffService/message";
             return WeChatHttpsUtil.httpPostRequest(url, messageToApp.toString(), 0);
         }
         
