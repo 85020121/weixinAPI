@@ -248,16 +248,26 @@ public class WeChatTest {
     @Test
     public void sua(){
         SugarCRMCaller caller = new SugarCRMCaller();
-        String session = caller.login("admin",
-                "p@ssw0rd");
         
         JSONObject request = new JSONObject();
-        request.put("session", session);
-        request.put("openid", "ogfGduA0yfPY_aET7do8GvE5Bm4w");
-        request.put("pageNo", 2);
+        request.put("staffnum", "001");
+        request.put("tenant_code", "hesong");
+        request.put("pageNo", 3);
         request.put("pagesize", 5);
         
         String r = caller.call("getStaffServiceList", request.toString());
+        System.out.println(r);
+    }
+    
+    @Test
+    public void suaSession(){
+        SugarCRMCaller caller = new SugarCRMCaller();
+        JSONObject request = new JSONObject();
+        request.put("session_id", "e8b722db-0f15-4a2e-ba88-89026fed339e");
+        request.put("pageNo", 1);
+        request.put("pagesize", 10);
+        
+        String r = caller.call("getCustomerServiceDetail", request.toString());
         System.out.println(r);
     }
 }

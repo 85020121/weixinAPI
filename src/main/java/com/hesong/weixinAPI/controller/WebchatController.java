@@ -68,11 +68,19 @@ public class WebchatController {
         if (staff_uuid.equals("")) {
             return "login";
         }
+        
         String url = API.SUA_STAFF_WEB_LOGIN_URL + staff_uuid;
         log.info("Waiting sua check...");
         JSONObject staff_info = JSONObject.fromObject(HttpClientUtil.httpGet(url));
         if (staff_info.getBoolean("success")){
             log.info("Sua checked.");
+            
+            ChatMessage msg = new ChatMessage();
+            msg.setMsgtype("staffLogin");
+            msg.setChannelId("");
+            msg.setContent(staff_info.getJSONObject("person").getJSONObject("tenant").getString("tenantUn"));
+            processMessage(msg, staff_uuid);
+            
             return "chatList";
         }
         
@@ -151,6 +159,13 @@ public class WebchatController {
         } else {
             return new JSONArray();
         }
+    }
+    
+    @ResponseBody
+    @RequestMapping(value = "/{session_id}/getChatHistoryBySession/{page}", method = RequestMethod.GET)
+    public JSONArray getChatHistoryBySession(@PathVariable String session_id,
+            @PathVariable String page) {
+        return getChatHistoryBySessionid(session_id, page);
     }
     
     @ResponseBody
@@ -791,15 +806,33 @@ public class WebchatController {
         }
     }
     
+    private JSONArray getChatHistoryBySessionid(String session_id, String page) {
+        SugarCRMCaller caller = new SugarCRMCaller();
+        JSONObject request = new JSONObject();
+        request.put("session_id", session_id);
+        request.put("pageNo", page);
+        request.put("pagesize", 10);
+        
+        String r = caller.call("getCustomerServiceDetail", request.toString());
+        try {
+            JSONObject ret = JSONObject.fromObject(r);
+            if (ret.getBoolean("success") && ret.containsKey("chatHistoryList")) {
+                return ret.getJSONArray("chatHistoryList");
+            } else {
+                log.warn("No history list: " + ret.getString("msg"));
+                log.warn("session_id:"+session_id+"   page:"+page);
+                return new JSONArray();
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+            return new JSONArray();
+        }
+    }
+    
     private JSONArray getHistoryList(String tenantUn, String staff_working_num, int page) {
         SugarCRMCaller caller = new SugarCRMCaller();
-        if (!caller.check_oauth(SUAExecutor.session)) {
-            SUAExecutor.session = caller.login("admin",
-                    "p@ssw0rd");
-            log.warn("Session_id expired, renew one: " + SUAExecutor.session);
-        }
+
         JSONObject request = new JSONObject();
-        request.put("session", SUAExecutor.session);
         request.put("staffnum", staff_working_num);
         request.put("tenant_code", tenantUn);
         request.put("pageNo", page);
@@ -811,6 +844,8 @@ public class WebchatController {
             if (ret.getBoolean("success") && ret.containsKey("serviceList")) {
                 return ret.getJSONArray("serviceList");
             } else {
+                log.warn("No history list: " + ret.getString("msg"));
+                log.warn("tenant:"+tenantUn+"   num:"+staff_working_num);
                 return new JSONArray();
             }
         } catch (Exception e) {

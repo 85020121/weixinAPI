@@ -32,7 +32,10 @@
     var titleMessageRemaind;
     var weixinMessageUrl = "";
     var isCheckedIn = false;
-    var layerRemainder;
+    var suaStatIframe = "";
+    var isGetMessage = true;
+    var staffServiceRemainder;
+    var tmpStaffOpenid = "";
     
     function clickList(id) {
     	console.log("clickList: " + id);
@@ -75,6 +78,11 @@
         $('#'+id+' #'+inputId).val(message.title);
     }
     
+    function openClientInfo(client, staff) {
+        var pageUrl = 'http://www.clouduc.cn/hsy/tenant/user/customerDetail?clientOpenid='+client+'&openid='+staff;
+        window.open(pageUrl);
+    } 
+    
     function getStaffInfo() {
     	$(".staff-channel-list").remove();
         $(".weixin-chat-room").remove();
@@ -92,10 +100,12 @@
                     $("#weixin-staff-checkout").remove();
                     $("#staff-menu").append("<li id='weixin-staff-checkout'><a href='javascript:void(0)' onclick='weixin_checkout(\""+person.tenant.tenantUn+"\",\""+person.id+"\")'><span class='glyphicon glyphicon-log-out'></span><span>&nbsp;&nbsp;签出</span></a></li>");
                     $("#staff-name").html(person.name);
+                    $("#staff-logout-href").attr("href", "javascript:logout(\""+person.tenant.tenantUn+"\",\""+person.id+"\")");
                     if(result.isCheckedIn) {
                     	isCheckedIn = true;
                     	checkin(person);
                     }
+                    
 /*                     var skills = person.skills;
                     for(var i=0;i<skills.length;i++){
                         if(i>0){
@@ -106,7 +116,10 @@
                     
                     getExpressMessage(person.tenant.tenantUn);
                     
-                    getMessage(person.id);
+                    if(isGetMessage) {
+                    	getMessage(person.id);
+                    }
+                    
                 } else {
                     console.log("msg:"+result.msg);
                     window.location.href = "/wx/warning";
@@ -168,7 +181,40 @@
         });
     }
     
-    function getHistoryList(tenantUn, openid, work_num, page) {
+    function createSessionHistory(session_id, name, clientOpenid, image) {
+        console.log("clickHistoryList: " + session_id);
+        $("#my-message-iframe").css("display","none");
+        $(".edit-client-info-div").css("display","none");
+        $(".list-group-item").removeClass("active");
+        $("#my-messages").removeClass("active");
+        $("#"+session_id+"-chat-history").addClass("active");
+        $(".weixin-chat-room").css("display","none"); 
+        $(".weixin-history-board").css("display","none"); 
+        
+    	if($("#"+session_id+"-historyboard").length > 0) {
+            $("#"+session_id+"-historyboard").css("display","block");
+    		return;
+    	}
+        
+        image = image.substring(0, image.length-1) + 64;
+        var header = '<a class="pull-left" style="margin-top:-53px;margin-left:-5px;" href=\'javascript:openClientInfo("'+clientOpenid+'","'+tmpStaffOpenid+'")\'>';
+        header += '<img class="media-object img-circle" src="'+image+'" style="border:2px solid white"></a>';
+        header += '<h3 class="panel-title">'+name+'</h3>';
+    	
+        var historyBoard = "<div id='"+session_id+"-historyboard' class='panel panel-primary weixin-history-board' style='height:450px;'>";
+        historyBoard += "<div id='"+session_id+"-panel-heading' class='panel-heading'>"+header+"</div>";
+        historyBoard += "<div id='"+session_id+"-historyboard-body' class='panel-body' style='height:430px; overflow:auto; margin-bottom;background-color: #EFF3F7;'></div></div>";
+        $(".middle-jumbotron-pane").append(historyBoard);
+        
+        getChatHistory(session_id, 1, false, true);
+        //var history_board = $("#"+session_id+"-historyboard-body");
+        //history_board.scrollTop(history_board[0].scrollHeight);
+        
+        //$(".weixin-history-board").css("display","none");
+        //clickHistoryList(openid);
+    }
+    
+    function getHistoryList(tenantUn, work_num, page) {
     	console.log("getHistoryList");
         var url = "/wx/webchat/"+tenantUn+"/"+work_num+"/getHistoryList/"+page;
         $.ajax({
@@ -178,12 +224,27 @@
             type : "GET",
             dataType : 'json',
             success : function (result){
+            	$(".hitstory-client-list").empty();
             	console.log("length:"+result.length);
-                    for(var i=0; i<result.length; i++) {
-                    	var image = result[i].client_headimgurl.substring(0, result[i].client_headimgurl.length-1) + 46;
-                    	var html = "<a href='javascript:void(0)' class='list-group-item' style='padding: 5px 5px;' onclick='showHistory(\""+openid+"\",\""+result[i].client_openid+"\")'><img src='"+image+"' class='img-rounded' style='height:32px'><span style='margin-left:10px;'>"+result[i].client_name+"</span><span style='margin-left:10px;font-size:10px'>"+result[i].start_time+"</span></a>";
+            	if(result.length > 0){
+            		for(var i=0; i<result.length; i++) {
+                        var id = result[i].session_id+"-chat-history";
+                        var image = result[i].client_headimgurl.substring(0, result[i].client_headimgurl.length-1) + 46;
+                        var html = "<a href='javascript:void(0)' id='"+id+"' class='list-group-item' style='padding: 5px 5px;' onclick='createSessionHistory(\""+result[i].session_id+"\",\""+result[i].client_name+"\",\""+result[i].client_openid+"\",\""+result[i].client_headimgurl+"\")' >";
+                        html += "<img src='"+image+"' class='img-rounded' style='height:32px'><span style='margin-left:10px;'>"+result[i].client_name+"</span><span style='margin-left:10px;font-size:10px'>"+result[i].start_time+"</span></a>";
                         $(".hitstory-client-list").append(html);
+                        var moreHistory = "<a href='javascript:getHistoryList(\""+tenantUn+"\",\""+work_num+"\","+ (page+1) +")'>查看更多历史会话</a>";
+                        $(".hitstory-client-list-footer").empty();
+                        $(".hitstory-client-list-footer").html(moreHistory);
                     }
+            	} else {
+            		$(".hitstory-client-list-footer").empty();
+            		$(".hitstory-client-list-footer").html("暂无历史会话");
+            	}
+                    
+            },
+            error: function() {
+            	console.log("Error");
             }
         });
     }
@@ -200,11 +261,10 @@
         
         var channels = person.channels;
         var openingChannel = "";
-        var temOpenid = "";
         
         for(var i=0; i<channels.length; i++){
             var channel = channels[i];
-            temOpenid = channel.openId;
+            tmpStaffOpenid = channel.openId;
             weixinMessageUrl = "http://www.clouduc.cn/crm/mobile/replymessage/messagelist.php?openid="+channel.openId;
             var id = channel.openId + "-channel-list";
             var html = '<a href="javascript:void(0)" id="'+id+'" class="list-group-item staff-channel-list" onclick=\'clickList("'+id+'")\'>客服通道'+(i+1)+'<input style="display:none" value=0></a>';
@@ -220,7 +280,7 @@
                chatBoard += "<div class='input-group'><input type='text' id='"+channel.openId+"-account-input' style='display:none' value='"+channel.weixinId+"'><input type='text' id='"+channel.openId+"-input-message' class='form-control weixin-input-area' value='没有会话，暂时无法输入'><span class='input-group-btn'>";    
                chatBoard += "<button id='"+channel.openId+"-sendmessage' class='btn btn-primary' onclick='postMessage(\""+channel.weixinId+"\",\""+channel.openId+"\")' type='button'>发送</button><button type='button' class='btn btn-danger' onclick='endSession(\""+channel.openId+"\")' style='margin-left:10px'>结束会话</button></span></div></div></div>";
             
-                $(".jumbotron").append(chatBoard);
+                $(".middle-jumbotron-pane").append(chatBoard);
                 $('.emotion').qqFace();
                 uploadImage(channel.openId);
                    
@@ -238,8 +298,8 @@
             	openingChannel = channel.openId;
             }
             
-           
-            $('.weixin-service-count-iframe').attr("src","http://www.clouduc.cn/hsy/tenant/user/staffServiceCounts?openid="+channel.openId);
+            suaStatIframe = "http://www.clouduc.cn/hsy/tenant/user/staffServiceCounts?openid="+channel.openId;
+            $('.weixin-service-count-iframe').attr("src", suaStatIframe);
         }
         
         console.log("openingChannel="+openingChannel);
@@ -247,7 +307,18 @@
         	clickList(openingChannel + "-channel-list");
         }
         $('.weixin-service-count-div').css("display", "block");
-        getHistoryList(person.tenant.tenantUn, temOpenid, person.number, 1);
+        getHistoryList(person.tenant.tenantUn, person.number, 1);
+    }
+    
+    
+    function logout(tenantUn, staff_uuid) {
+    	if(confirm("是否要注销？")){
+            console.log("yes");
+        } else {
+            return;
+        }
+    	weixin_checkout(tenantUn, staff_uuid);
+    	//window.location.href = "/wx/webchat/login";
     }
 
     function weixin_checkout(tenantUn, staff_uuid) {
@@ -255,7 +326,7 @@
         $.ajax({
             url : url,
             cache : false, 
-            async : false,
+            async : true,
             type : "GET",
             success : function (result){
                 if(result.errcode ==0) {
@@ -272,6 +343,8 @@
                 
                 $('.weixin-service-count-iframe').attr("src","");
                 $('.weixin-service-count-div').css("display", "none");
+                $(".hitstory-client-list").empty();
+                $(".weixin-history-board").remove();
             },
             error : function(error) {
             	console.log("error:"+error);
@@ -316,7 +389,7 @@
                     $('#'+openid+"-panel-heading-div").append(header);
                 	
                     var chatboard = $('#'+openid+'-panel-body');
-                    var link = "<div class='sysmsg'><a id='"+openid+"-chat-history' onclick='getChatHistory(\""+openid+"\",2, true)' href='javascript:void(0)'>点击查看聊天记录</a></div>";
+                    var link = "<div class='sysmsg'><a id='"+openid+"-chat-history' onclick='getChatHistory(\""+openid+"\",2, true, false)' href='javascript:void(0)'>点击查看聊天记录</a></div>";
                     chatboard.prepend(link);
                 	
                 	var addToBoard = "<div class='sysmsg'>系统提示：您正在和客户‘"+result.clientName+"’进行对话。</div>";
@@ -368,6 +441,8 @@
             async : true,
             type : "GET",
             success : function (result){
+            	//$('.weixin-service-count-iframe').attr("src", suaStatIframe);
+            	window.frames[0].refreshStatistic();
                 if(!result.success){
                 	alert(result.errmsg);
                 }
@@ -401,35 +476,19 @@
             }
         });
     }
-    
-    function createHistoryPane(channel, openid, name, image) {
-        var image_url = image.substring(0, image.length-1) + 46;
-        var id = openid+"-chat-history";
-        $("#"+id).remove();
-        var html = "<a href='javascript:void(0)' id='"+id+"' class='list-group-item staff-channel-list' onclick='clickHistoryList(\""+openid+"\")'><img src='"+image_url+"' class='img-rounded'><span style='margin-left:10px;height:24px'>"+name+"</span></a>";
-        $(".hitstory-client-list").prepend(html);
-        
-        var historyBoard = "<div id='"+openid+"-historyboard' class='panel panel-primary weixin-history-board' style='height:450px;'>";
-        historyBoard += "<div class='panel-heading' style='text-align:center'>";
-        historyBoard += "<h3 id='"+openid+"-historyboard-heading' class='panel-title'>"+name+"</h3></div>";
-        historyBoard += "<div id='"+openid+"-historyboard-body' class='panel-body' style='height:430px; overflow:auto; margin-bottom;background-color: #EFF3F7;'></div></div>";
-        var content = $("#"+channel+"-panel-body").html();
-        console.log("content:"+content);
-        $(".jumbotron").append(historyBoard);
-        $("#"+openid+"-historyboard-body").append(content);
-        $("#"+openid+"-historyboard-body .sysmsg").remove();
-        
-        var history_board = $("#"+openid+"-historyboard-body");
-        history_board.scrollTop(history_board[0].scrollHeight);
-        
-        $(".weixin-history-board").css("display","none");
-        //clickHistoryList(openid);
-    }
 
-    function getChatHistory(id, page, hasHistory){
-    	var url = "/wx/webchat/"+id+"/getChatHistory/"+page;
-    	var a_tag = $('#'+id+'-chat-history');
-    	var chatboard = $('#'+id+'-panel-body');
+    function getChatHistory(id, page, hasHistory, isBySession){
+    	var url;
+    	var chatboard;
+    	if(isBySession) {
+    		chatboard = $('#'+id+'-historyboard-body');
+    		url = "/wx/webchat/"+id+"/getChatHistoryBySession/"+page;
+    	} else {
+    		chatboard = $('#'+id+'-panel-body');
+    		url = "/wx/webchat/"+id+"/getChatHistory/"+page;
+    	}
+    	var a_tag = $('#'+id+'-chat-history-link');
+    	
     	var scrollHeight;
     	if(hasHistory){
     		scrollHeight = chatboard[0].scrollHeight;
@@ -458,7 +517,7 @@
                         chatboard.prepend(row);
             		}
                     a_tag.remove();
-                    var link = "<div class='sysmsg'><a id='"+id+"-chat-history' onclick='getChatHistory(\""+id+"\", "+(page+1)+", true)' href='javascript:void(0)'>查看更早的聊天记录</a></div>";
+                    var link = "<div class='sysmsg'><a id='"+id+"-chat-history-link' onclick='getChatHistory(\""+id+"\", "+(page+1)+", true,"+isBySession+")' href='javascript:void(0)'>查看更早的聊天记录</a></div>";
                     chatboard.prepend(link);
 
             	} else {
@@ -478,7 +537,10 @@
         	scrollHeight = chatboard[0].scrollHeight - scrollHeight;
         	chatboard.scrollTop(scrollHeight);
             console.log("childHeight: "+ scrollHeight);
+        } else {
+        	chatboard.scrollTop(chatboard[0].scrollHeight);
         }
+
     }
     
     function editClientInfo(clientOpenid, staffOpenid) {
@@ -508,11 +570,13 @@
             success : function (data) {
 				console.log("Msttype:"+data.msgtype + " data.channelId:"+data.channelId+"  action: "+data.action);
                 console.log("JsonData="+data.data);
-                for (var i in data.data) 
-                	console.log("'" + i + "':" + data.data[i]); 
 				var room =  data.channelId;
                 var chatBoardId = room+"-chatboard";
-				if(data.msgtype == "sysMessage"){
+                
+                if(data.msgtype == "staffLogin") {
+                	isGetMessage = false;
+                	//alert("您的账户在其他地方登陆，如果不是您本人，请联系管理员！");
+                } else if(data.msgtype == "sysMessage"){
 					console.log("action: "+data.action);
 					if(data.action == "takeClient") {
 						console.log("takeClient");
@@ -522,13 +586,13 @@
                         $('#'+room+'-disable-input').css("display","none");
                         $('#'+room+'-input-message').val("");
                         //var addToBoard = "<div class='sysmsg'><a id='"+room+"-chat-history' onclick='getChatHistory(\""+room+"\")' href='#'>点击查看聊天记录<input value='1' style='display:none' /></a></div>";
-                        getChatHistory(room, 1, false);
+                        getChatHistory(room, 1, false, false);
                         var addToBoard = "<div class='sysmsg'>"+data.content+"</div>";
                         appendNewContent(room, addToBoard);
                         var image = data.data.clientImage.substring(0, data.data.clientImage.length-1) + 64;
-                        var header = '<a class="pull-left" style="margin-top:-53px;margin-left:-5px;" href="javascript:void(0)">';
+                        var header = '<a class="pull-left" style="margin-top:-53px;margin-left:-5px;" href=\'javascript:openClientInfo("'+data.data.clientOpenid+'","'+room+'")\'>';
                         header += '<img class="media-object img-circle" src="'+image+'" style="border:2px solid white"></a>';
-                        header += '<h3 class="panel-title">'+data.data.clientName+'<a href="javascript:void(0)" onclick=\'editClientInfo("'+data.data.clientOpenid+'","'+room+'")\' style="margin-left:75%"><span class="glyphicon glyphicon-edit"></a></h3>';
+                        header += '<h3 class="panel-title">'+data.data.clientName+'<a href="javascript:void(0)" onclick=\'editClientInfo("'+data.data.clientOpenid+'","'+room+'")\' style="float: right;"><span class="glyphicon glyphicon-edit"></a></h3>';
                         $('#'+room+"-edit-client-info-div").remove();
                         $('#'+room+"-panel-heading-div").empty();
                         $('#'+room+"-panel-heading-div").append(header);
@@ -541,13 +605,12 @@
                         $('#'+room+"-channel-list").prepend('<span class="glyphicon glyphicon-transfer">&nbsp;</span>')
                         $('#'+room+'-disable-input').css("display","none");
                         $('#'+room+'-input-message').val("");
-                        getChatHistory(room, 1, false);
+                        getChatHistory(room, 1, false, false);
                         chat_panel.scrollTop(chat_panel[0].scrollHeight);
                         var image = data.data.clientImage.substring(0, data.data.clientImage.length-1) + 64;
-                        var header = '<a class="pull-left" style="margin-top:-53px;margin-left:-5px;" href="javascript:void(0)">';
+                        var header = '<a class="pull-left" style="margin-top:-53px;margin-left:-5px;" href=\'javascript:openClientInfo("'+data.data.clientOpenid+'","'+room+'")\'>';
                         header += '<img class="media-object img-circle" src="'+image+'" style="border:2px solid white"></a>';
-                        header += '<h3 class="panel-title">'+data.data.clientName+'</h3>';
-                        header += '<span class="glyphicon glyphicon-edit">';
+                        header += '<h3 class="panel-title">'+data.data.clientName+'<a href="javascript:void(0)" onclick=\'editClientInfo("'+data.data.clientOpenid+'","'+room+'")\' style="float: right;"><span class="glyphicon glyphicon-edit"></a></h3>';
                         $('#'+room+"-edit-client-info-div").remove();
                         $('#'+room+"-panel-heading-div").empty();
                         $('#'+room+"-panel-heading-div").append(header);
@@ -559,6 +622,7 @@
                         appendNewContent(room, addToBoard);
                         $('#'+room+'-disable-input').css("display","block");
                         $('#'+room+'-input-message').val("无活动会话，暂时无法输入");
+                        getHistoryList(data.data.tenantUn, data.data.working_num, 1);
 					} else if(data.action == "webCheckin") {
 						mobile_checkin();
 					} else if(data.action == "webCheckout") {
@@ -575,45 +639,70 @@
                         row = "<div class='senderName'>"+d.getHours()+":"+d.getMinutes()+"  "+data.senderName+"</div><div class='chatItem you'><div class='cloud cloudText'><div class='cloudBody'><div class='cloudContent'>";
                         row += "<pre style='white-space:pre-wrap'>"+parse_content(data.content)+"</pre></div></div></div></div>";
                         appendNewContent(room, row);
+                    } else if(data.action == "newMessage") {
+                    	var message_div = $("#my-messages");
+                            if(message_div.find("span").hasClass("badge")) {
+                                var i = parseInt(message_div.find("span.badge").html());
+                                message_div.find("span.badge").html(i+1);
+                            } else {
+                            	message_div.append('<span class="badge">1</span>');
+                            }
                     }
 					
 				} else if(data.msgtype == "staffService"){
-                    console.log("staffService: "+ room);
+                    //$('.weixin-service-count-iframe').attr("src", suaStatIframe);
+                    window.frames[0].refreshStatistic();
                     if($(".xubox_layer").length>0) {
                     	console.log("staffService blocked");
-                    	getMessage(stff_uuid);
+                    	
+                    	if(isGetMessage) {
+                            getMessage(stff_uuid);
+                          }
                     	return;
                     }
-                    $.layer({
-                        shade: [0],
-                        area: ['auto','auto'],
-                        dialog: {
-                            msg: data.content,
-                            btns: 2,                    
-                            type: 4,
-                            btn: ['确定','忽略'],
-                            yes: function(index){
-                            	layerRemainder = index;
-                            	$.ajax({
-                                        url : "/wx/webchat/"+data.channelId+"/takeClient",
-                                        cache : false, 
-                                        async : true,
-                                        type : "GET",
-                                        dataType : 'json',
-                                        success : function(data) {
-                                        	if(!data.success) {
-                                                console.log("take client failed: "+ data.msg);
-                                        		alert(data.msg);
-                                        	}
-                                        },
-                                        error : function(error) {
-                                        }
-                                    });
-                            	layer.close(index);
-                            	// $(".xubox_title").html()
-                            }, no: function(){
-                            }
+                    var pageUrl = 'http://www.clouduc.cn/hsy/tenant/user/customerDetail?clientOpenid='+data.data.clientOpenid+'&openid='+room;
+                    var pageHTML = '<div id="edit-client-info-div" class="embed-responsive embed-responsive-16by9" style="width:800px;height: 460px">';
+                    pageHTML += '<iframe class="embed-responsive-item edit-client-info-iframe" style="width:800px;height: 420px" onload="this.height=this.contentWindow.document.documentElement.scrollHeight" style="border-radius:4px;" src="'+pageUrl+'"></iframe>';
+                    pageHTML += '<div class="btn-group" style="top:421px;float:right;margin-right:10px"><button type="button" id="accept-client-request" class="btn btn-primary" style="margin-right: 5px;">受理</button><button type="button" id="ignore-client-request" class="btn btn-danger">忽略</button></div></div>';
+
+                    staffServiceRemainder = $.layer({
+                        type: 1,
+                        title: "人工服务请求",
+                        area: ['800px', '500px'],
+                        offset: ['', ''],
+                        border: [3, 0.3, '#000'], //去掉默认边框
+                        shade: [0], //去掉遮罩
+                        closeBtn: [0, false], //去掉默认关闭按钮
+                        shift: 'top', //从左动画弹出
+                        page: {
+                            html:pageHTML
                         }
+                    });
+                    
+                    $('#accept-client-request').on('click', function(){
+                    	$.ajax({
+                            url : "/wx/webchat/"+data.channelId+"/takeClient",
+                            cache : false, 
+                            async : true,
+                            type : "GET",
+                            dataType : 'json',
+                            success : function(data) {
+                                if(!data.success) {
+                                    console.log("take client failed: "+ data.msg);
+                                    alert(data.msg);
+                                } else {
+                                    //$('.weixin-service-count-iframe').attr("src", suaStatIframe);
+                                    window.frames[0].refreshStatistic();
+                                }
+                            },
+                            error : function(error) {
+                            }
+                        });
+                        layer.close(staffServiceRemainder);
+                    });
+                    
+                    $('#ignore-client-request').on('click', function(){
+                        layer.close(staffServiceRemainder);
                     });
                 } else {
                 	var messageContentDiv;
@@ -640,6 +729,7 @@
 						row += "<pre style='white-space:pre-wrap'>"+messageContentDiv+"</pre></div></div></div></div>";
 					}
 					appendNewContent(room, row);
+					newMessageRemaind(room);
 				}
 				
 				console.log("isWindowOnFocus"+isWindowOnFocus);
@@ -647,11 +737,15 @@
 					console.log("remaind");
 					titleRemaind();
 				}
-				newMessageRemaind(room);
-				getMessage(stff_uuid);
+				
+				if(isGetMessage) {
+				  getMessage(stff_uuid);
+				}
 			},
 			error : function(error) {
-                getMessage(stff_uuid);
+				if(isGetMessage) {
+	              getMessage(stff_uuid);
+	            }
 			}
 		});
 	}
@@ -836,9 +930,9 @@
               });
 		} */
 		
- 		$(window).bind('beforeunload',function(){
+/*  		$(window).bind('beforeunload',function(){
 		    return "注意：离开页面时数据会丢失！";
-		}); 
+		});  */
 		
 		//weixin_checkin();
 		getStaffInfo();
@@ -888,7 +982,7 @@
                   <iframe class="embed-responsive-item weixin-service-count-iframe" scrolling="no" src=""></iframe>
                 </div>
             </li>
-            <li><a href="javascript:void(0)" title="注销"><span class="glyphicon glyphicon-off"></span></a></li>
+            <li><a id="staff-logout-href" href="javascript:void(0)" title="注销"><span class="glyphicon glyphicon-off"></span></a></li>
 	      </ul>
 	    </div><!-- /.navbar-collapse -->
 	  </div><!-- /.container-fluid -->
@@ -914,21 +1008,22 @@
 			  </div>
 		  </div>
 		  
-		  <div class="panel panel-primary" style="max-height:400px">
+		  <div class="panel panel-primary" style="max-height:500px">
               <div class="panel-heading">
                 <h3 class="panel-title">历史会话</h3>
               </div>
-              <div class="panel-body">
+              <div class="panel-body" style="max-height:400px;overflow: auto;">
                 <div class="list-group hitstory-client-list">
                 </div>
               </div>
+              <div class="panel-footer hitstory-client-list-footer" style="text-align:center">暂无历史会话</div>
           </div>
 		  
           
         </div><!--/span-->
 
         <div class="col-xs-12 col-sm-6">
-          <div class="jumbotron" style="padding-top:0;padding:0;" >
+          <div class="jumbotron middle-jumbotron-pane" style="padding-top:0;padding:0;" >
           
             <div id="my-message-iframe" class="embed-responsive embed-responsive-16by9" style="display:none;min-height: 450px">
                 <iframe class="embed-responsive-item weixin-message-list" onload="this.height=this.contentWindow.document.documentElement.scrollHeight" scrolling="no" style="border-radius:4px;" src=""></iframe>
@@ -959,6 +1054,7 @@
 $("#my-messages").click(function(){
     $('.weixin-message-list').attr("src", weixinMessageUrl);
     $(".weixin-chat-room").css("display","none");
+    $("#my-messages").find("span.badge").remove();
     $(".edit-client-info-div").css("display","none");
     $(".weixin-history-board").css("display","none"); 
     $("#my-message-iframe").css("display","block");

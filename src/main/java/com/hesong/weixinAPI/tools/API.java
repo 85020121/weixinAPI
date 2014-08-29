@@ -27,6 +27,9 @@ public class API {
     
     // WebChat
     public final static String REDIS_WEIXIN_WEBCHAT_SESSIONID = "weixin_webchat_sessionid";
+    
+    // Waiting list count
+    public final static String REDIS_WAITING_LIST_COUNT = "waiting_list_count";
 
     public final static String MESSAGE_TYPE_TAG = "MsgType";
     public final static String MESSAGE_FROM_TAG = "FromUserName";

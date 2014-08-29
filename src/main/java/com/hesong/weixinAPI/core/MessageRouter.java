@@ -959,8 +959,10 @@ public class MessageRouter implements Runnable {
                         }
                         
                         if (s.isWebStaff()) {
+                            JSONObject data = new JSONObject();
+                            data.put("clientOpenid", client_openid);
                             sendWebMessage("staffService", String.format("系统提示：客户'%s'寻求人工服务，请点击抢接按钮接通会话。", client_name),
-                                    s.getOpenid(), "", s.getStaff_uuid(), "", new JSONObject());
+                                    s.getOpenid(), "", s.getStaff_uuid(), "", data);
                         }
                         
                         s.setClient_openid(client_openid);
@@ -1035,6 +1037,8 @@ public class MessageRouter implements Runnable {
             data.put("clientOpenid", s.getClient_openid());
             data.put("clientName", s.getClient_name());
             data.put("clientImage", s.getClient_image());
+            data.put("tenantUn", s.getTenantUn());
+            data.put("working_num", s.getStaffid());
             sendWebMessage("sysMessage", content, s.getOpenid(), "", s.getStaff_uuid(), "endSession", data);
         }
 
@@ -1042,8 +1046,14 @@ public class MessageRouter implements Runnable {
         content = "系统提示：当前会话已结束。";
         sendMessage(s.getClient_openid(), cToken, content, API.TEXT_MESSAGE);
         
-        log.info("Session ended.");
-        CheckSessionAvailableJob.sessionMap.get(tenantUn).remove(cOpenid);
+        if (CheckSessionAvailableJob.sessionMap.containsKey(tenantUn)) {
+            CheckSessionAvailableJob.sessionMap.get(tenantUn).remove(cOpenid);
+        }
+        
+        if (CheckEndSessionJob.endSessionMap.containsKey(tenantUn)) {
+            CheckEndSessionJob.endSessionMap.get(tenantUn).remove(cOpenid);
+        }
+        
         
         // Remaind staff
         int waiting_count = getWaitingClientCount(tenantUn);
@@ -1051,6 +1061,9 @@ public class MessageRouter implements Runnable {
             String text = String.format("系统提示：有%d个客户在等待人工服务，请点击抢接接入客户。", waiting_count);
             sendMessage(s.getOpenid(), sToken, text, API.TEXT_MESSAGE);
         }
+        
+        s.setEndTime(API.TIME_FORMAT.format(new Date()));
+        recordSession(s, 0);
 
         s.setBusy(false);
         s.setClient_account("");
@@ -1100,7 +1113,7 @@ public class MessageRouter implements Runnable {
         sendMessage(sOpenid, sToken, content, API.TEXT_MESSAGE);
 
         // To client
-        content = String.format("系统提示：%s秒内如果您未作任何回复,该会话将自动结束.", timeout);
+        content = String.format("系统提示：%s秒内如果您未作任何回复，该会话将自动结束。", timeout);
         sendMessage(s.getClient_openid(), cToken, content, API.TEXT_MESSAGE);
         
         Map<String, StaffSessionInfo> session_map = null;
@@ -1515,7 +1528,7 @@ public class MessageRouter implements Runnable {
                     text = "系统提示：您的留言已被记录，客服MM会尽快回复您，感谢您的支持！";
                     newMessageRemaind(tenantUn);
                 } else {
-                    text = "系统提示：时间到啦，本次留言将不会被记录。";
+                    text = "系统提示：您没有留下任何消息，本次留言将不会被记录。";
                 }
                 CheckLeavingMessageJob.leavingMessageClientList.get(tenantUn).remove(openid);
                 String token = getAccessToken(account); //ContextPreloader.Account_Map.get(account).getToken();
@@ -1603,6 +1616,9 @@ public class MessageRouter implements Runnable {
                                             accountInfo.getString("appid"),
                                             URLEncoder.encode(url, "utf8"));
                             sendMessage(session.getOpenid(), getAccessToken(account), text, API.TEXT_MESSAGE);
+                            if (session.isWebStaff()) {
+                                sendWebMessage("sysMessage", "", session.getOpenid(), "", session.getStaff_uuid(), "newMessage", new JSONObject());
+                            }
                             break;
                         } catch (UnsupportedEncodingException e) {
                             e.printStackTrace();

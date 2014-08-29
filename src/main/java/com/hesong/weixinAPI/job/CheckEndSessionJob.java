@@ -84,6 +84,8 @@ public class CheckEndSessionJob implements Job {
                                 data.put("clientOpenid", session.getClient_openid());
                                 data.put("clientName", session.getClient_name());
                                 data.put("clientImage", session.getClient_image());
+                                data.put("tenantUn", session.getTenantUn());
+                                data.put("working_num", session.getStaffid());
                                 MessageRouter.sendWebMessage("sysMessage",
                                         text, session.getOpenid(), "",
                                         session.getStaff_uuid(), "endSession", data);
@@ -91,6 +93,14 @@ public class CheckEndSessionJob implements Job {
 
                         } catch (Exception e) {
                             log.error("Send message error: " + e.toString());
+                        }
+                        
+                        if (CheckSessionAvailableJob.sessionMap.containsKey(tenantUn)
+                            && CheckSessionAvailableJob.sessionMap.get(tenantUn).containsKey(session.getClient_openid())) {
+                            CheckSessionAvailableJob.sessionMap.get(tenantUn).remove(session.getClient_openid());
+                            if (CheckSessionAvailableJob.sessionMap.get(tenantUn).isEmpty()){
+                                CheckSessionAvailableJob.sessionMap.remove(tenantUn);
+                            }
                         }
 
                         session.setBusy(false);

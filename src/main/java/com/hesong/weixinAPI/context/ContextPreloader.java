@@ -5,6 +5,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Properties;
 import java.util.ResourceBundle;
 
 import javax.servlet.http.HttpServlet;
@@ -46,6 +47,8 @@ public class ContextPreloader extends HttpServlet{
     
     public static JedisPool jedisPool;
     
+    public static Properties messageProp;
+    
     static{
         
         try {
@@ -68,7 +71,7 @@ public class ContextPreloader extends HttpServlet{
             
             Jedis jedis = jedisPool.getResource();
             
-            jedis.del(API.REDIS_CLIENT_ACCOUNT_INFO_KEY, API.REDIS_STAFF_ACCOUNT_INFO_KEY, API.REDIS_WEIXIN_ACCESS_TOKEN_KEY, API.REDIS_WEIXIN_WEBCHAT_SESSIONID);
+            jedis.del(API.REDIS_CLIENT_ACCOUNT_INFO_KEY, API.REDIS_STAFF_ACCOUNT_INFO_KEY, API.REDIS_WEIXIN_ACCESS_TOKEN_KEY, API.REDIS_WEIXIN_WEBCHAT_SESSIONID, API.REDIS_WAITING_LIST_COUNT);
 
             // Tencent
 //            WeChatHttpsUtil.setAccessTokenToRedis(jedis, "gh_9caaf9d11617", "wxcebdb944e4eede3c", "54dce7e4383ed76be29a8bf2c81c008e", "1", API.REDIS_STAFF_ACCOUNT_INFO_KEY);

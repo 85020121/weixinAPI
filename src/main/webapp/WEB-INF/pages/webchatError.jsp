@@ -23,7 +23,7 @@
 
           <div class="inner cover">
             <h1 class="cover-heading">WARNING</h1>
-            <p class="lead">GEEEEEEEET OUT!!!!!!</p>
+            <p class="lead">您的账户在其他地方登陆，如果不是您本人，请联系管理员！</p>
           </div>
 
           <div class="mastfoot">
