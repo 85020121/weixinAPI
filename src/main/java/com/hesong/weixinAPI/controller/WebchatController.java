@@ -256,7 +256,8 @@ public class WebchatController {
                 JSONArray channel_list = staff_info.getJSONArray("channels");
                 
                 List<StaffSessionInfo> sessionChannelList = new ArrayList<StaffSessionInfo>();
-                String text = String.format("系统提示:您的账户已经通过网页签到成功,您的工号是%s.", staff_working_num);
+                // 系统提示:您的账户已经通过网页签到成功,您的工号是%s.
+                String text = String.format("", staff_working_num);
                 
                 for (int i = 0; i < channel_list.size(); i++) {
                     JSONObject channel = channel_list.getJSONObject(i);
@@ -296,7 +297,7 @@ public class WebchatController {
             }
         } catch (Exception e) {
             log.error("Staff checkin failed: " + e.toString());
-            return createErrMsg("系统出错，请联系管理员！");
+            return createErrMsg(ContextPreloader.messageProp.getProperty("staff.message.systemError"));
         }
     }
     
@@ -319,7 +320,7 @@ public class WebchatController {
                         if (s.getClient_type().equalsIgnoreCase("wx")) {
                          // Remaind client that staff is leaving.
                             String token = jedis.hget(API.REDIS_WEIXIN_ACCESS_TOKEN_KEY, s.getClient_account()); //ContextPreloader.Account_Map.get(s.getClient_account()).getToken();
-                            String text = "系统提示：对不起，客服MM有急事下线了,会话已结束。您可以使用留言功能,客服MM将会在第一时间给您回复[微笑]";
+                            String text = ContextPreloader.messageProp.getProperty("client.message.staffCheckedOut");
                             MessageRouter.sendMessage(s.getClient_openid(), token, text, "text");
 
                             if (CheckSessionAvailableJob.sessionMap.containsKey(tenantUn)) {
@@ -336,7 +337,8 @@ public class WebchatController {
                         MessageRouter.recordSession(s, 0);
                     }
                     String token = jedis.hget(API.REDIS_WEIXIN_ACCESS_TOKEN_KEY, s.getAccount()); // ContextPreloader.Account_Map.get(s.getAccount()).getToken();
-                    MessageRouter.sendMessage(s.getOpenid(), token, "系统提示：您已经从网页端成功签出!", API.TEXT_MESSAGE);
+                    // 系统提示：您已经从网页端成功签出!
+                    MessageRouter.sendMessage(s.getOpenid(), token, ContextPreloader.messageProp.getProperty("staff.message.checkoutFromWeb"), API.TEXT_MESSAGE);
                     MessageRouter.activeStaffMap.remove(s.getOpenid());
                     MessageRouter.staffIdList.remove(s.getOpenid());
                 }
@@ -375,20 +377,20 @@ public class WebchatController {
         
         if (session.isBusy()) {
             response.put("success", false);
-            response.put("msg", "系统提示：您正在和客户通话,无法实施该操作.");
+            response.put("msg", ContextPreloader.messageProp.getProperty("staff.message.noOperationInSession"));
             return response;
         }
         
         String tenentUn = session.getTenantUn();
         if (!MessageRouter.mulClientStaffMap.containsKey(tenentUn) || !MessageRouter.mulClientStaffMap.get(tenentUn).containsKey(session.getStaff_uuid())) {
             response.put("success", false);
-            response.put("msg", "系统提示：您还没有签到，无法使用此功能!");
+            response.put("msg", ContextPreloader.messageProp.getProperty("staff.message.notCheckinYet"));
             return response;
         }
         
         if (!MessageRouter.waitingList.containsKey(tenentUn)) {
             response.put("success", false);
-            response.put("msg", "系统提示：请求已被其他客服抢接或没有客户发起人工请求.");
+            response.put("msg", ContextPreloader.messageProp.getProperty("staff.message.requestTakedByOther"));
             return response;
         }
         
@@ -403,7 +405,7 @@ public class WebchatController {
         }
         if (null == client) {
             response.put("success", false);
-            response.put("msg", "系统提示：请求已被其他坐席抢接或没有客户发起人工请求.");
+            response.put("msg", ContextPreloader.messageProp.getProperty("staff.message.requestTakedByOther"));
             return response;
         }
         
@@ -429,7 +431,7 @@ public class WebchatController {
             client_session.put(client.getOpenid(), session);
             
             // To staff
-            String text = String.format("系统提示：您已经和客户\"%s\"建立通话.", client.getName());
+            String text = String.format(ContextPreloader.messageProp.getProperty("staff.message.sessionBuilded"), client.getName());
             String sToken = MessageRouter.getAccessToken(session.getAccount());
             MessageRouter.sendMessage(staff_openid, sToken, text, API.TEXT_MESSAGE);
             // To web
@@ -447,14 +449,14 @@ public class WebchatController {
             msg.setData(data);
             processMessage(msg, session.getStaff_uuid());
             // To client
-            text = String.format("系统提示：客服%s为您服务，请问有什么可以帮助您？如果希望结束此会话，直接输入#号键结束!", session.getStaffid());
+            text = String.format(ContextPreloader.messageProp.getProperty("client.message.sessionBuilded"), session.getStaffid());
             MessageRouter.sendMessage(client.getOpenid(), MessageRouter.getAccessToken(client.getAccount()), text, API.TEXT_MESSAGE);
 
             response.put("success", true);
             return response;
         } else {
             response.put("success", false);
-            response.put("msg", "系统提示：系统错误，请联系管理员.");
+            response.put("msg", ContextPreloader.messageProp.getProperty("staff.message.systemError"));
             return response;
         }
     }
@@ -463,7 +465,7 @@ public class WebchatController {
     @RequestMapping(value = "/{tenantUn}/takeClientFromWeb/{staff_uuid}", method = RequestMethod.GET)
     public JSONObject takeClientFromWeb(@PathVariable String tenantUn, @PathVariable String staff_uuid){
         if (!MessageRouter.waitingList.containsKey(tenantUn)) {
-            return createErrMsg("系统提示：请求已被其他客服抢接或没有客户发起人工请求.");
+            return createErrMsg(ContextPreloader.messageProp.getProperty("staff.message.requestTakedByOther"));
         }
         
         Staff staff = null;
@@ -502,7 +504,7 @@ public class WebchatController {
             }
         }
         if (null == client) {
-            return createErrMsg("系统提示：请求已被其他坐席抢接或没有客户发起人工请求.");
+            return createErrMsg(ContextPreloader.messageProp.getProperty("staff.message.requestTakedByOther"));
         }
         
         Map<String, StaffSessionInfo> client_session = CheckSessionAvailableJob.sessionMap.get(session.getTenantUn());
@@ -527,7 +529,7 @@ public class WebchatController {
             client_session.put(client.getOpenid(), session);
             
             // To staff
-            String text = String.format("系统提示：您已经和客户\"%s\"建立通话.", client.getName());
+            String text = String.format(ContextPreloader.messageProp.getProperty("staff.message.sessionBuilded"), client.getName());
             String sToken = MessageRouter.getAccessToken(session.getAccount());
             MessageRouter.sendMessage(session.getOpenid(), sToken, text, API.TEXT_MESSAGE);
             // To web
@@ -546,7 +548,7 @@ public class WebchatController {
             
             processMessage(msg, session.getStaff_uuid());
             // To client
-            text = String.format("系统提示：客服%s为您服务，请问有什么可以帮助您？如果希望结束此会话，直接输入#号键结束!", session.getStaffid());
+            text = String.format(ContextPreloader.messageProp.getProperty("client.message.sessionBuilded"), session.getStaffid());
             MessageRouter.sendMessage(client.getOpenid(), MessageRouter.getAccessToken(client.getAccount()), text, API.TEXT_MESSAGE);
 
             JSONObject response = new JSONObject();
@@ -570,7 +572,7 @@ public class WebchatController {
                 } else {
                     timeout = timeout.replace("000", "");
                 }
-                String content = String.format("系统提示：您已向客户发出结束会话提示，%s秒内客户如果没有任何回复，该会话将自动结束。", timeout);
+                String content = String.format(ContextPreloader.messageProp.getProperty("staff.message.sendEndSessionRequest"), timeout);
 
                 String cToken = jedis.hget(API.REDIS_WEIXIN_ACCESS_TOKEN_KEY,
                         s.getClient_account()); // ContextPreloader.Account_Map.get(s.getClient_account()).getToken();
@@ -582,7 +584,7 @@ public class WebchatController {
                 MessageRouter.sendMessage(s.getOpenid(), sToken, content, API.TEXT_MESSAGE);
 
                 // To client
-                content = String.format("系统提示：%s秒内如果您未作任何回复,该会话将自动结束.", timeout);
+                content = String.format(ContextPreloader.messageProp.getProperty("client.message.receiveEndSession"), timeout);
                 MessageRouter.sendMessage(s.getClient_openid(), cToken, content, API.TEXT_MESSAGE);
                 
                 Map<String, StaffSessionInfo> session_map = null;

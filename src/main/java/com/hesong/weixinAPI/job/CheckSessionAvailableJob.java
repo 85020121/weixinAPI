@@ -67,7 +67,7 @@ public class CheckSessionAvailableJob implements Job {
                                 endtime = 30;
                             }
 
-                            String text = String.format("系统提示：您已经很久没有输入消息了，%d秒内如果您未作任何回复,该会话将自动结束。", endtime);
+                            String text = String.format(ContextPreloader.messageProp.getProperty("client.message.remaindToActiveSession"), endtime);
                             // To client
                             if (session.getClient_type().equalsIgnoreCase("wx")) {
                                 MessageRouter.sendMessage(client_openid, cToken,

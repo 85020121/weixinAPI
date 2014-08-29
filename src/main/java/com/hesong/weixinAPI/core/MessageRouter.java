@@ -18,6 +18,8 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+import javax.swing.text.AbstractDocument.Content;
+
 import net.sf.json.JSONArray;
 import net.sf.json.JSONObject;
 import net.sf.json.JSONSerializer;
@@ -46,6 +48,7 @@ import com.hesong.weixinAPI.mq.events.MQStaffSubscribeEvent;
 import com.hesong.weixinAPI.mq.events.MQStaffUnsubscribeEvent;
 import com.hesong.weixinAPI.tools.API;
 import com.hesong.weixinAPI.tools.WeChatHttpsUtil;
+import com.sun.xml.internal.bind.CycleRecoverable.Context;
 
 public class MessageRouter implements Runnable {
 
@@ -142,7 +145,8 @@ public class MessageRouter implements Runnable {
                             String openid = message.get(API.MESSAGE_FROM_TAG);
                             String account = message.get(API.MESSAGE_TO_TAG);
                             String token = getAccessToken(account);
-                            String text = "系统提示：您暂时不是客服，请联系您的商户管理员。";
+                            // 系统提示：您暂时不是客服，请联系您的商户管理员。
+                            String text = ContextPreloader.messageProp.getProperty("staff.message.notStaff");
                             sendMessage(openid, token, text, API.TEXT_MESSAGE);
                             break;
                         }
@@ -180,12 +184,6 @@ public class MessageRouter implements Runnable {
                             break;
                         case "LEAVE_MESSAGE":
                             leaveMessage(message);
-                            break;
-                        case "EXPRESS_RETURN_1":
-                            expressMessage(message, "您好！请问有什么可以帮助您[微笑]?");
-                            break;
-                        case "EXPRESS_RETURN_2":
-                            expressMessage(message, "感谢您对我们的支持！如有疑问请及时与我们沟通[微笑]?");
                             break;
                         default:
                             break;
@@ -316,7 +314,8 @@ public class MessageRouter implements Runnable {
                 
                 return;
             } else {
-                String text = "系统提示：您目前没有建立会话连接，无法发送消息。";
+                // 系统提示：您目前没有建立会话连接，无法发送消息。
+                String text = ContextPreloader.messageProp.getProperty("staff.message.noSession");
                 String token = getAccessToken(to_account);
                 sendMessage(from_openid, token, text, API.TEXT_MESSAGE);
                 return;
@@ -366,7 +365,8 @@ public class MessageRouter implements Runnable {
         
         // Leaving message
         if (null != tenantUn && CheckLeavingMessageJob.leavingMessageClientList.containsKey(tenantUn) && CheckLeavingMessageJob.leavingMessageClientList.get(tenantUn).containsKey(img_openid)) {
-            String text = "系统提示：对不起，留言系统目前不支持图片和语音消息，请发送文字消息进行留言[微笑]";
+            // 系统提示：对不起，留言系统目前不支持图片和语音消息，请发送文字消息进行留言[微笑]
+            String text = ContextPreloader.messageProp.getProperty("staff.message.typeNotAccept");
             sendMessage(img_openid, img_Token, text, API.TEXT_MESSAGE);
             ContextPreloader.jedisPool.returnResource(jedis);
             return;
@@ -386,7 +386,7 @@ public class MessageRouter implements Runnable {
                 
                 String img_id = getMediaId(message.get(API.MESSAGE_MEDIA_ID_TAG), img_Token, img_toToken, "image", API.CONTENT_TYPE_IMAGE);
                 if (img_id.equals("error")) {
-                    sendMessage(img_openid, img_Token, "系统提示：发送图片失败！", API.TEXT_MESSAGE);
+                    sendMessage(img_openid, img_Token, ContextPreloader.messageProp.getProperty("staff.message.sendImageFailed"), API.TEXT_MESSAGE);
                     return;
                 }
                 sendMessage(img_to_openid, img_toToken, img_id, API.IMAGE_MESSAGE);
@@ -414,7 +414,8 @@ public class MessageRouter implements Runnable {
                 
                 String img_id = getMediaId(message.get(API.MESSAGE_MEDIA_ID_TAG), img_Token, img_toToken, "image", API.CONTENT_TYPE_IMAGE);
                 if (img_id.equals("error")) {
-                    sendMessage(img_openid, img_Token, "系统提示：发送图片失败！", API.TEXT_MESSAGE);
+                    // 系统提示：发送图片失败！
+                    sendMessage(img_openid, img_Token, ContextPreloader.messageProp.getProperty("staff.message.sendImageFailed"), API.TEXT_MESSAGE);
                     ContextPreloader.jedisPool.returnResource(jedis);
                     return;
                 }
@@ -428,7 +429,8 @@ public class MessageRouter implements Runnable {
                 ContextPreloader.jedisPool.returnResource(jedis);
                 return;
             } else {
-                String text = "系统提示：您目前没有建立会话连接，无法发送消息。";
+                // 系统提示：您目前没有建立会话连接，无法发送消息。
+                String text = ContextPreloader.messageProp.getProperty("staff.message.noSession");
                 sendMessage(img_openid, img_Token, text, API.TEXT_MESSAGE);
                 ContextPreloader.jedisPool.returnResource(jedis);
                 return;
@@ -448,7 +450,8 @@ public class MessageRouter implements Runnable {
         
         // Leaving message
         if (null != tenantUn && CheckLeavingMessageJob.leavingMessageClientList.containsKey(tenantUn) && CheckLeavingMessageJob.leavingMessageClientList.get(tenantUn).containsKey(voice_openid)) {
-            String text = "系统提示：对不起，留言系统目前不支持图片和语音消息，请发送文字消息进行留言[微笑]";
+            // 系统提示：对不起，留言系统目前不支持图片和语音消息，请发送文字消息进行留言[微笑]
+            String text = ContextPreloader.messageProp.getProperty("staff.message.typeNotAccept");
             sendMessage(voice_openid, voice_Token, text, API.TEXT_MESSAGE);
             ContextPreloader.jedisPool.returnResource(jedis);
             return;
@@ -480,7 +483,8 @@ public class MessageRouter implements Runnable {
                 voice_to_openid = s.getClient_openid();
                 s.setLastReceived(new Date());
             } else {
-                String text = "系统提示：您目前没有建立会话连接，无法发送消息。";
+                // 系统提示：您目前没有建立会话连接，无法发送消息。
+                String text = ContextPreloader.messageProp.getProperty("staff.message.noSession");
                 sendMessage(voice_openid, voice_Token, text, API.TEXT_MESSAGE);
                 ContextPreloader.jedisPool.returnResource(jedis);
                 return;
@@ -491,7 +495,8 @@ public class MessageRouter implements Runnable {
         
         String voice_id = getMediaId(message.get(API.MESSAGE_MEDIA_ID_TAG), voice_Token, voice_toToken, "voice", API.CONTENT_TYPE_VOICE);
         if (voice_id.equals("error")) {
-            sendMessage(voice_openid, voice_Token, "系统提示：发送语音消息失败", API.TEXT_MESSAGE);
+            // 系统提示：发送语音消息失败
+            sendMessage(voice_openid, voice_Token, ContextPreloader.messageProp.getProperty("staff.message.sendVoiceFailed"), API.TEXT_MESSAGE);
             return;
         }
         sendMessage(voice_to_openid, voice_toToken, voice_id, API.VOICE_MESSAGE);
@@ -529,7 +534,8 @@ public class MessageRouter implements Runnable {
         
         String voice_id = getMediaId(message.get(API.MESSAGE_MEDIA_ID_TAG), video_Token, video_toToken, "video", API.CONTENT_TYPE_VIDEO);
         if (voice_id.equals("error")) {
-            sendMessage(video_openid, video_Token, "系统提示：发送视频消息失败", API.TEXT_MESSAGE);
+            // 系统提示：发送视频消息失败
+            sendMessage(video_openid, video_Token, ContextPreloader.messageProp.getProperty("staff.message.sendVedioFailed"), API.TEXT_MESSAGE);
             return;
         }
         sendMessage(video_to_openid, video_toToken, voice_id, API.VIDEO_MESSAGE);
@@ -661,7 +667,8 @@ public class MessageRouter implements Runnable {
         String openid = message.get(API.MESSAGE_FROM_TAG);
         String toToken = getAccessToken(message.get(API.MESSAGE_TO_TAG)); //ContextPreloader.Account_Map.get(
 //                message.get(API.MESSAGE_TO_TAG)).getToken();
-        String content = "系统提示：亲，您已经关注了该公众号！";
+        // 系统提示：亲，您已经关注了该公众号！
+        String content = ContextPreloader.messageProp.getProperty("staff.message.alreadySubscribed");
         sendMessage(openid, toToken, content, API.TEXT_MESSAGE);
     }
     
@@ -682,7 +689,8 @@ public class MessageRouter implements Runnable {
                 e.printStackTrace();
             }
         } else {
-            String text = "系统提示：目前没有和客户建立连接，无法查看详情。";
+            // 系统提示：目前没有和客户建立连接，无法查看详情。
+            String text = ContextPreloader.messageProp.getProperty("staff.message.noClientInfo");
             sendMessage(openid, getAccessToken(account), text, API.TEXT_MESSAGE);
         }
     }
@@ -703,7 +711,8 @@ public class MessageRouter implements Runnable {
 //            url = String
 //                    .format(API.ALL_CHAT_HISTORY_URL,
 //                            openid, ContextPreloader.channelMap.get(account));
-            String text = "系统提示：您目前并没有接通客户，无法查看聊天记录。";
+            // 系统提示：您目前并没有接通客户，无法查看聊天记录。
+            String text = ContextPreloader.messageProp.getProperty("staff.message.noClientChatHistory");
             sendMessage(openid, getAccessToken(account), text, API.TEXT_MESSAGE);
             return;
         }
@@ -729,7 +738,8 @@ public class MessageRouter implements Runnable {
             if (staff_info.getBoolean("success")) {
                 if (staff_info.getInt("tenantstatus") != 1) {
                     log.warn("Staff no autho");
-                    String text = "系统提示：欢迎使用和声云客服系统，您申请成为【商家】客服，正在审核中，请耐心等待...";
+                    // 系统提示：欢迎使用和声云客服系统，您申请成为【商家】客服，正在审核中，请耐心等待...
+                    String text = ContextPreloader.messageProp.getProperty("staff.message.waitingCheck");
                     sendMessage(openid, token, text, API.TEXT_MESSAGE);
                     return;
                 }
@@ -743,7 +753,8 @@ public class MessageRouter implements Runnable {
                     staff_map = mulClientStaffMap.get(tenantUn);
                     if (staff_map.containsKey(staff_uuid)) {
                         log.info("Staff already checked in, staff_uuid: " + staff_uuid);
-                        String text = "系统提示：您已经签入了，无需再次签入。";
+                        // 系统提示：您已经签入了，无需再次签入。
+                        String text = ContextPreloader.messageProp.getProperty("staff.message.alreadyCheckedIn");
                         sendMessage(openid, token, text, API.TEXT_MESSAGE);
                         return;
                     }
@@ -757,7 +768,8 @@ public class MessageRouter implements Runnable {
                 
                 JSONArray channel_list = staff_info.getJSONArray("channels");
                 List<StaffSessionInfo> sessionChannelList = new ArrayList<StaffSessionInfo>();
-                String text = String.format("系统提示：签到成功，你的工号是%s。", staff_working_num);
+                // 系统提示：签到成功，你的工号是%s。
+                String text = String.format(ContextPreloader.messageProp.getProperty("staff.message.checkedIn"), staff_working_num);
 
                 for (int i = 0; i < channel_list.size(); i++) {
                     JSONObject channel = channel_list.getJSONObject(i);
@@ -801,12 +813,14 @@ public class MessageRouter implements Runnable {
                 sendWebMessage("sysMessage", "", "", "", staff_uuid, "webCheckin", new JSONObject());
             } else {
                 log.error("Staff checkin failed: " + staff_info.getString("msg"));
-                String text = "系统提示：座席签入失败，您的客服资料不正确，或者您不是本商户的客服，请联系管理员或取消关注本公众号！";
+                // 系统提示：座席签入失败，您的客服资料不正确，或者您不是本商户的客服，请联系管理员或取消关注本公众号！
+                String text = ContextPreloader.messageProp.getProperty("staff.message.checkinFailed");
                 sendMessage(openid, token, text, API.TEXT_MESSAGE);
             }
         } catch (Exception e) {
             log.error("Staff checkin failed: " + e.toString());
-            String text = "系统提示：座席签入失败，您的客服资料不正确，或者您不是本商户的客服，请联系管理员或取消关注本公众号！";
+            // 系统提示：座席签入失败，您的客服资料不正确，或者您不是本商户的客服，请联系管理员或取消关注本公众号！
+            String text = ContextPreloader.messageProp.getProperty("staff.message.checkinFailed");
             sendMessage(openid, token, text, API.TEXT_MESSAGE);
         }
     }
@@ -833,7 +847,8 @@ public class MessageRouter implements Runnable {
                     if (s.getClient_type().equalsIgnoreCase("wx")) {
                         // Remaind client that staff is leaving.
                         String token = jedis.hget(API.REDIS_WEIXIN_ACCESS_TOKEN_KEY, s.getClient_account()); //ContextPreloader.Account_Map.get(s.getClient_account()).getToken();
-                        String text = "系统提示：对不起，客服MM有急事下线了，会话已结束。您可以使用留言功能，客服MM将会在第一时间给您回复[微笑]";
+                        // 系统提示：对不起，客服MM有急事下线了，会话已结束。您可以使用留言功能，客服MM将会在第一时间给您回复[微笑]
+                        String text = ContextPreloader.messageProp.getProperty("client.message.staffCheckedOut");
                         sendMessage(s.getClient_openid(), token, text, "text");
 
                         if (CheckSessionAvailableJob.sessionMap.containsKey(tenantUn)) {
@@ -850,7 +865,8 @@ public class MessageRouter implements Runnable {
                     MessageRouter.recordSession(s, 0);
                 }
                 String token = jedis.hget(API.REDIS_WEIXIN_ACCESS_TOKEN_KEY, s.getAccount()); // ContextPreloader.Account_Map.get(s.getAccount()).getToken();
-                sendMessage(s.getOpenid(), token, "系统提示：您已成功签出！", API.TEXT_MESSAGE);
+                // 系统提示：您已成功签出！
+                sendMessage(s.getOpenid(), token, ContextPreloader.messageProp.getProperty("staff.message.checkedOut"), API.TEXT_MESSAGE);
                 
                 activeStaffMap.remove(s.getOpenid());
                 staffIdList.remove(s.getOpenid());
@@ -898,18 +914,21 @@ public class MessageRouter implements Runnable {
         
         if (CheckSessionAvailableJob.sessionMap.containsKey(tenantUn)
                 && CheckSessionAvailableJob.sessionMap.get(tenantUn).containsKey(client_openid)) {
-            sendMessage(client_openid, cToken, "系统提示：您已经接通人工服务!", API.TEXT_MESSAGE);
+            // 系统提示：您已经接通人工服务!
+            sendMessage(client_openid, cToken, ContextPreloader.messageProp.getProperty("client.message.alreadyInStaffService"), API.TEXT_MESSAGE);
             return;
         }
         
         if (null == tenantUn || !mulClientStaffMap.containsKey(tenantUn) || mulClientStaffMap.get(tenantUn).isEmpty()) {
-            String content = "系统提示：暂时没有空闲客服，请稍后再试！您可以使用留言功能，客服MM将第一时间给您回复[微笑]";
+            // 系统提示：暂时没有空闲客服，请稍后再试！您可以使用留言功能，客服MM将第一时间给您回复[微笑]
+            String content = ContextPreloader.messageProp.getProperty("client.message.noAvailableStaff");
             sendMessage(client_openid, cToken, content, API.TEXT_MESSAGE);
             return;
         }
         
         if (waitingListIDs.contains(client_openid)) {
-            String content = "系统提示：您已经发出人工服务请求，我们将尽快为您接通，请耐心等候！";
+            // 系统提示：您已经发出人工服务请求，我们将尽快为您接通，请耐心等候！
+            String content = ContextPreloader.messageProp.getProperty("client.message.alreadySendRequest");
             sendMessage(client_openid, cToken, content, API.TEXT_MESSAGE);
             return;
         }
@@ -953,15 +972,16 @@ public class MessageRouter implements Runnable {
                         } catch (Exception e) {
                             log.error("Error: " + e.toString() + ", URL = " + url);
                             e.printStackTrace();
-                            
-                            String text = String.format("系统提示：客户'%s'寻求人工服务，请点击抢接按钮接通会话。", client_name);
+                            // 系统提示：客户'%s'寻求人工服务，请点击抢接按钮接通会话
+                            String text = String.format(ContextPreloader.messageProp.getProperty("staff.message.staffServiceRequest"), client_name);
                             sendMessage(s.getOpenid(), sToken, text, API.TEXT_MESSAGE);
                         }
                         
                         if (s.isWebStaff()) {
                             JSONObject data = new JSONObject();
                             data.put("clientOpenid", client_openid);
-                            sendWebMessage("staffService", String.format("系统提示：客户'%s'寻求人工服务，请点击抢接按钮接通会话。", client_name),
+                            // 系统提示：客户'%s'寻求人工服务，请点击抢接按钮接通会话
+                            sendWebMessage("staffService", String.format(ContextPreloader.messageProp.getProperty("staff.message.staffServiceRequest"), client_name),
                                     s.getOpenid(), "", s.getStaff_uuid(), "", data);
                         }
                         
@@ -975,7 +995,8 @@ public class MessageRouter implements Runnable {
         ContextPreloader.jedisPool.returnResource(jedis);
         
         if (isAllBusy) {
-            String text = "系统提示：暂时没有空闲客服，请稍后再试！您可以使用留言功能，客服MM将第一时间给您回复[微笑]";
+            // 系统提示：暂时没有空闲客服，请稍后再试！您可以使用留言功能，客服MM将第一时间给您回复[微笑]
+            String text = ContextPreloader.messageProp.getProperty("client.message.noAvailableStaff");
             sendMessage(client_openid, cToken, text, API.TEXT_MESSAGE);
             return;
         } else {
@@ -996,7 +1017,8 @@ public class MessageRouter implements Runnable {
             }
             
             waitingListIDs.add(client_openid);
-            String content = "系统提示：正在为您接通人工服务，请稍等...";
+            // 系统提示：正在为您接通人工服务，请稍等...
+            String content = ContextPreloader.messageProp.getProperty("client.message.waitingStaffResponse");
             sendMessage(client_openid, cToken, content, API.TEXT_MESSAGE);
         }
         
@@ -1012,14 +1034,10 @@ public class MessageRouter implements Runnable {
                 && CheckSessionAvailableJob.sessionMap.get(tenantUn).containsKey(cOpenid)) {
             s = CheckSessionAvailableJob.sessionMap.get(tenantUn).get(cOpenid);
         } else {
-            String token = getAccessToken(message.get(API.MESSAGE_TO_TAG));
-            String content = "系统提示：您并没有接通会话。";
-            sendMessage(cOpenid, token, content, API.TEXT_MESSAGE);
             return;
         }
-
-      
-        String content = "系统提示：客户已退出，会话已结束";
+        // 系统提示：客户已退出，会话已结束
+        String content = ContextPreloader.messageProp.getProperty("staff.message.clientEndedSession");
 
         Jedis jedis = ContextPreloader.jedisPool.getResource();
         String cToken = jedis.hget(API.REDIS_WEIXIN_ACCESS_TOKEN_KEY,
@@ -1043,7 +1061,8 @@ public class MessageRouter implements Runnable {
         }
 
         // To client
-        content = "系统提示：当前会话已结束。";
+        // 系统提示：当前会话已结束。
+        content = ContextPreloader.messageProp.getProperty("client.message.clientEndedSession");
         sendMessage(s.getClient_openid(), cToken, content, API.TEXT_MESSAGE);
         
         if (CheckSessionAvailableJob.sessionMap.containsKey(tenantUn)) {
@@ -1058,7 +1077,8 @@ public class MessageRouter implements Runnable {
         // Remaind staff
         int waiting_count = getWaitingClientCount(tenantUn);
         if (waiting_count > 0) {
-            String text = String.format("系统提示：有%d个客户在等待人工服务，请点击抢接接入客户。", waiting_count);
+            // 系统提示：有%d个客户在等待人工服务，请点击抢接接入客户。
+            String text = String.format(ContextPreloader.messageProp.getProperty("staff.message.requestCount"), waiting_count);
             sendMessage(s.getOpenid(), sToken, text, API.TEXT_MESSAGE);
         }
         
@@ -1081,14 +1101,16 @@ public class MessageRouter implements Runnable {
             s = activeStaffMap.get(sOpenid);
         } else {
             String token = getAccessToken(message.get(API.MESSAGE_TO_TAG));
-            String content = "系统提示：您并没有接通会话。";
+            // 系统提示：您并没有接通会话。
+            String content = ContextPreloader.messageProp.getProperty("staff.message.canNotEndSession");
             sendMessage(sOpenid, token, content, API.TEXT_MESSAGE);
             return;
         }
 
         if (CheckEndSessionJob.endSessionMap.containsKey(s.getTenantUn())
                 && CheckEndSessionJob.endSessionMap.get(s.getTenantUn()).containsKey(s.getClient_openid())) {
-            String content = "系统提示：请不要重复发出结束会话提示。";
+            // 系统提示：请不要重复发出结束会话提示。
+            String content = ContextPreloader.messageProp.getProperty("staff.message.endSessionAlreadySend");
             String token = getAccessToken(message.get(API.MESSAGE_TO_TAG));
             sendMessage(sOpenid, token, content, API.TEXT_MESSAGE);
             return;
@@ -1101,7 +1123,8 @@ public class MessageRouter implements Runnable {
         } else {
             timeout = timeout.replace("000", "");
         }
-        String content = String.format("系统提示：您已向客户发出结束会话提示，%s秒内客户如果没有任何回复，该会话将自动结束。", timeout);
+        // 系统提示：您已向客户发出结束会话提示，%s秒内客户如果没有任何回复，该会话将自动结束。
+        String content = String.format(ContextPreloader.messageProp.getProperty("staff.message.sendEndSessionRequest"), timeout);
 
         String cToken = jedis.hget(API.REDIS_WEIXIN_ACCESS_TOKEN_KEY,
                 s.getClient_account()); // ContextPreloader.Account_Map.get(s.getClient_account()).getToken();
@@ -1113,7 +1136,8 @@ public class MessageRouter implements Runnable {
         sendMessage(sOpenid, sToken, content, API.TEXT_MESSAGE);
 
         // To client
-        content = String.format("系统提示：%s秒内如果您未作任何回复，该会话将自动结束。", timeout);
+        // 系统提示：%s秒内如果您未作任何回复，该会话将自动结束。
+        content = String.format(ContextPreloader.messageProp.getProperty("client.message.receiveEndSession"), timeout);
         sendMessage(s.getClient_openid(), cToken, content, API.TEXT_MESSAGE);
         
         Map<String, StaffSessionInfo> session_map = null;
@@ -1133,28 +1157,32 @@ public class MessageRouter implements Runnable {
         
         StaffSessionInfo session = activeStaffMap.get(staff_openid);
         if (null == session) {
-            String text = "系统提示：您还没有签到，无法使用此功能！";
+            // 系统提示：您还没有签到，无法使用此功能！
+            String text = ContextPreloader.messageProp.getProperty("staff.message.notCheckinYet");
             log.error("Get session returns null, staff openid: " + staff_openid);
             sendMessage(staff_openid, sToken, text, "text");
             return;
         }
         
         if (session.isBusy()) {
-            String text = "系统提示：您正在和客户通话，无法实施该操作！";
+            // 系统提示：您正在和客户通话，无法实施该操作！
+            String text = ContextPreloader.messageProp.getProperty("staff.message.noOperationInSession");
             sendMessage(staff_openid, sToken, text, "text");
             return;
         }
         
         String tenentUn = session.getTenantUn();
         if (!mulClientStaffMap.containsKey(tenentUn) || !mulClientStaffMap.get(tenentUn).containsKey(session.getStaff_uuid())) {
-            String text = "系统提示：您还没有签到，无法使用此功能！";
+            // 系统提示：您还没有签到，无法使用此功能！
+            String text = ContextPreloader.messageProp.getProperty("staff.message.notCheckinYet");
             log.error("Get staff returns null, staff openid: " + staff_openid);
             sendMessage(staff_openid, sToken, text, "text");
             return;
         }
         
         if (!waitingList.containsKey(tenentUn)) {
-            String text = "系统提示：请求已被其他客服抢接或没有客户发起人工请求.";
+            // 系统提示：请求已被其他客服抢接或没有客户发起人工请求.
+            String text = ContextPreloader.messageProp.getProperty("staff.message.requestTakedByOther");
             sendMessage(staff_openid, sToken, text, "text");
             return;
         }
@@ -1169,7 +1197,8 @@ public class MessageRouter implements Runnable {
             }
         }
         if (null == client) {
-            String text = "系统提示：请求已被其他坐席抢接或没有客户发起人工请求。";
+            // 系统提示：请求已被其他客服抢接或没有客户发起人工请求.
+            String text = ContextPreloader.messageProp.getProperty("staff.message.requestTakedByOther");
             sendMessage(staff_openid, sToken, text, "text");
             return;
         }
@@ -1195,8 +1224,8 @@ public class MessageRouter implements Runnable {
             session.setBeginTime(API.TIME_FORMAT.format(new Date()));
             client_session.put(client.getOpenid(), session);
             
-            // To staff
-            String text = String.format("系统提示：您已经和客户\"%s\"建立通话。", client.getName());
+            // To staff 系统提示：您已经和客户\"%s\"建立通话。
+            String text = String.format(ContextPreloader.messageProp.getProperty("staff.message.sessionBuilded"), client.getName());
             sendMessage(staff_openid, sToken, text, API.TEXT_MESSAGE);
             // To web staff
             if (session.isWebStaff()) {
@@ -1208,12 +1237,13 @@ public class MessageRouter implements Runnable {
                 data.put("sex", client.getSex());
                 sendWebMessage("sysMessage", text, session.getOpenid(), "", session.getStaff_uuid(), "takeClientFromMobile", data);
             }
-            // To client
-            text = String.format("系统提示：客服%s为您服务，请问有什么可以帮助您？如果希望结束此会话，直接输入#号键结束!", session.getStaffid());
+            // To client 系统提示：客服%s为您服务，请问有什么可以帮助您？如果希望结束此会话，直接输入#号键结束!
+            text = String.format(ContextPreloader.messageProp.getProperty("系统提示：客服%s为您服务，请问有什么可以帮助您？如果希望结束此会话，直接输入#号键结束!"), session.getStaffid());
             sendMessage(client.getOpenid(), getAccessToken(client.getAccount()), text, API.TEXT_MESSAGE);
 
         } else {
-            String text = "系统提示：系统错误，请联系管理员.";
+            // 系统提示：系统错误，请联系管理员.
+            String text = ContextPreloader.messageProp.getProperty("staff.message.systemError");
             sendMessage(staff_openid, sToken, text, "text");
         }
         
@@ -1294,7 +1324,8 @@ public class MessageRouter implements Runnable {
         boolean isSuccessed = qrcode_ret.getBoolean("success");
         if (!isSuccessed) {
             log.error("Get QRCode list failed: " + qrcode_ret.toString());
-            sendMessage(openid, token, "系统提示：获取二维码失败，请确定您的账户已经通过审核。", "text");
+            // 系统提示：获取二维码失败，请确定您的账户已经通过审核。
+            sendMessage(openid, token, ContextPreloader.messageProp.getProperty("staff.message.getQRcodeFailed"), "text");
             return;
         }
         
@@ -1337,7 +1368,8 @@ public class MessageRouter implements Runnable {
 //                    message.get(API.MESSAGE_TO_TAG)).getToken();
             
             if (waitingListIDs.contains(openid)) {
-                String text = "您正在人工请求排队中，无法使用留言功能[微笑]";
+                // 您正在人工请求排队中，无法使用留言功能[微笑]
+                String text = ContextPreloader.messageProp.getProperty("client.message.cannotLeaveMessage");
                 sendMessage(openid, token, text, API.TEXT_MESSAGE);
                 return;
             }
@@ -1357,18 +1389,21 @@ public class MessageRouter implements Runnable {
             
             if (CheckLeavingMessageJob.leavingMessageClientList
                     .containsKey(tenantUn) && CheckLeavingMessageJob.leavingMessageClientList.get(tenantUn).containsKey(openid)) {
-                String content = "系统提示：您正在使用留言功能，赶紧发送您的留言吧！";
+                // 系统提示：您正在使用留言功能，赶紧发送您的留言吧！
+                String content = ContextPreloader.messageProp.getProperty("client.message.alreadyInLeaveMessage");
                 sendMessage(openid, token, content, API.TEXT_MESSAGE);
                 return;
             }
             
             if (CheckSessionAvailableJob.sessionMap.containsKey(tenantUn)
                     && CheckSessionAvailableJob.sessionMap.get(tenantUn).containsKey(openid)) {
-                String content = "系统提示：您正在和客服对话中，无法使用留言功能[微笑]";
+                // 系统提示：您正在和客服对话中，无法使用留言功能[微笑]
+                String content = ContextPreloader.messageProp.getProperty("client.message.inSessionCannotLeaveMessage");
                 sendMessage(openid, token, content, API.TEXT_MESSAGE);
                 return;
             }
-            String content = "系统提示：欢迎使用在线留言服务，客服MM将会在第一时间处理您的留言。请您在五分钟内完成留言，发送END(大小写不限)结束留言，否则系统将在五分钟后自动结束您的留言请求！";
+            // 系统提示：欢迎使用在线留言服务，客服MM将会在第一时间处理您的留言。请您在五分钟内完成留言，发送END(大小写不限)结束留言，否则系统将在五分钟后自动结束您的留言请求！
+            String content = ContextPreloader.messageProp.getProperty("client.message.inLeaveMessage");
             sendMessage(openid, token, content, API.TEXT_MESSAGE);
 
             String url = USER_INFO_URL.replace("ACCESS_TOKEN", token).replace(
@@ -1389,44 +1424,6 @@ public class MessageRouter implements Runnable {
                     CheckLeavingMessageJob.leavingMessageClientList.put(tenantUn, c_map);
                 }
                 c_map.put(openid, c);
-            }
-        } catch (Exception e) {
-            log.error("Request to leave message failed: " + e.toString());
-            e.printStackTrace();
-        }
-    }
-    
-    private void expressMessage(Map<String, String> message, String text) {
-        try {
-            String openid = message.get(API.MESSAGE_FROM_TAG);
-            String sToken = getAccessToken(message.get(API.MESSAGE_TO_TAG)); //ContextPreloader.Account_Map.get(message.get(API.MESSAGE_TO_TAG)).getToken();
-            
-            StaffSessionInfo s = activeStaffMap.get(openid);
-            if (null != s && s.isBusy()) {
-                if (s.getClient_type().equalsIgnoreCase("wx")) {
-                    String token = getAccessToken(s.getClient_account());
-//                            ContextPreloader.Account_Map.get(
-//                            s.getClient_account()).getToken();
-                    sendMessage(s.getClient_openid(), token, text, API.TEXT_MESSAGE);
-                    sendMessage(openid, sToken, text, API.TEXT_MESSAGE);
-                    s.setLastReceived(new Date());
-                }
-                
-                if (s.getClient_type().equalsIgnoreCase("wb")) {
-                    JSONObject weibo_request = new JSONObject();
-                    weibo_request.put("user_id", s.getClient_openid());
-                    weibo_request.put("tenantUn", s.getTenantUn());
-                    weibo_request.put("msgtype", API.TEXT_MESSAGE);
-                    weibo_request.put("content", text);
-                    
-                    JSONObject weibo_ret = WeChatHttpsUtil.httpPostRequest(API.WEIBO_SEND_MESSAGE_URL, weibo_request.toString(), 0);
-                    log.info("Send weibo message return: "+ weibo_ret.toString());
-                    sendMessage(openid, sToken, text, API.TEXT_MESSAGE);
-                    s.setLastReceived(new Date());
-                }
-            } else {
-                String warning = "系统提示：目前没有和客户建立连接，无法使用常用语。";
-                sendMessage(openid, sToken, warning, API.TEXT_MESSAGE);
             }
         } catch (Exception e) {
             log.error("Request to leave message failed: " + e.toString());
@@ -1525,10 +1522,12 @@ public class MessageRouter implements Runnable {
                 LeavingMessageClient c = CheckLeavingMessageJob.leavingMessageClientList.get(tenantUn).get(openid);
                 String text;
                 if (c.getMsgCount() > 0) {
-                    text = "系统提示：您的留言已被记录，客服MM会尽快回复您，感谢您的支持！";
+                    // 系统提示：您的留言已被记录，客服MM会尽快回复您，感谢您的支持！
+                    text = ContextPreloader.messageProp.getProperty("client.message.messageRecorded");
                     newMessageRemaind(tenantUn);
                 } else {
-                    text = "系统提示：您没有留下任何消息，本次留言将不会被记录。";
+                    // 系统提示：您没有留下任何消息，本次留言将不会被记录。
+                    text = ContextPreloader.messageProp.getProperty("client.message.noMessageLeaved");
                 }
                 CheckLeavingMessageJob.leavingMessageClientList.get(tenantUn).remove(openid);
                 String token = getAccessToken(account); //ContextPreloader.Account_Map.get(account).getToken();

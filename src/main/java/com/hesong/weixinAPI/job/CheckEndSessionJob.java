@@ -66,8 +66,8 @@ public class CheckEndSessionJob implements Job {
                                 session.getAccount(), jedis);
 
                         try {
-
-                            String text = "系统提示：会话结束，您已退出人工对话，感谢您的使用。";
+                            // 系统提示：会话结束，您已退出人工对话，感谢您的使用。
+                            String text = ContextPreloader.messageProp.getProperty("client.message.endStaffService");
                             // To client
                             if (session.getClient_type().equalsIgnoreCase("wx")) {
                                 MessageRouter.sendMessage(client_openid,
@@ -75,7 +75,7 @@ public class CheckEndSessionJob implements Job {
                             }
 
                             // To staff
-                            text = "系统提示：该会话已结束。";
+                            text = ContextPreloader.messageProp.getProperty("staff.message.clientEndedSession");
                             MessageRouter.sendMessage(session.getOpenid(),
                                     sToken, text, API.TEXT_MESSAGE);
                             // To web staff
@@ -117,7 +117,7 @@ public class CheckEndSessionJob implements Job {
                         // Remaind staff
                         int waiting_count = MessageRouter.getWaitingClientCount(tenantUn);
                         if (waiting_count > 0) {
-                            String text = String.format("系统提示：有%d个客户在等待人工服务，请点击抢接接入客户。", waiting_count);
+                            String text = String.format(ContextPreloader.messageProp.getProperty("staff.message.requestCount"), waiting_count);
                             MessageRouter.sendMessage(session.getOpenid(), sToken, text, API.TEXT_MESSAGE);
                         }
                     }

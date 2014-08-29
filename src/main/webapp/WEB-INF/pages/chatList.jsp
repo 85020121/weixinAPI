@@ -320,7 +320,10 @@
             return;
         }
     	weixin_checkout(tenantUn, staff_uuid);
-    	//window.location.href = "/wx/webchat/login";
+    	setTimeout(function(){
+    		window.location.href = "/wx/webchat/login";
+    	}, 2000);
+    	
     }
 
     function weixin_checkout(tenantUn, staff_uuid) {
@@ -980,7 +983,7 @@
 	      </ul>
 	      <ul class="nav navbar-nav navbar-right">
 	        <li>
-                <div class="embed-responsive embed-responsive-16by9 weixin-service-count-div" style="width: 400px;height:50px;padding-bottom:0;margin-right:20px;display:none">
+                <div class="embed-responsive embed-responsive-16by9 weixin-service-count-div" style="width: 500px;height:50px;padding-bottom:0;margin-right:20px;display:none">
                   <iframe class="embed-responsive-item weixin-service-count-iframe" scrolling="no" src=""></iframe>
                 </div>
             </li>
@@ -1028,7 +1031,7 @@
           <div class="jumbotron middle-jumbotron-pane" style="padding-top:0;padding:0;" >
           
             <div id="my-message-iframe" class="embed-responsive embed-responsive-16by9" style="display:none;min-height: 450px">
-                <iframe class="embed-responsive-item weixin-message-list" onload="this.height=this.contentWindow.document.documentElement.scrollHeight" scrolling="no" style="border-radius:4px;" src=""></iframe>
+                <iframe id="leaved-message-iframe" class="embed-responsive-item weixin-message-list" onload="this.height=this.contentWindow.document.documentElement.scrollHeight" scrolling="no" style="border-radius:4px;" src=""></iframe>
             </div>
             
           </div>
@@ -1063,6 +1066,7 @@ $("#my-messages").click(function(){
     $(".list-group-item").removeClass("active");
     $("#my-messages").addClass("active");
 });
+
 
 </script>
 </body>
