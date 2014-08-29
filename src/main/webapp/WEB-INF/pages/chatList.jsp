@@ -308,6 +308,8 @@
         }
         $('.weixin-service-count-div').css("display", "block");
         getHistoryList(person.tenant.tenantUn, person.number, 1);
+        $('.history-panel-heading-div h3').append('<a href="javascript:void(0)" onclick=\'getHistoryList("'+person.tenant.tenantUn+'","'+person.number+'",1)\' style="float: right;"><span class="glyphicon glyphicon-refresh"></a>');
+        
     }
     
     
@@ -622,7 +624,7 @@
                         appendNewContent(room, addToBoard);
                         $('#'+room+'-disable-input').css("display","block");
                         $('#'+room+'-input-message').val("无活动会话，暂时无法输入");
-                        getHistoryList(data.data.tenantUn, data.data.working_num, 1);
+                        //getHistoryList(data.data.tenantUn, data.data.working_num, 1);
 					} else if(data.action == "webCheckin") {
 						mobile_checkin();
 					} else if(data.action == "webCheckout") {
@@ -1009,7 +1011,7 @@
 		  </div>
 		  
 		  <div class="panel panel-primary" style="max-height:500px">
-              <div class="panel-heading">
+              <div class="panel-heading history-panel-heading-div">
                 <h3 class="panel-title">历史会话</h3>
               </div>
               <div class="panel-body" style="max-height:400px;overflow: auto;">
