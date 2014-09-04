@@ -27,6 +27,10 @@
 <script src="<c:url value='/resources/js/jquery.cookie.js'/>"></script>    
 
 <script>
+    // develop
+    var contextPath = "http://www.clouduc.cn";
+    // produce
+    //var contextPath = "http://www.hesyun.com";
 
     var isWindowOnFocus = true;
     var titleMessageRemaind;
@@ -79,7 +83,7 @@
     }
     
     function openClientInfo(client, staff) {
-        var pageUrl = 'http://www.clouduc.cn/hsy/tenant/user/customerDetail?clientOpenid='+client+'&openid='+staff;
+        var pageUrl = contextPath+'/hsy/tenant/user/customerDetail?clientOpenid='+client+'&openid='+staff;
         window.open(pageUrl);
     } 
     
@@ -214,6 +218,11 @@
         //clickHistoryList(openid);
     }
     
+    function refreshHistoryList(tenantUn, work_num) {
+    	$(".hitstory-client-list").empty();
+    	getHistoryList(tenantUn, work_num, 1);
+    }
+    
     function getHistoryList(tenantUn, work_num, page) {
     	console.log("getHistoryList");
         var url = "/wx/webchat/"+tenantUn+"/"+work_num+"/getHistoryList/"+page;
@@ -224,7 +233,6 @@
             type : "GET",
             dataType : 'json',
             success : function (result){
-            	$(".hitstory-client-list").empty();
             	console.log("length:"+result.length);
             	if(result.length > 0){
             		for(var i=0; i<result.length; i++) {
@@ -259,13 +267,18 @@
         var takeClient = '<li><a href="#" onclick=\'takeClientFromWeb("'+person.tenant.tenantUn+'","'+person.id+'")\'><span class="glyphicon glyphicon-user"></span><span>&nbsp;&nbsp;抢接</span></a></li>';
         $("#staff-service-menu").append(takeClient);
         
+        $(".channel-list").empty();
+        $(".middle-jumbotron-pane").empty();
+        $(".hitstory-client-list").empty();
+        $(".hitstory-client-list-footer").empty();
+        
         var channels = person.channels;
         var openingChannel = "";
         
         for(var i=0; i<channels.length; i++){
             var channel = channels[i];
             tmpStaffOpenid = channel.openId;
-            weixinMessageUrl = "http://www.clouduc.cn/crm/mobile/replymessage/messagelist.php?openid="+channel.openId;
+            weixinMessageUrl = contextPath + "/crm/mobile/replymessage/messagelist.php?openid="+channel.openId;
             var id = channel.openId + "-channel-list";
             var html = '<a href="javascript:void(0)" id="'+id+'" class="list-group-item staff-channel-list" onclick=\'clickList("'+id+'")\'>客服通道'+(i+1)+'<input style="display:none" value=0></a>';
             $(".channel-list").append(html);
@@ -281,7 +294,7 @@
                chatBoard += "<button id='"+channel.openId+"-sendmessage' class='btn btn-primary' onclick='postMessage(\""+channel.weixinId+"\",\""+channel.openId+"\")' type='button'>发送</button><button type='button' class='btn btn-danger' onclick='endSession(\""+channel.openId+"\")' style='margin-left:10px'>结束会话</button></span></div></div></div>";
             
                 $(".middle-jumbotron-pane").append(chatBoard);
-                $('.emotion').qqFace();
+                $('.emotion').qqFace(channel.openId);
                 uploadImage(channel.openId);
                    
                 $('.weixin-message-list').attr("src", weixinMessageUrl);
@@ -298,7 +311,7 @@
             	openingChannel = channel.openId;
             }
             
-            suaStatIframe = "http://www.clouduc.cn/hsy/tenant/user/staffServiceCounts?openid="+channel.openId;
+            suaStatIframe = contextPath + "/hsy/tenant/user/staffServiceCounts?openid="+channel.openId;
             $('.weixin-service-count-iframe').attr("src", suaStatIframe);
         }
         
@@ -308,7 +321,7 @@
         }
         $('.weixin-service-count-div').css("display", "block");
         getHistoryList(person.tenant.tenantUn, person.number, 1);
-        $('.history-panel-heading-div h3').append('<a href="javascript:void(0)" onclick=\'getHistoryList("'+person.tenant.tenantUn+'","'+person.number+'",1)\' style="float: right;"><span class="glyphicon glyphicon-refresh"></a>');
+        $('.history-panel-heading-div h3').append('<a href="javascript:void(0)" onclick=\'refreshHistoryList("'+person.tenant.tenantUn+'","'+person.number+'")\' style="float: right;"><span class="glyphicon glyphicon-refresh"></a>');
         
     }
     
@@ -320,9 +333,20 @@
             return;
         }
     	weixin_checkout(tenantUn, staff_uuid);
+    	$.ajax({
+            url : "/wx/webchat/logout",
+            cache : false, 
+            async : false,
+            type : "GET",
+            dataType : 'json',
+            success : function (result){
+            	$.cookie("WX_STF_UID", null);
+            }
+        });
+     	$.cookie("WX_STF_UID", null);
     	setTimeout(function(){
     		window.location.href = "/wx/webchat/login";
-    	}, 2000);
+    	}, 2000); 
     	
     }
 
@@ -350,6 +374,7 @@
                 $('.weixin-service-count-div').css("display", "none");
                 $(".hitstory-client-list").empty();
                 $(".weixin-history-board").remove();
+                $('.history-panel-heading-div span').remove();
             },
             error : function(error) {
             	console.log("error:"+error);
@@ -389,7 +414,7 @@
                     var image = result.clientImage.substring(0, result.clientImage.length-1) + 64;
                     var header = '<a class="pull-left" style="margin-top:-53px;margin-left:-5px;" href="javascript:void(0)">';
                     header += '<img class="media-object img-circle" src="'+image+'" style="border:2px solid white"></a>';
-                    header += '<h3 class="panel-title">'+result.clientName+'<a href="javascript:void(0)" onclick=\'editClientInfo("'+result.clientOpenid+'","'+openid+'")\' style="margin-left:75%"><span class="glyphicon glyphicon-edit"></a></h3>';
+                    header += '<h3 class="panel-title">'+result.clientName+'<a href="javascript:void(0)" onclick=\'editClientInfo("'+result.clientOpenid+'","'+result.tenantUn+'","'+result.source+'","'+openid+'")\' style="margin-left:75%"><span class="glyphicon glyphicon-edit"></a></h3>';
                     $('#'+openid+"-panel-heading-div").empty();
                     $('#'+openid+"-panel-heading-div").append(header);
                 	
@@ -417,7 +442,7 @@
     }
     
     function getExpressMessage(tenantUn) {
-    	var url = "http://www.clouduc.cn/hsy/rest/n/getquickreply?tenantUn="+tenantUn;
+    	var url = contextPath + "/wx/webchat/"+tenantUn+"/getExpressMessages";
         $.ajax({
             url : url,
             cache : false, 
@@ -425,7 +450,9 @@
             type : "GET",
             success : function (result){
             	$("#staff-express-message").empty();
+            	console.log("express length: "+result.length);
             	for(var i=0;i<result.length;i++){
+            		console.log("result[i].replyName: "+result[i].replyName);
                     if(i>0){
                         $("#staff-express-message").append('<li class="divider"></li>');
                     }
@@ -436,6 +463,28 @@
                 console.log("error:"+error);
             }
         });
+    }
+    
+    function takeClient(staff_openid, client_openid) {
+        $.ajax({
+            url : "/wx/webchat/"+staff_openid+"/takeClient/"+client_openid,
+            cache : false, 
+            async : true,
+            type : "GET",
+            dataType : 'json',
+            success : function(data) {
+                if(!data.success) {
+                    console.log("take client failed: "+ data.msg);
+                    alert(data.msg);
+                } else {
+                    //$('.weixin-service-count-iframe').attr("src", suaStatIframe);
+                	window.frames["sua-service-count"].refreshStatistic();
+                }
+            },
+            error : function(error) {
+            }
+        });
+        layer.close(staffServiceRemainder);
     }
     
     function takeClientFromWeb(tenantUn, staff_id) {
@@ -548,7 +597,7 @@
 
     }
     
-    function editClientInfo(clientOpenid, staffOpenid) {
+    function editClientInfo(clientOpenid, tenantUn, source, staffOpenid) {
     	var div = $("#"+staffOpenid+"-edit-client-info-div");
     	if(div.css("display") == "block") {
     		div.css("display","none");
@@ -558,7 +607,7 @@
             div.css("display","block");
             return;
         }
-    	var url = 'http://www.clouduc.cn/hsy/mobile/tenant/prospectsinfo_register.jsp?prospectsWXId='+clientOpenid+'&openid='+ staffOpenid;
+    	var url = contextPath + '/hsy/mobile/tenant/prospectsinfo_register.jsp?prospectsWXId=' + clientOpenid +'&tenantUn='+ tenantUn +'&source='+ source +'&openid='+ staffOpenid;
         var edit_div = '<div id="'+staffOpenid+'-edit-client-info-div" class="embed-responsive embed-responsive-16by9 edit-client-info-div" style="min-height: 450px">';
         edit_div += '<iframe class="embed-responsive-item" onload="this.height=this.contentWindow.document.documentElement.scrollHeight" style="border-radius:4px;" src="'+url+'"></iframe></div>';
         $(".edit-client-info-container").append(edit_div);
@@ -597,7 +646,7 @@
                         var image = data.data.clientImage.substring(0, data.data.clientImage.length-1) + 64;
                         var header = '<a class="pull-left" style="margin-top:-53px;margin-left:-5px;" href=\'javascript:openClientInfo("'+data.data.clientOpenid+'","'+room+'")\'>';
                         header += '<img class="media-object img-circle" src="'+image+'" style="border:2px solid white"></a>';
-                        header += '<h3 class="panel-title">'+data.data.clientName+'<a href="javascript:void(0)" onclick=\'editClientInfo("'+data.data.clientOpenid+'","'+room+'")\' style="float: right;"><span class="glyphicon glyphicon-edit"></a></h3>';
+                        header += '<h3 class="panel-title">'+data.data.clientName+'<a href="javascript:void(0)" onclick=\'editClientInfo("'+data.data.clientOpenid+'","'+data.data.tenantUn+'","'+data.data.source+'","'+room+'")\' style="float: right;"><span class="glyphicon glyphicon-edit"></a></h3>';
                         $('#'+room+"-edit-client-info-div").remove();
                         $('#'+room+"-panel-heading-div").empty();
                         $('#'+room+"-panel-heading-div").append(header);
@@ -615,7 +664,7 @@
                         var image = data.data.clientImage.substring(0, data.data.clientImage.length-1) + 64;
                         var header = '<a class="pull-left" style="margin-top:-53px;margin-left:-5px;" href=\'javascript:openClientInfo("'+data.data.clientOpenid+'","'+room+'")\'>';
                         header += '<img class="media-object img-circle" src="'+image+'" style="border:2px solid white"></a>';
-                        header += '<h3 class="panel-title">'+data.data.clientName+'<a href="javascript:void(0)" onclick=\'editClientInfo("'+data.data.clientOpenid+'","'+room+'")\' style="float: right;"><span class="glyphicon glyphicon-edit"></a></h3>';
+                        header += '<h3 class="panel-title">'+data.data.clientName+'<a href="javascript:void(0)" onclick=\'editClientInfo("'+data.data.clientOpenid+'","'+data.data.tenantUn+'","'+data.data.source+'","'+room+'")\' style="float: right;"><span class="glyphicon glyphicon-edit"></a></h3>';
                         $('#'+room+"-edit-client-info-div").remove();
                         $('#'+room+"-panel-heading-div").empty();
                         $('#'+room+"-panel-heading-div").append(header);
@@ -656,7 +705,7 @@
 					
 				} else if(data.msgtype == "staffService"){
                     //$('.weixin-service-count-iframe').attr("src", suaStatIframe);
-                    window.frames[0].refreshStatistic();
+                    window.frames["sua-service-count"].refreshStatistic();
                     if($(".xubox_layer").length>0) {
                     	console.log("staffService blocked");
                     	
@@ -665,10 +714,10 @@
                           }
                     	return;
                     }
-                    var pageUrl = 'http://www.clouduc.cn/hsy/tenant/user/customerDetail?clientOpenid='+data.data.clientOpenid+'&openid='+room;
+                    var pageUrl = contextPath + '/hsy/tenant/user/customerDetail?clientOpenid='+data.data.clientOpenid+'&tenantUn='+data.data.tenantUn+'&source='+data.data.source+'&openid='+room;
                     var pageHTML = '<div id="edit-client-info-div" class="embed-responsive embed-responsive-16by9" style="width:800px;height: 460px">';
                     pageHTML += '<iframe class="embed-responsive-item edit-client-info-iframe" style="width:800px;height: 420px" onload="this.height=this.contentWindow.document.documentElement.scrollHeight" style="border-radius:4px;" src="'+pageUrl+'"></iframe>';
-                    pageHTML += '<div class="btn-group" style="top:421px;float:right;margin-right:10px"><button type="button" id="accept-client-request" class="btn btn-primary" style="margin-right: 5px;">受理</button><button type="button" id="ignore-client-request" class="btn btn-danger">忽略</button></div></div>';
+                    pageHTML += '<div class="btn-group" style="top:421px;float:right;margin-right:10px"><button type="button" id="accept-client-request" class="btn btn-primary" onclick=\'takeClient("'+room+'","'+data.data.clientOpenid+'")\' style="margin-right: 5px;">受理</button><button type="button" id="ignore-client-request" class="btn btn-danger">忽略</button></div></div>';
 
                     staffServiceRemainder = $.layer({
                         type: 1,
@@ -684,7 +733,7 @@
                         }
                     });
                     
-                    $('#accept-client-request').on('click', function(){
+                  /*   $('#accept-client-request').on('click', function(){
                     	$.ajax({
                             url : "/wx/webchat/"+data.channelId+"/takeClient",
                             cache : false, 
@@ -704,7 +753,7 @@
                             }
                         });
                         layer.close(staffServiceRemainder);
-                    });
+                    }); */
                     
                     $('#ignore-client-request').on('click', function(){
                         layer.close(staffServiceRemainder);
@@ -984,7 +1033,7 @@
 	      <ul class="nav navbar-nav navbar-right">
 	        <li>
                 <div class="embed-responsive embed-responsive-16by9 weixin-service-count-div" style="width: 500px;height:50px;padding-bottom:0;margin-right:20px;display:none">
-                  <iframe class="embed-responsive-item weixin-service-count-iframe" scrolling="no" src=""></iframe>
+                  <iframe class="embed-responsive-item weixin-service-count-iframe" name="sua-service-count" scrolling="no" src=""></iframe>
                 </div>
             </li>
             <li><a id="staff-logout-href" href="javascript:void(0)" title="注销"><span class="glyphicon glyphicon-off"></span></a></li>

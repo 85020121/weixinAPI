@@ -53,5 +53,10 @@ public class ChatMessage {
     public void setData(JSONObject data) {
         this.data = data;
     }
-    
+    @Override
+    public String toString() {
+        return "ChatMessage [channelId=" + channelId + ", senderName="
+                + senderName + ", content=" + content + ", msgtype=" + msgtype
+                + ", action=" + action + ", data=" + data + "]";
+    }
 }

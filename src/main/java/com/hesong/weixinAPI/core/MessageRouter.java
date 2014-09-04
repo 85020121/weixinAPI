@@ -10,15 +10,12 @@ import java.util.HashSet;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
-import java.util.Queue;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
-
-import javax.swing.text.AbstractDocument.Content;
 
 import net.sf.json.JSONArray;
 import net.sf.json.JSONObject;
@@ -47,18 +44,14 @@ import com.hesong.weixinAPI.mq.events.MQStaffCheckoutEvent;
 import com.hesong.weixinAPI.mq.events.MQStaffSubscribeEvent;
 import com.hesong.weixinAPI.mq.events.MQStaffUnsubscribeEvent;
 import com.hesong.weixinAPI.tools.API;
+import com.hesong.weixinAPI.tools.RedisOperations;
 import com.hesong.weixinAPI.tools.WeChatHttpsUtil;
-import com.sun.xml.internal.bind.CycleRecoverable.Context;
 
 public class MessageRouter implements Runnable {
 
     private static Logger log = Logger.getLogger(MessageRouter.class);
 
     private static final String SKILL_PREFIX = "SKILL_SERVICE_";
-    
-    private static String USER_INFO_URL = "https://api.weixin.qq.com/cgi-bin/user/info?access_token=ACCESS_TOKEN&openid=OPENID&lang=zh_CN";
-    private static String QRCODE_URL = "https://mp.weixin.qq.com/cgi-bin/showqrcode?ticket=";
-
     
     private BlockingQueue<Map<String, String>> messageQueue;
     private BlockingQueue<JSONObject> messageToSendQueue;
@@ -75,7 +68,7 @@ public class MessageRouter implements Runnable {
      * 已发起人工服务请求并处于等待状态的客户排队列表
      * <tenantUn, <skill_category, queue>>
      */
-    public static Map<String, Map<String, Queue<WaitingClient>>> waitingList = new ConcurrentHashMap<String, Map<String,Queue<WaitingClient>>>();
+    public static Map<String, Map<String, List<WaitingClient>>> waitingList = new ConcurrentHashMap<String, Map<String, List<WaitingClient>>>();
     
     /**
      * 排队中的客户openid集合
@@ -245,7 +238,7 @@ public class MessageRouter implements Runnable {
                 
                 log.info("Message content: " + message.get(API.MESSAGE_CONTENT_TAG).getBytes());
                 log.info("#".getBytes());
-                if (message.get(API.MESSAGE_CONTENT_TAG).equals("#") || message.get(API.MESSAGE_CONTENT_TAG).equals("#")) {
+                if (message.get(API.MESSAGE_CONTENT_TAG).equals("#") || message.get(API.MESSAGE_CONTENT_TAG).equals("＃")) {
                     log.info("clientEndSession");
                     clientEndSession(message);
                     return;
@@ -545,7 +538,7 @@ public class MessageRouter implements Runnable {
         String account = message.get(API.MESSAGE_TO_TAG);
         String openid =  message.get(API.MESSAGE_FROM_TAG);
         String toToken = getAccessToken(account);
-        String url = USER_INFO_URL.replace("ACCESS_TOKEN", toToken).replace("OPENID", openid);
+        String url = API.USER_INFO_URL.replace("ACCESS_TOKEN", toToken).replace("OPENID", openid);
         JSONObject user_info = WeChatHttpsUtil.httpsRequest(url, "GET", null);
         if (user_info.containsKey("errcode")) {
             log.error("Get client info failed: "+user_info.toString());
@@ -680,7 +673,7 @@ public class MessageRouter implements Runnable {
         JSONObject accountInfo = getAccountInfo(account, API.REDIS_STAFF_ACCOUNT_INFO_KEY);
         if (s != null && 
                 !s.getClient_openid().equals("") && null != s.getClient_openid()) {
-            String url = String.format(API.CLIENT_INFO_URL, s.getClient_openid(), ContextPreloader.channelMap.get(account));
+            String url = String.format(API.CLIENT_INFO_URL, s.getClient_openid(), ContextPreloader.channelMap.get(account), s.getTenantUn(), s.getClient_type());
             try {
                 String text = String.format("<a href=\"https://open.weixin.qq.com/connect/oauth2/authorize?appid=%s&redirect_uri=%s&response_type=code&scope=snsapi_base&state=123#wechat_redirect\">请查看</a>", accountInfo.getString("appid"), URLEncoder.encode(url, "utf8"));
                 sendMessage(openid, getAccessToken(account), text, API.TEXT_MESSAGE);
@@ -934,7 +927,7 @@ public class MessageRouter implements Runnable {
         }
         
         // Get client nickname
-        String query = USER_INFO_URL.replace("ACCESS_TOKEN", cToken).replace("OPENID", client_openid);
+        String query = API.USER_INFO_URL.replace("ACCESS_TOKEN", cToken).replace("OPENID", client_openid);
         JSONObject user_info = WeChatHttpsUtil.httpsRequest(query, "GET", null);
         String client_name = "";
         String client_image = "";
@@ -962,7 +955,7 @@ public class MessageRouter implements Runnable {
                     if (!s.isBusy()) {
                         isAllBusy = false;
                         
-                        String url = String.format(API.CLIENT_INFO_URL, client_openid, ContextPreloader.channelMap.get(s.getAccount()));
+                        String url = String.format(API.CLIENT_INFO_URL, client_openid, ContextPreloader.channelMap.get(s.getAccount()), tenantUn, "wx");
                         String sToken = jedis.hget(API.REDIS_WEIXIN_ACCESS_TOKEN_KEY, s.getAccount()); //ContextPreloader.Account_Map.get(s.getAccount()).getToken();
 
                         try {
@@ -980,12 +973,15 @@ public class MessageRouter implements Runnable {
                         if (s.isWebStaff()) {
                             JSONObject data = new JSONObject();
                             data.put("clientOpenid", client_openid);
+                            data.put("tenantUn", tenantUn);
+                            data.put("source", "wx");
                             // 系统提示：客户'%s'寻求人工服务，请点击抢接按钮接通会话
                             sendWebMessage("staffService", String.format(ContextPreloader.messageProp.getProperty("staff.message.staffServiceRequest"), client_name),
                                     s.getOpenid(), "", s.getStaff_uuid(), "", data);
                         }
                         
                         s.setClient_openid(client_openid);
+                        s.setClient_type("wx");
                         
                         break; // Only one message for each staff
                     }
@@ -1003,23 +999,24 @@ public class MessageRouter implements Runnable {
             // Add client to waiting list
             WaitingClient c = new WaitingClient(tenantUn, client_openid, client_account, client_name, client_image, sex, city, province, new Date().getTime());
             if (!waitingList.containsKey(tenantUn)) {
-                Queue<WaitingClient> queue = new LinkedList<WaitingClient>();
-                queue.offer(c);
-                Map<String, Queue<WaitingClient>> m = new ConcurrentHashMap<String, Queue<WaitingClient>>();
+                List<WaitingClient> queue = new LinkedList<WaitingClient>();
+                queue.add(c);
+                Map<String, List<WaitingClient>> m = new ConcurrentHashMap<String, List<WaitingClient>>();
                 m.put(skill_category, queue);
                 waitingList.put(tenantUn, m);
             } else if (!waitingList.get(tenantUn).containsKey(skill_category)) {
-                Queue<WaitingClient> queue = new LinkedList<WaitingClient>();
-                queue.offer(c);
+                List<WaitingClient> queue = new LinkedList<WaitingClient>();
+                queue.add(c);
                 waitingList.get(tenantUn).put(skill_category, queue);
             } else {
-                waitingList.get(tenantUn).get(skill_category).offer(c);
+                waitingList.get(tenantUn).get(skill_category).add(c);
             }
             
             waitingListIDs.add(client_openid);
             // 系统提示：正在为您接通人工服务，请稍等...
             String content = ContextPreloader.messageProp.getProperty("client.message.waitingStaffResponse");
             sendMessage(client_openid, cToken, content, API.TEXT_MESSAGE);
+            RedisOperations.incrWaitingListCount(tenantUn);
         }
         
     }
@@ -1036,6 +1033,7 @@ public class MessageRouter implements Runnable {
         } else {
             return;
         }
+        
         // 系统提示：客户已退出，会话已结束
         String content = ContextPreloader.messageProp.getProperty("staff.message.clientEndedSession");
 
@@ -1045,6 +1043,19 @@ public class MessageRouter implements Runnable {
         String sToken = jedis.hget(API.REDIS_WEIXIN_ACCESS_TOKEN_KEY,
                 s.getAccount()); // ContextPreloader.Account_Map.get(s.getAccount()).getToken();
         ContextPreloader.jedisPool.returnResource(jedis);
+        
+        // To client
+        // 系统提示：当前会话已结束。
+        content = ContextPreloader.messageProp.getProperty("client.message.clientEndedSession");
+        sendMessage(s.getClient_openid(), cToken, content, API.TEXT_MESSAGE);
+        
+        if (CheckSessionAvailableJob.sessionMap.containsKey(tenantUn)) {
+            CheckSessionAvailableJob.sessionMap.get(tenantUn).remove(cOpenid);
+        }
+        
+        if (CheckEndSessionJob.endSessionMap.containsKey(tenantUn)) {
+            CheckEndSessionJob.endSessionMap.get(tenantUn).remove(cOpenid);
+        }
 
         // To staff
         sendMessage(s.getOpenid(), sToken, content, API.TEXT_MESSAGE);
@@ -1060,20 +1071,6 @@ public class MessageRouter implements Runnable {
             sendWebMessage("sysMessage", content, s.getOpenid(), "", s.getStaff_uuid(), "endSession", data);
         }
 
-        // To client
-        // 系统提示：当前会话已结束。
-        content = ContextPreloader.messageProp.getProperty("client.message.clientEndedSession");
-        sendMessage(s.getClient_openid(), cToken, content, API.TEXT_MESSAGE);
-        
-        if (CheckSessionAvailableJob.sessionMap.containsKey(tenantUn)) {
-            CheckSessionAvailableJob.sessionMap.get(tenantUn).remove(cOpenid);
-        }
-        
-        if (CheckEndSessionJob.endSessionMap.containsKey(tenantUn)) {
-            CheckEndSessionJob.endSessionMap.get(tenantUn).remove(cOpenid);
-        }
-        
-        
         // Remaind staff
         int waiting_count = getWaitingClientCount(tenantUn);
         if (waiting_count > 0) {
@@ -1188,11 +1185,15 @@ public class MessageRouter implements Runnable {
         }
         
         Staff staff = mulClientStaffMap.get(tenentUn).get(session.getStaff_uuid());
-        Map<String, Queue<WaitingClient>> c_map = waitingList.get(tenentUn);
+        Map<String, List<WaitingClient>> c_map = waitingList.get(tenentUn);
         WaitingClient client = null;
         for (String skill : staff.getSkills()) {
             if (c_map.containsKey(skill) && !c_map.get(skill).isEmpty()) {
-                client = c_map.get(skill).poll();
+                List<WaitingClient> queue = c_map.get(skill);
+                synchronized (queue) {
+                    client = new WaitingClient(queue.get(0));
+                    queue.remove(0);
+                }
                 break;
             }
         }
@@ -1235,12 +1236,14 @@ public class MessageRouter implements Runnable {
                 data.put("clientProvince", client.getProvince());
                 data.put("city", client.getCity());
                 data.put("sex", client.getSex());
+                data.put("tenantUn", session.getTenantUn());
+                data.put("source", session.getClient_type());
                 sendWebMessage("sysMessage", text, session.getOpenid(), "", session.getStaff_uuid(), "takeClientFromMobile", data);
             }
             // To client 系统提示：客服%s为您服务，请问有什么可以帮助您？如果希望结束此会话，直接输入#号键结束!
-            text = String.format(ContextPreloader.messageProp.getProperty("系统提示：客服%s为您服务，请问有什么可以帮助您？如果希望结束此会话，直接输入#号键结束!"), session.getStaffid());
+            text = String.format(ContextPreloader.messageProp.getProperty("client.message.sessionBuilded"), session.getStaffid());
             sendMessage(client.getOpenid(), getAccessToken(client.getAccount()), text, API.TEXT_MESSAGE);
-
+            RedisOperations.decrWaitingListCount(session.getTenantUn());
         } else {
             // 系统提示：系统错误，请联系管理员.
             String text = ContextPreloader.messageProp.getProperty("staff.message.systemError");
@@ -1248,62 +1251,6 @@ public class MessageRouter implements Runnable {
         }
         
     }
-    
-//    private synchronized void getMessage(Map<String, String> message) {
-//        String openid = message.get(API.MESSAGE_FROM_TAG);
-//        String account = message.get(API.MESSAGE_TO_TAG);
-//        String token = getAccessToken(account); // ContextPreloader.Account_Map.get(account).getToken();
-//        
-//        StaffSessionInfo s = activeStaffMap.get(openid);
-//        String tenantUn = s.getTenantUn();
-//        
-//        JSONObject leavedMessage = null;
-//        if (leavedMessageMap.containsKey(tenantUn)) {
-//            leavedMessage = leavedMessageMap.get(tenantUn).poll();
-//        }
-//
-//        if (null != leavedMessage) {
-//            log.info("Leaved message: " + leavedMessage.toString());
-//            
-//            JSONObject accountInfo = getAccountInfo(account, API.REDIS_STAFF_ACCOUNT_INFO_KEY);
-//            String appid = accountInfo.getString("appid"); //ContextPreloader.Account_Map.get(account).getAppid();
-//            String channel = ContextPreloader.channelMap.get(account);
-//            
-//            String source = leavedMessage.getString("source");
-//            s.setClient_openid(leavedMessage.getString("messager_id"));
-//            s.setClient_name(leavedMessage.getString("messager_name"));
-//            s.setSession(leavedMessage.getString("message_group_id"));
-//            s.setBeginTime(API.TIME_FORMAT.format(new Date()));
-//            s.setClient_type(source);
-//            
-//            if (source.equalsIgnoreCase("wx")) {
-//                source = "微信";
-//            } else if (source.equalsIgnoreCase("wb")) {
-//                source = "微博";
-//            } else if (source.equalsIgnoreCase("tb")) {
-//                String text = leavedMessage.getString("content");
-//                text = text.replace("$%7Bappid%7D", appid);
-//                text = text.replace("%24%7Bchannel%7D", channel);
-//                sendMessage(openid, token, text, API.TEXT_MESSAGE);
-//                return;
-//            }
-//            String url = String.format("http://www.clouduc.cn/crm/mobile/replymessage/index.php?message_group_id=%s&channel=%s", leavedMessage.getString("message_group_id"), channel);
-//            try {
-//                String text = String.format("读取到一条来自%s的留言,<a href=\"https://open.weixin.qq.com/connect/oauth2/authorize?appid=%s&redirect_uri=%s&response_type=code&scope=snsapi_base&state=123#wechat_redirect\">请查看</a>", source, appid, URLEncoder.encode(url, "utf8"));
-//                sendMessage(openid, token, text, API.TEXT_MESSAGE);
-//                
-//                recordSession(s, 1);
-//            } catch (UnsupportedEncodingException e) {
-//                log.error("URLEncoder error: " + e.toString() + ", URL = " + url);
-//                e.printStackTrace();
-//            }
-//            
-//        } else {
-//            String text = "留言已被其他客服提取，或目前没有留言需要处理。";
-//            sendMessage(openid, token, text, API.TEXT_MESSAGE);
-//        }
-//        
-//    }
     
     private synchronized void checkClientNum(Map<String, String> message) {
         String staff_openid = message.get(API.MESSAGE_FROM_TAG);
@@ -1339,7 +1286,7 @@ public class MessageRouter implements Runnable {
         for (int i = 1; i <= qrcode_list.size(); i++) {
             JSONObject article = new JSONObject();
             article.put("title", title + i);
-            String qrUrl = QRCODE_URL + qrcode_list.getString(i-1);
+            String qrUrl = API.QRCODE_URL + qrcode_list.getString(i-1);
             article.put("picurl", qrUrl);
             article.put("url", qrUrl);
             articles.add(article);
@@ -1406,7 +1353,7 @@ public class MessageRouter implements Runnable {
             String content = ContextPreloader.messageProp.getProperty("client.message.inLeaveMessage");
             sendMessage(openid, token, content, API.TEXT_MESSAGE);
 
-            String url = USER_INFO_URL.replace("ACCESS_TOKEN", token).replace(
+            String url = API.USER_INFO_URL.replace("ACCESS_TOKEN", token).replace(
                     "OPENID", openid);
             JSONObject user_info = WeChatHttpsUtil.httpsRequest(url, "GET",
                     null);
@@ -1463,7 +1410,7 @@ public class MessageRouter implements Runnable {
         json.put("senderName", sender);
         json.put("action", action);
         json.put("data", data);
-        String url = String.format("http://localhost:8080/weixinAPI/webchat/%s/sendWebMessage", staff_uuid);
+        String url = String.format("http://localhost/wx/webchat/%s/sendWebMessage", staff_uuid);
         WeChatHttpsUtil.httpPostRequest(url, json.toString(), 0);
     }
     
@@ -1632,7 +1579,7 @@ public class MessageRouter implements Runnable {
     public static int getWaitingClientCount(String tenantUn) {
         int count = 0;
         if (waitingList.containsKey(tenantUn)) {
-            Map<String, Queue<WaitingClient>> waitingMap = waitingList.get(tenantUn);
+            Map<String, List<WaitingClient>> waitingMap = waitingList.get(tenantUn);
             for (String skill : waitingMap.keySet()) {
                 count = count + waitingMap.get(skill).size();
             }

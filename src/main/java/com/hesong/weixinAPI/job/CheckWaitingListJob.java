@@ -1,8 +1,8 @@
 package com.hesong.weixinAPI.job;
 
 import java.util.Date;
+import java.util.List;
 import java.util.Map;
-import java.util.Queue;
 
 import org.quartz.Job;
 import org.quartz.JobExecutionContext;
@@ -14,6 +14,7 @@ import com.hesong.weixinAPI.context.ContextPreloader;
 import com.hesong.weixinAPI.core.MessageRouter;
 import com.hesong.weixinAPI.model.WaitingClient;
 import com.hesong.weixinAPI.tools.API;
+import com.hesong.weixinAPI.tools.RedisOperations;
 
 public class CheckWaitingListJob implements Job {
 
@@ -29,7 +30,7 @@ public class CheckWaitingListJob implements Job {
             jedis = ContextPreloader.jedisPool.getResource();
             
             for (String tenantUn : MessageRouter.waitingList.keySet()) {
-                Map<String, Queue<WaitingClient>> waitingClients = MessageRouter.waitingList
+                Map<String, List<WaitingClient>> waitingClients = MessageRouter.waitingList
                         .get(tenantUn);
                 long timeout;
                 if (jedis.hexists(API.REDIS_TENANT_WAITING_DURATION, tenantUn)) {
@@ -39,7 +40,7 @@ public class CheckWaitingListJob implements Job {
                 }
                 
                 for (String category : waitingClients.keySet()) {
-                    Queue<WaitingClient> clients = waitingClients.get(category);
+                    List<WaitingClient> clients = waitingClients.get(category);
                     for (WaitingClient waitingClient : clients) {
                         if ((new Date().getTime() - waitingClient.getTime()) >= timeout) {
                             String text = "系统消息:客服妹子繁忙,请稍后再试或者使用在线留言,我们将在尽快回复您[微笑]";
@@ -51,6 +52,7 @@ public class CheckWaitingListJob implements Job {
                             MessageRouter.waitingListIDs.remove(waitingClient
                                     .getOpenid());
                             clients.remove(waitingClient);
+                            RedisOperations.decrWaitingListCount(tenantUn);
                         }
                     }
                     if (clients.isEmpty()) {

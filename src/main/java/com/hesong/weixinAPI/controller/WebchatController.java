@@ -6,7 +6,6 @@ import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Queue;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -46,9 +45,11 @@ import com.hesong.weixinAPI.model.Staff;
 import com.hesong.weixinAPI.model.StaffSessionInfo;
 import com.hesong.weixinAPI.model.WaitingClient;
 import com.hesong.weixinAPI.mq.MQManager;
+import com.hesong.weixinAPI.mq.events.MQStaffCheckinEvent;
 import com.hesong.weixinAPI.mq.events.MQStaffCheckoutEvent;
 import com.hesong.weixinAPI.tools.API;
 import com.hesong.weixinAPI.tools.EncryptDecryptData;
+import com.hesong.weixinAPI.tools.RedisOperations;
 import com.hesong.weixinAPI.tools.WeChatHttpsUtil;
 
 
@@ -99,6 +100,12 @@ public class WebchatController {
     @RequestMapping(value = "/login", method = RequestMethod.GET)
     public String login(){
         return "login";
+    }
+    
+    @ResponseBody
+    @RequestMapping(value = "/logout", method = RequestMethod.GET)
+    public void logout(HttpServletResponse response){
+        response.addCookie(new Cookie("WX_STF_UID", null));
     }
     
     @SuppressWarnings("unchecked")
@@ -180,6 +187,8 @@ public class WebchatController {
                 ret.put("clientName", session.getClient_name());
                 ret.put("clientImage", session.getClient_image());
                 ret.put("clientOpenid", session.getClient_openid());
+                ret.put("tenantUn", session.getTenantUn());
+                ret.put("source", session.getClient_type());
                 ret.put("history", getChatHistory(session.getOpenid(), session.getClient_openid(), "0"));
             } else {
                 ret.put("isInSession", false);
@@ -217,6 +226,22 @@ public class WebchatController {
     }
     
     @ResponseBody
+    @RequestMapping(value = "/{tenantUn}/getExpressMessages", method = RequestMethod.GET)
+    public JSONArray getExpressMessages(@PathVariable String tenantUn){
+        String url = API.GET_EXPRESS_MESSAGE_URL + tenantUn;
+        try {
+
+            JSONArray expressMessages = JSONArray.fromObject(HttpClientUtil
+                    .httpGet(url));
+            return expressMessages;
+        } catch (Exception e) {
+            e.printStackTrace();
+            log.error("getExpressMessages failed: "+e.toString());
+            return new JSONArray();
+        }
+    }
+    
+    @ResponseBody
     @RequestMapping(value = "/{staff_uuid}/checkin", method = RequestMethod.GET)
     public JSONObject checkin(@PathVariable String staff_uuid, HttpSession session, HttpServletResponse response) {
         String url = API.SUA_STAFF_WEB_LOGIN_URL + staff_uuid;
@@ -227,6 +252,9 @@ public class WebchatController {
             JSONObject login_info = JSONObject.fromObject(HttpClientUtil.httpGet(url));
             log.info("Checkin SUA return: " + login_info.toString());
             if (login_info.getBoolean("success")) {
+                String tmp_openid = "";
+                String tmp_account = "";
+                
                 JSONObject staff_info = login_info.getJSONObject("person");
                 JSONObject tenant = staff_info.getJSONObject("tenant");
                 String tenantUn = tenant.getString("tenantUn");
@@ -257,12 +285,14 @@ public class WebchatController {
                 
                 List<StaffSessionInfo> sessionChannelList = new ArrayList<StaffSessionInfo>();
                 // 系统提示:您的账户已经通过网页签到成功,您的工号是%s.
-                String text = String.format("", staff_working_num);
+                String text = String.format(ContextPreloader.messageProp.getProperty("staff.message.checkinFromWeb"), staff_working_num);
                 
                 for (int i = 0; i < channel_list.size(); i++) {
                     JSONObject channel = channel_list.getJSONObject(i);
                     String staff_account = channel.getString("weixinId");
                     String staff_openid = channel.getString("openId");
+                    tmp_account = staff_account;
+                    tmp_openid = staff_openid;
                     StaffSessionInfo s = new StaffSessionInfo(tenantUn, staff_account, staff_openid, staff_working_num, staff_name, staff_uuid);
                     s.setWebStaff(true);
                     MessageRouter.activeStaffMap.put(staff_openid, s);
@@ -288,6 +318,16 @@ public class WebchatController {
                 Staff staff = new Staff(staff_uuid, staff_name, tenantUn, staff_working_num, sessionChannelList, skills);
                 staff_map.put(staff_uuid, staff);
                 log.info("Staff checked in: " + staff.toString());
+                
+                JSONObject eventMsg = new JSONObject();
+                eventMsg.put("staff_uuid", staff_uuid);
+                eventMsg.put("account", tmp_account);
+                eventMsg.put("openid", tmp_openid);
+                MQStaffCheckinEvent event = new MQStaffCheckinEvent(eventMsg.toString());
+                MQManager manager = (MQManager) AppContext
+                        .getApplicationContext().getBean("MQManager");
+                manager.publishTopicEvent(event);
+                
                 response.addCookie(new Cookie("WX_STF_UID", staff_uuid));
                 WeChatHttpsUtil.jedisNotExistThenHSet(API.REDIS_WEIXIN_WEBCHAT_SESSIONID, staff_uuid, session.getId());
                 return login_info;
@@ -364,8 +404,8 @@ public class WebchatController {
     }
     
     @ResponseBody
-    @RequestMapping(value = "/{staff_openid}/takeClient", method = RequestMethod.GET)
-    public JSONObject takeClient(@PathVariable String staff_openid){
+    @RequestMapping(value = "/{staff_openid}/takeClient/{client_openid}", method = RequestMethod.GET)
+    public JSONObject takeClient(@PathVariable String staff_openid, @PathVariable String client_openid){
         StaffSessionInfo session = MessageRouter.activeStaffMap.get(staff_openid);
         ChatMessage msg = new ChatMessage();
         msg.setChannelId(staff_openid);
@@ -395,12 +435,20 @@ public class WebchatController {
         }
         
         Staff staff = MessageRouter.mulClientStaffMap.get(tenentUn).get(session.getStaff_uuid());
-        Map<String, Queue<WaitingClient>> c_map = MessageRouter.waitingList.get(tenentUn);
+        Map<String, List<WaitingClient>> c_map = MessageRouter.waitingList.get(tenentUn);
         WaitingClient client = null;
         for (String skill : staff.getSkills()) {
             if (c_map.containsKey(skill) && !c_map.get(skill).isEmpty()) {
-                client = c_map.get(skill).poll();
-                break;
+                List<WaitingClient> queue = c_map.get(skill);
+                for (int i = 0; i < queue.size(); i++) {
+                    if (queue.get(i).getOpenid().equals(client_openid)) {
+                        synchronized (queue) {
+                            client = new WaitingClient(queue.get(i));
+                            queue.remove(i);
+                        }
+                        break;
+                    }
+                }
             }
         }
         if (null == client) {
@@ -445,13 +493,17 @@ public class WebchatController {
             data.put("clientProvince", client.getProvince());
             data.put("city", client.getCity());
             data.put("sex", client.getSex());
+            data.put("tenantUn", session.getTenantUn());
+            data.put("source", session.getClient_type());
             
             msg.setData(data);
             processMessage(msg, session.getStaff_uuid());
             // To client
             text = String.format(ContextPreloader.messageProp.getProperty("client.message.sessionBuilded"), session.getStaffid());
             MessageRouter.sendMessage(client.getOpenid(), MessageRouter.getAccessToken(client.getAccount()), text, API.TEXT_MESSAGE);
-
+            
+            RedisOperations.decrWaitingListCount(session.getTenantUn());
+            
             response.put("success", true);
             return response;
         } else {
@@ -495,11 +547,15 @@ public class WebchatController {
         msg.setSenderName(session.getStaff_uuid());
         msg.setAction("");
         
-        Map<String, Queue<WaitingClient>> c_map = MessageRouter.waitingList.get(tenantUn);
+        Map<String, List<WaitingClient>> c_map = MessageRouter.waitingList.get(tenantUn);
         WaitingClient client = null;
         for (String skill : staff.getSkills()) {
             if (c_map.containsKey(skill) && !c_map.get(skill).isEmpty()) {
-                client = c_map.get(skill).poll();
+                List<WaitingClient> queue = c_map.get(skill);
+                synchronized (queue) {
+                    client = new WaitingClient(queue.get(0));
+                    queue.remove(0);
+                }
                 break;
             }
         }
@@ -543,6 +599,8 @@ public class WebchatController {
             data.put("clientProvince", client.getProvince());
             data.put("city", client.getCity());
             data.put("sex", client.getSex());
+            data.put("tenantUn", session.getTenantUn());
+            data.put("source", session.getClient_type());
             
             msg.setData(data);
             
@@ -551,6 +609,8 @@ public class WebchatController {
             text = String.format(ContextPreloader.messageProp.getProperty("client.message.sessionBuilded"), session.getStaffid());
             MessageRouter.sendMessage(client.getOpenid(), MessageRouter.getAccessToken(client.getAccount()), text, API.TEXT_MESSAGE);
 
+            RedisOperations.decrWaitingListCount(tenantUn);
+            
             JSONObject response = new JSONObject();
             response.put("success", true);
             return response;
@@ -692,8 +752,12 @@ public class WebchatController {
                 }
             });
             chatRequests.put(staff_uuid, dr);
-            log.info("DeferredResult: "+chatRequests.toString());
             log.info("DeferredResult keys: "+chatRequests.keySet().toString());
+            ChatMessage cm = getStoredChatMessage(staff_uuid);
+            if (null != cm) {
+                log.warn("Get chatMessage from redis, staff_uuid: " + staff_uuid);
+                dr.setResult(cm);
+            }
             return dr;
         }
     }
@@ -755,13 +819,14 @@ public class WebchatController {
     
     private void processMessage(ChatMessage msg, String staff_uuid) {
         log.info("processMessage: " + msg.toString());
-        log.info("staff_uuid: "+staff_uuid);
-        log.info("DeferredResult: "+chatRequests.toString());
-        log.info("DeferredResult keys: "+chatRequests.keySet().toString());
+//        log.info("staff_uuid: "+staff_uuid);
+//        log.info("DeferredResult: "+chatRequests.toString());
+//        log.info("DeferredResult keys: "+chatRequests.keySet().toString());
 
         DeferredResult<ChatMessage> tmp = chatRequests.get(staff_uuid);
         if (tmp == null) {
-            log.warn("DeferredResult is null.");
+            log.warn("DeferredResult is null, store into redis. staff_uuid: " + staff_uuid);
+            storeChatMessage(staff_uuid, msg);
             return;
         } else {
             tmp.setResult(msg);
@@ -853,6 +918,46 @@ public class WebchatController {
         } catch (Exception e) {
             e.printStackTrace();
             return new JSONArray();
+        }
+    }
+    
+    private void storeChatMessage(String staff_uuid, ChatMessage cm) {
+        log.info("ChatMessage to stored: " + cm.toString());
+        if (cm.getMsgtype().equals("staffLogin")) {
+            return;
+        }
+        
+        Jedis jedis = ContextPreloader.jedisPool.getResource();
+        JSONObject msg = new JSONObject();
+        msg.put("channelId", cm.getChannelId());
+        msg.put("senderName", cm.getSenderName());
+        msg.put("content", cm.getContent());
+        msg.put("msgtype", cm.getMsgtype());
+        msg.put("action", cm.getAction());
+        msg.put("data", cm.getData());
+        jedis.rpush(staff_uuid, msg.toString());
+        jedis.expire(staff_uuid, 3600);
+        ContextPreloader.jedisPool.returnResource(jedis);
+    }
+    
+    private ChatMessage getStoredChatMessage(String staff_uuid) {
+        Jedis jedis = ContextPreloader.jedisPool.getResource();
+        String r = jedis.lpop(staff_uuid);
+        if (null == r) {
+            ContextPreloader.jedisPool.returnResource(jedis);
+            return null;
+        } else {
+            JSONObject msg = JSONObject.fromObject(r);
+            ChatMessage cm = new ChatMessage();
+            cm.setAction(msg.getString("action"));
+            cm.setChannelId(msg.getString("channelId"));
+            cm.setContent(msg.getString("content"));
+            cm.setData(msg.getJSONObject("data"));
+            cm.setMsgtype(msg.getString("msgtype"));
+            cm.setSenderName(msg.getString("senderName"));
+            ContextPreloader.jedisPool.returnResource(jedis);
+            log.info("Got ChatMessage: " + cm.toString());
+            return cm;
         }
     }
 }

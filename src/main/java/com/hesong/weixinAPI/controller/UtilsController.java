@@ -3,7 +3,6 @@ package com.hesong.weixinAPI.controller;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
-import java.util.Queue;
 
 import javax.servlet.http.HttpServletRequest;
 
@@ -28,6 +27,7 @@ import com.hesong.weixinAPI.model.AccessToken;
 import com.hesong.weixinAPI.model.StaffSessionInfo;
 import com.hesong.weixinAPI.model.WaitingClient;
 import com.hesong.weixinAPI.tools.API;
+import com.hesong.weixinAPI.tools.RedisOperations;
 import com.hesong.weixinAPI.tools.WeChatHttpsUtil;
 
 @Controller
@@ -229,18 +229,27 @@ public class UtilsController {
     @ResponseBody
     @RequestMapping(value = "/{tenantUn}/waitingListCount", method = RequestMethod.GET)
     public int waitingListCount(@PathVariable String tenantUn, HttpServletRequest request) {
-        log.info("IP: " + request.getHeader("x-real-ip"));
-        if (MessageRouter.waitingList.containsKey(tenantUn)) {
-            int count = 0;
-            Map<String, Queue<WaitingClient>> map = MessageRouter.waitingList.get(tenantUn);
-            for (String key : map.keySet()) {
-                count = count + map.get(key).size();
-            }
-            return count;
-        } else {
-            return 0;
-        }
+        //log.info("IP: " + request.getHeader("x-real-ip"));
+        return RedisOperations.getWaitingListCount(tenantUn);
+        
+//        if (MessageRouter.waitingList.containsKey(tenantUn)) {
+//            int count = 0;
+//            Map<String, List<WaitingClient>> map = MessageRouter.waitingList.get(tenantUn);
+//            for (String key : map.keySet()) {
+//                count = count + map.get(key).size();
+//            }
+//            return count;
+//        } else {
+//            return 0;
+//        }
     }
+    
+    @ResponseBody
+    @RequestMapping(value = "/{account}/getClientInfo/{openid}", method = RequestMethod.GET)
+    public JSONObject getClientInfo(@PathVariable String account, @PathVariable String openid) {
+        return getWeixinClientInfo(account, openid);
+    }
+    
     
     @ResponseBody
     @RequestMapping(value = "/{tenantUn}/isStaffCheckedIn/{staff_uuid}", method = RequestMethod.GET)
@@ -280,5 +289,12 @@ public class UtilsController {
             }
         }
         return regex;
+    }
+    
+    private JSONObject getWeixinClientInfo(String account, String openid) {
+        String token = MessageRouter.getAccessToken(account);
+        String query = API.USER_INFO_URL.replace("ACCESS_TOKEN", token).replace("OPENID", openid);
+        JSONObject user_info = WeChatHttpsUtil.httpsRequest(query, "GET", null);
+        return user_info;
     }
 }

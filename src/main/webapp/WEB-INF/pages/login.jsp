@@ -45,7 +45,6 @@
         	$("#warning").css("display","none");
         	var email = $("#email").val();
         	var password = $("#password").val();
-        	console.log(email + "  " + password);
         	$.ajax({
                 url : "/wx/webchat/loginRequest",
                 type: 'POST',
@@ -65,6 +64,13 @@
                 }
             });
         }
+        
+        $("#password").keyup(function(event){
+            if(event.keyCode == "13")    
+            {
+                login();
+            }
+        });
     
     </script>  
   </body>

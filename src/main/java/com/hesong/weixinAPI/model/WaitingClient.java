@@ -80,5 +80,17 @@ public class WaitingClient {
         this.province = province;
         this.time = time;
     }
-
+    
+    public WaitingClient(WaitingClient wc) {
+        super();
+        this.tenantUn = wc.getTenantUn();
+        this.openid = wc.getOpenid();
+        this.account = wc.getAccount();
+        this.name = wc.getName();
+        this.image = wc.getImage();
+        this.sex = wc.getSex();
+        this.city = wc.getCity();
+        this.province = wc.getProvince();
+        this.time = wc.getTime();
+    }
 }
