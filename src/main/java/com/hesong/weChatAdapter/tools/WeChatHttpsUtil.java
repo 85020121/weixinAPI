@@ -119,7 +119,9 @@ public class WeChatHttpsUtil {
             bufferedReader.close();
             inputReader.close();
             
-            return JSONObject.fromObject(buffer.toString());
+            String ret = buffer.toString();
+            log.info("return: "+ret);
+            return JSONObject.fromObject(ret);
             //jsonObject = JSONObject.fromObject(buffer.toString());
 //            if(buffer.toString().equalsIgnoreCase("success")) {
 //                return getErrorMsg(0, "OK");
@@ -215,7 +217,6 @@ public class WeChatHttpsUtil {
             input.close();
             byte[] foot = ("\r\n--" + BOUNDARY + "--\r\n").getBytes("utf-8");// 定义最后数据分隔线
             out.write(foot);
-            log.info("Bytes: " + out.toString());
             out.flush();
             out.close();
             in = httpUrlConct.getInputStream();

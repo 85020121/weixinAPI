@@ -168,4 +168,17 @@ public class WeChatTest {
             System.out.println(elmt.elementText("destclientid"));
         }
     }
+    
+    @Test
+    public void time(){
+        long d = new Date().getTime();
+        System.out.println(d);
+        System.out.println(Long.toString(d));
+        System.out.println(String.valueOf(d));
+    }
+    
+    @Test
+    public void sha1(){
+        System.out.println(SignatureChecker.SHA1("1001"+"abcdef"+"1409764132451"));
+    }
 }

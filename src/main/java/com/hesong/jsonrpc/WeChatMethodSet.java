@@ -1,6 +1,7 @@
 package com.hesong.jsonrpc;
 
 import java.io.InputStream;
+import java.util.Date;
 import java.util.Map;
 
 import org.apache.log4j.Logger;
@@ -17,6 +18,7 @@ import com.hesong.weChatAdapter.manager.MessageManager;
 import com.hesong.weChatAdapter.model.AccessToken;
 import com.hesong.weChatAdapter.model.AppInfo;
 import com.hesong.weChatAdapter.tools.API;
+import com.hesong.weChatAdapter.tools.SignatureChecker;
 import com.hesong.weChatAdapter.tools.WeChatHttpsUtil;
 
 /**
@@ -89,7 +91,10 @@ public class WeChatMethodSet {
                 return createErrorMsg(9929, "Check your appid: "
                         + account);
             }
-            String url = app.getUrl_prefix()+"/staffService/message";
+            String time = String.valueOf(new Date().getTime());
+            String signature = SignatureChecker.createAPPSignature(app.getAppid(), app.getAccess_token(), time);
+            String url = String.format("%s/staffService/message?timestamp=%s&signature=%s",
+                    app.getUrl_prefix(), time, signature);
             return WeChatHttpsUtil.httpPostRequest(url, messageToApp.toString(), 0);
         }
         

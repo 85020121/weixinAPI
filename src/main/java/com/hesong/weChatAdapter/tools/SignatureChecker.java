@@ -22,6 +22,10 @@ public class SignatureChecker {
         String checkInfos = appid + appsecret + timestamp;
         return signature.equals(SHA1(checkInfos));
     }
+    
+    public static String createAPPSignature(String appid, String accesstoken, String timestamp) {
+        return SHA1(appid + accesstoken + timestamp);
+    }
 
     public static String SHA1(String inStr) {
         MessageDigest md = null;

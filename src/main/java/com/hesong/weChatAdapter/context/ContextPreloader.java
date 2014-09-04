@@ -59,7 +59,6 @@ public class ContextPreloader extends HttpServlet{
 
     static{
         ContextLog.info("ContextPreloader");
-        
         ResourceBundle bundle = ResourceBundle.getBundle("redis");
         if (null == bundle) {
             ContextLog.error("redis.properties not found!");
@@ -79,7 +78,9 @@ public class ContextPreloader extends HttpServlet{
                 Integer.parseInt(bundle.getString("redis.port")), 30000);
         
         ApplicationContext ctx = AppContext.getApplicationContext();
+        ContextLog.info("before read file...");
         File f = new File(getSettingFilePath(ctx));
+        ContextLog.info("after read file...");
         Map<String, String> ftp_setting = null;
         if (f.exists()){
             SAXReader reader = new SAXReader();
@@ -106,7 +107,7 @@ public class ContextPreloader extends HttpServlet{
                     busInfo.put("destunitid", Byte.parseByte(bus.elementText("destunitid")));
                     busInfo.put("destclientid", Byte.parseByte(bus.elementText("destclientid")));
                     busList.add(busInfo);
-                    
+                    ContextLog.info("busInfo: " + busInfo.toString());
                     try {
                         Client.initialize(unitid);
                         Client client = new Client(clientid,
@@ -116,6 +117,7 @@ public class ContextPreloader extends HttpServlet{
                         SmartbusExecutor.smartbusClients.add(client);
                     } catch (ConnectError e) {
                         e.printStackTrace();
+                        ContextLog.info(e.toString());
                     }
                 }
                 
@@ -199,6 +201,7 @@ public class ContextPreloader extends HttpServlet{
         String fileName = "";
         try {
             fileName = ctx.getResource("").getFile().getAbsolutePath();
+            ContextLog.info("Filepath = "+fileName);
         } catch (IOException e) {
             // TODO Auto-generated catch block
             e.printStackTrace();

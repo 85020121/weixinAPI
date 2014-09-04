@@ -37,7 +37,13 @@
             <appid>1002</appid>
             <appsecret>abcdef</appsecret>
             <access_token>123456abcdef</access_token>
-            <url_prefix>http://10.4.60.105:3000/qmtapi</url_prefix>  <!-- http://10.4.60.105:3000/qmtapi/staffService/message -->
+            <url_prefix>http://10.4.60.192:3000/qmtapi</url_prefix>  <!-- http://10.4.60.105:3000/qmtapi/staffService/message -->
+        </appinfo>
+        <appinfo>
+          <appid>1003</appid>
+          <appsecret>abcdef</appsecret>
+          <access_token>123456abcdef</access_token>
+          <url_prefix>http://10.4.62.42:3000/qmtapi</url_prefix>  <!-- http://10.4.60.105:3000/qmtapi/staffService/message -->
         </appinfo>
 	</api_setting>
 </setting>

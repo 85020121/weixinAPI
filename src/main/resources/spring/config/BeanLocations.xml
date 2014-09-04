@@ -25,7 +25,7 @@
     <!-- Activemq connection factory --> 
     <bean id="amqConnectionFactory" class="org.apache.activemq.ActiveMQConnectionFactory">
         <!--<constructor-arg index="0" value="failover:(tcp://127.0.0.1:61616)"/>-->
-        <property name="brokerURL" value="tcp://127.0.0.1:61616" />
+        <property name="brokerURL" value="failover:(tcp://127.0.0.1:61616)" />
         <property name="userName" value="koyoo" />
         <property name="password" value="ky6241" />
     </bean>

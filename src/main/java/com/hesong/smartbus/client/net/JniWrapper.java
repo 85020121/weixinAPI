@@ -126,9 +126,19 @@ public class JniWrapper {
             int mode, int timeout, String in_valuelist);
 
     static {
-        System.loadLibrary("smartbus_net_cli_jni");
-        // System.out.println(System.getProperty("user.dir"));
-        // System.load("D:\\JavaProjects\\workspace\\weChatAdapter\\jni\\smartbus_net_cli_jni.dll");
+        // System.loadLibrary("smartbus_net_cli_jni");
+        ContextPreloader.ContextLog.info("before load smartbus_net_cli_jni");
+        ContextPreloader.ContextLog.info(System.getProperty("java.library.path"));
+        try {
+            //System.load("/usr/local/bin/libsmartbus_net_cli_jni.so");
+            System.loadLibrary("smartbus_net_cli_jni");
+            ContextPreloader.ContextLog.info("after load smartbus_net_cli_jni");
+        } catch (Exception e) {
+            ContextPreloader.ContextLog.info("exception");
+            e.printStackTrace();
+            ContextPreloader.ContextLog.info(e.toString());
+        }
+        
     }
 
     /**
@@ -215,7 +225,6 @@ public class JniWrapper {
 
     protected static void cb_globalconnect(int arg, byte unitid, byte clientid,
             byte clienttype, byte status, String addinfo) {
-        System.out.println(instances);
         Iterator<Entry<Byte, Client>> iter = instances.entrySet().iterator();
         while (iter.hasNext()) {
             Map.Entry<Byte, Client> pair = (Map.Entry<Byte, Client>) iter
