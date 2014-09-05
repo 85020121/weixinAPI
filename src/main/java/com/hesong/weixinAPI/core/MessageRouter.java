@@ -975,6 +975,8 @@ public class MessageRouter implements Runnable {
                             data.put("clientOpenid", client_openid);
                             data.put("tenantUn", tenantUn);
                             data.put("source", "wx");
+                            data.put("clientName", client_name);
+                            data.put("clientImage", client_image);
                             // 系统提示：客户'%s'寻求人工服务，请点击抢接按钮接通会话
                             sendWebMessage("staffService", String.format(ContextPreloader.messageProp.getProperty("staff.message.staffServiceRequest"), client_name),
                                     s.getOpenid(), "", s.getStaff_uuid(), "", data);
@@ -1231,7 +1233,8 @@ public class MessageRouter implements Runnable {
             // To web staff
             if (session.isWebStaff()) {
                 JSONObject data = new JSONObject();
-                data.put("clientNamt", client.getName());
+                data.put("clientOpenid", client.getOpenid());
+                data.put("clientName", client.getName());
                 data.put("clientImage", client.getImage());
                 data.put("clientProvince", client.getProvince());
                 data.put("city", client.getCity());

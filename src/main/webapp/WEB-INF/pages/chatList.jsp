@@ -28,9 +28,9 @@
 
 <script>
     // develop
-    var contextPath = "http://www.clouduc.cn";
+    //var contextPath = "http://www.clouduc.cn";
     // produce
-    //var contextPath = "http://www.hesyun.com";
+    var contextPath = "http://www.hesyun.com";
 
     var isWindowOnFocus = true;
     var titleMessageRemaind;
@@ -185,6 +185,77 @@
         });
     }
     
+    function getClientsQueue(tenantUn) {
+        var url = "/wx/webchat/"+tenantUn+"/getClientsQueue";
+        $.ajax({
+            url : url,
+            cache : false, 
+            async : true,
+            type : "GET",
+            dataType : 'json',
+            success : function (result){
+                console.log("queue size: " + result.length);
+                for(var i=0; i<result.length; i++) {
+                	console.log("clien name: " + result[i].name);
+                	var id = result[i].openid+"-waiting-client";
+                    var image = result[i].image.substring(0, result[i].image.length-1) + 46;
+                    var html = "<li id='"+id+"'><a href='javascript:void(0)' style='padding: 5px 5px;' onclick='takeClient(\""+tmpStaffOpenid+"\",\""+result[i].openid+"\",\""+result[i].tenantUn+"\",\"wx\")' >";
+                    html += "<img src='"+image+"' class='img-rounded' style='height:32px'><span style='margin-left:10px;'>"+result[i].name+"</span></a></li>";
+                    $("#waiting-clients-queue").append(html);
+                }
+                $("#waiting-clients-count").html(result.length);
+            }
+        });
+    }
+    
+    function newClientDemand(channelId, openid, tenantUn, name, image, source) {
+        var id = openid+"-waiting-client";
+        if($("#"+id).length>1) {
+        	return;
+        }
+    	image = image.substring(0, image.length-1) + 46;
+        var html = "<li id='"+id+"'><a href='javascript:void(0)' style='padding: 5px 5px;' onclick='checkClientInfo(\""+channelId+"\",\""+openid+"\",\""+tenantUn+"\",\""+source+"\")' >";
+        html += "<img src='"+image+"' class='img-rounded' style='height:32px'><span style='margin-left:10px;'>"+name+"</span></a></li>";
+        $("#waiting-clients-queue").append(html);
+        var count = parseInt($("#waiting-clients-count").html()) + 1;
+        $("#waiting-clients-count").html(count);
+    }
+    
+    function clientBeenTaked(openid) {
+    	var id = openid+"-waiting-client";
+    	if($("#waiting-clients-queue #"+id).length > 0) {
+	    	$("#waiting-clients-queue #"+id).remove();
+	    	var count = parseInt($("#waiting-clients-count").html()) - 1;
+	        $("#waiting-clients-count").html(count);
+    	}
+    }
+    
+    function checkClientInfo(channelId, clientOpenid, tenantUn, source) {
+    	$(".xubox_layer").remove();
+    	var pageUrl = contextPath + '/hsy/tenant/user/customerDetail?clientOpenid='+clientOpenid+'&tenantUn='+tenantUn+'&source='+source+'&openid='+channelId;
+        var pageHTML = '<div id="edit-client-info-div" class="embed-responsive embed-responsive-16by9" style="width:800px;height: 460px">';
+        pageHTML += '<iframe class="embed-responsive-item edit-client-info-iframe" style="width:800px;height: 420px" onload="this.height=this.contentWindow.document.documentElement.scrollHeight" style="border-radius:4px;" src="'+pageUrl+'"></iframe>';
+        pageHTML += '<div class="btn-group" style="top:421px;float:right;margin-right:10px"><button type="button" id="accept-client-request" class="btn btn-primary" onclick=\'takeClient("'+channelId+'","'+clientOpenid+'")\' style="margin-right: 5px;">受理</button><button type="button" id="ignore-client-request" class="btn btn-danger">忽略</button></div></div>';
+
+        staffServiceRemainder = $.layer({
+            type: 1,
+            title: "人工服务请求",
+            area: ['800px', '500px'],
+            offset: ['', ''],
+            border: [3, 0.3, '#000'], //去掉默认边框
+            shade: [0], //去掉遮罩
+            closeBtn: [0, false], //去掉默认关闭按钮
+            shift: 'top', //从左动画弹出
+            page: {
+                html:pageHTML
+            }
+        });
+        
+        $('#ignore-client-request').on('click', function(){
+            layer.close(staffServiceRemainder);
+        });
+    }
+    
     function createSessionHistory(session_id, name, clientOpenid, image) {
         console.log("clickHistoryList: " + session_id);
         $("#my-message-iframe").css("display","none");
@@ -264,13 +335,13 @@
         $("#staff-status").html("已签到<span class='caret'>");
         $("#staff-status").css("background","#428bca");
         
-        var takeClient = '<li><a href="#" onclick=\'takeClientFromWeb("'+person.tenant.tenantUn+'","'+person.id+'")\'><span class="glyphicon glyphicon-user"></span><span>&nbsp;&nbsp;抢接</span></a></li>';
-        $("#staff-service-menu").append(takeClient);
-        
         $(".channel-list").empty();
-        $(".middle-jumbotron-pane").empty();
+        //$(".middle-jumbotron-pane").empty();
+        $(".weixin-chat-room").remove();
+        $(".weixin-history-board").remove();
         $(".hitstory-client-list").empty();
         $(".hitstory-client-list-footer").empty();
+        $("#waiting-clients-queue").empty();
         
         var channels = person.channels;
         var openingChannel = "";
@@ -297,7 +368,7 @@
                 $('.emotion').qqFace(channel.openId);
                 uploadImage(channel.openId);
                    
-                $('.weixin-message-list').attr("src", weixinMessageUrl);
+                $('#leaved-message-iframe').attr("src", weixinMessageUrl);
                    $(".weixin-input-area").keyup(function(event){
                        if(event.keyCode == "13")    
                        {
@@ -323,6 +394,8 @@
         getHistoryList(person.tenant.tenantUn, person.number, 1);
         $('.history-panel-heading-div h3').append('<a href="javascript:void(0)" onclick=\'refreshHistoryList("'+person.tenant.tenantUn+'","'+person.number+'")\' style="float: right;"><span class="glyphicon glyphicon-refresh"></a>');
         
+        $("#waiting-clients-div").css("display", "block");
+        getClientsQueue(person.tenant.tenantUn);
     }
     
     
@@ -365,7 +438,6 @@
                 	$(".row-offcanvas").css("display","none");
                 	$("#staff-status").html("未签到<span class='caret'>");
                     $("#staff-status").css("background","rgb(184, 55, 55)");
-                    $("#staff-service-menu").empty();
                 } else {
                     console.log("msg:"+result.errmgs);
                 }
@@ -375,6 +447,8 @@
                 $(".hitstory-client-list").empty();
                 $(".weixin-history-board").remove();
                 $('.history-panel-heading-div span').remove();
+                
+                $("#waiting-clients-div").css("display", "none");
             },
             error : function(error) {
             	console.log("error:"+error);
@@ -399,7 +473,6 @@
 
                 	for(var i=0; i<history.length; i++) {
                 		var message = history[i];
-                		console.log("message: " + message);
                 		var row;
                 		if(message.sender_type == "client") {
                 			row = "<div class='senderName'>"+message.time+"  "+message.sender_name+"</div><div class='chatItem you'><div class='cloud cloudText'><div class='cloudBody'><div class='cloudContent'>";
@@ -452,7 +525,6 @@
             	$("#staff-express-message").empty();
             	console.log("express length: "+result.length);
             	for(var i=0;i<result.length;i++){
-            		console.log("result[i].replyName: "+result[i].replyName);
                     if(i>0){
                         $("#staff-express-message").append('<li class="divider"></li>');
                     }
@@ -476,9 +548,6 @@
                 if(!data.success) {
                     console.log("take client failed: "+ data.msg);
                     alert(data.msg);
-                } else {
-                    //$('.weixin-service-count-iframe').attr("src", suaStatIframe);
-                	window.frames["sua-service-count"].refreshStatistic();
                 }
             },
             error : function(error) {
@@ -650,6 +719,8 @@
                         $('#'+room+"-edit-client-info-div").remove();
                         $('#'+room+"-panel-heading-div").empty();
                         $('#'+room+"-panel-heading-div").append(header);
+                        clientBeenTaked(data.data.clientOpenid);
+                        
 					} else if(data.action == "takeClientFromMobile") {
 						console.log("takeClientFromMobile");
 						$(".xubox_layer").remove();
@@ -668,6 +739,8 @@
                         $('#'+room+"-edit-client-info-div").remove();
                         $('#'+room+"-panel-heading-div").empty();
                         $('#'+room+"-panel-heading-div").append(header);
+                        clientBeenTaked(data.data.clientOpenid);
+                        
                     }  else if(data.action == "endSession") {
 						console.log("endSession");
 						$('#'+room+"-channel-list").find("span.glyphicon").remove();
@@ -704,16 +777,17 @@
                     }
 					
 				} else if(data.msgtype == "staffService"){
-                    //$('.weixin-service-count-iframe').attr("src", suaStatIframe);
-                    window.frames["sua-service-count"].refreshStatistic();
                     if($(".xubox_layer").length>0) {
                     	console.log("staffService blocked");
-                    	
+                        newClientDemand(room, data.data.clientOpenid, data.data.tenantUn, data.data.clientName, data.data.clientImage, data.data.source);
                     	if(isGetMessage) {
                             getMessage(stff_uuid);
                           }
                     	return;
                     }
+                    
+                    newClientDemand(room, data.data.clientOpenid, data.data.tenantUn, data.data.clientName, data.data.clientImage, data.data.source);
+
                     var pageUrl = contextPath + '/hsy/tenant/user/customerDetail?clientOpenid='+data.data.clientOpenid+'&tenantUn='+data.data.tenantUn+'&source='+data.data.source+'&openid='+room;
                     var pageHTML = '<div id="edit-client-info-div" class="embed-responsive embed-responsive-16by9" style="width:800px;height: 460px">';
                     pageHTML += '<iframe class="embed-responsive-item edit-client-info-iframe" style="width:800px;height: 420px" onload="this.height=this.contentWindow.document.documentElement.scrollHeight" style="border-radius:4px;" src="'+pageUrl+'"></iframe>';
@@ -732,28 +806,6 @@
                             html:pageHTML
                         }
                     });
-                    
-                  /*   $('#accept-client-request').on('click', function(){
-                    	$.ajax({
-                            url : "/wx/webchat/"+data.channelId+"/takeClient",
-                            cache : false, 
-                            async : true,
-                            type : "GET",
-                            dataType : 'json',
-                            success : function(data) {
-                                if(!data.success) {
-                                    console.log("take client failed: "+ data.msg);
-                                    alert(data.msg);
-                                } else {
-                                    //$('.weixin-service-count-iframe').attr("src", suaStatIframe);
-                                    window.frames[0].refreshStatistic();
-                                }
-                            },
-                            error : function(error) {
-                            }
-                        });
-                        layer.close(staffServiceRemainder);
-                    }); */
                     
                     $('#ignore-client-request').on('click', function(){
                         layer.close(staffServiceRemainder);
@@ -915,7 +967,7 @@
 	        {
 	    	  console.log("response_data"+response_data);
 	          if(response_data=="Failed"){
-	        	  $('#'+guid).html("<span style='color:red'>系统提示：发送图片失败！</span>");
+	        	  $('#'+guid).html("<span style='color:red'>系统提示：发送文件失败！</span>");
 	          } else {
 	        	  $('#'+guid).html("<img width='240' src='"+response_data+"' />");
 	          }
@@ -1019,20 +1071,20 @@
 	          <ul id="skills-group" class="dropdown-menu" style="min-width:50px" role="menu">
 	          </ul>
 	        </li> -->
-	        <li class="dropdown">
-              <a href="javascript:void(0)" class="dropdown-toggle" data-toggle="dropdown">客服菜单<span class="caret"></span></a>
-              <ul id="staff-service-menu" class="dropdown-menu" style="min-width:50px" role="menu">
-              </ul>
-            </li>
             <li class="dropdown">
               <a href="javascript:void(0)" class="dropdown-toggle" data-toggle="dropdown">常用语<span class="caret"></span></a>
               <ul id="staff-express-message" class="dropdown-menu" style="min-width:50px" role="menu">
               </ul>
             </li>
+            <li id="waiting-clients-div" class="dropdown active" style="display:none">
+              <a href="javascript:void(0)" class="dropdown-toggle" data-toggle="dropdown">待受理客户&nbsp;(<span id="waiting-clients-count" >0</span>)<span class="caret"></span></a>
+              <ul id="waiting-clients-queue" class="dropdown-menu" style="min-width:50px" role="menu">
+              </ul>
+            </li>
 	      </ul>
 	      <ul class="nav navbar-nav navbar-right">
 	        <li>
-                <div class="embed-responsive embed-responsive-16by9 weixin-service-count-div" style="width: 500px;height:50px;padding-bottom:0;margin-right:20px;display:none">
+                <div class="embed-responsive embed-responsive-16by9 weixin-service-count-div" style="width: 400px;height:50px;padding-bottom:0;margin-right:20px;display:none">
                   <iframe class="embed-responsive-item weixin-service-count-iframe" name="sua-service-count" scrolling="no" src=""></iframe>
                 </div>
             </li>
@@ -1080,7 +1132,7 @@
           <div class="jumbotron middle-jumbotron-pane" style="padding-top:0;padding:0;" >
           
             <div id="my-message-iframe" class="embed-responsive embed-responsive-16by9" style="display:none;min-height: 450px">
-                <iframe id="leaved-message-iframe" class="embed-responsive-item weixin-message-list" onload="this.height=this.contentWindow.document.documentElement.scrollHeight" scrolling="no" style="border-radius:4px;" src=""></iframe>
+                <iframe id="leaved-message-iframe" class="embed-responsive-item weixin-message-list" onload="this.height=this.contentWindow.document.documentElement.scrollHeight" style="border-radius:4px;" src=""></iframe>
             </div>
             
           </div>
@@ -1106,7 +1158,8 @@
     </div>
 <script>
 $("#my-messages").click(function(){
-    $('.weixin-message-list').attr("src", weixinMessageUrl);
+	console.log("#my-messages clicked");
+    $('#leaved-message-iframe').attr("src", weixinMessageUrl);
     $(".weixin-chat-room").css("display","none");
     $("#my-messages").find("span.badge").remove();
     $(".edit-client-info-div").css("display","none");

@@ -242,6 +242,23 @@ public class WebchatController {
     }
     
     @ResponseBody
+    @RequestMapping(value = "/{tenantUn}/getClientsQueue", method = RequestMethod.GET)
+    public List<WaitingClient> getClientsQueue(@PathVariable String tenantUn){
+        if (MessageRouter.waitingList.containsKey(tenantUn)) {
+            List<WaitingClient> queue = new ArrayList<WaitingClient>();
+            Map<String, List<WaitingClient>> map = MessageRouter.waitingList.get(tenantUn);
+            for (String key : map.keySet()) {
+                if (!map.get(key).isEmpty()) {
+                    queue.addAll(map.get(key));
+                }
+            }
+            return queue;
+        } else {
+            return new ArrayList<>();
+        }
+    }
+    
+    @ResponseBody
     @RequestMapping(value = "/{staff_uuid}/checkin", method = RequestMethod.GET)
     public JSONObject checkin(@PathVariable String staff_uuid, HttpSession session, HttpServletResponse response) {
         String url = API.SUA_STAFF_WEB_LOGIN_URL + staff_uuid;
@@ -738,7 +755,7 @@ public class WebchatController {
     public DeferredResult<ChatMessage> getMessages(@PathVariable final String staff_uuid, HttpServletRequest request) {
         // 创建DeferredResult<Message>
         DeferredResult<ChatMessage> dr = new DeferredResult<ChatMessage>(DEFFER_TIME);
-        log.info("staff_uuid:"+staff_uuid);
+        log.debug("staff_uuid:"+staff_uuid);
         // 若用户不存在则直接返回，否则将其放入用户请求列表中然后返回
         if (null == staff_uuid) {
             log.warn("staff_uuid is null");
@@ -752,7 +769,7 @@ public class WebchatController {
                 }
             });
             chatRequests.put(staff_uuid, dr);
-            log.info("DeferredResult keys: "+chatRequests.keySet().toString());
+            log.debug("DeferredResult keys: "+chatRequests.keySet().toString());
             ChatMessage cm = getStoredChatMessage(staff_uuid);
             if (null != cm) {
                 log.warn("Get chatMessage from redis, staff_uuid: " + staff_uuid);
@@ -787,10 +804,13 @@ public class WebchatController {
                     String media_id = ret.getString("media_id");
                     MessageRouter.sendMessage(s.getClient_openid(), token, media_id, API.IMAGE_MESSAGE);
                     url = API.WEIXIN_MEDIA_URL.replace("ACCESS_TOKEN", token) + media_id;
-                } 
+                } else {
+                    return "Failed";
+                }
             } catch (IOException e) {
                 log.error("Uploader image failed: " + e.toString());
                 e.printStackTrace();
+                return "Failed";
             }
             
             // To staff
@@ -804,21 +824,24 @@ public class WebchatController {
                 if (sRet.containsKey("media_id")) {
                     String media_id = sRet.getString("media_id");
                     MessageRouter.sendMessage(s.getOpenid(), stoken, media_id, API.IMAGE_MESSAGE);
-                } 
+                } else {
+                    return "Failed";
+                }
             } catch (IOException e) {
                 log.error("Uploader image failed: " + e.toString());
                 e.printStackTrace();
+                return "Failed";
             }
             return url;
         } else {
-            return "";
+            return "Failed";
         }
          
         
     }
     
     private void processMessage(ChatMessage msg, String staff_uuid) {
-        log.info("processMessage: " + msg.toString());
+        log.debug("processMessage: " + msg.toString());
 //        log.info("staff_uuid: "+staff_uuid);
 //        log.info("DeferredResult: "+chatRequests.toString());
 //        log.info("DeferredResult keys: "+chatRequests.keySet().toString());
@@ -922,7 +945,7 @@ public class WebchatController {
     }
     
     private void storeChatMessage(String staff_uuid, ChatMessage cm) {
-        log.info("ChatMessage to stored: " + cm.toString());
+        log.debug("ChatMessage to stored: " + cm.toString());
         if (cm.getMsgtype().equals("staffLogin")) {
             return;
         }

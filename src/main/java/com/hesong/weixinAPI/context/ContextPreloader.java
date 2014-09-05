@@ -41,8 +41,8 @@ public class ContextPreloader extends HttpServlet{
     public static List<String> staffAccountList = new ArrayList<String>();
     
     // Tencent
-//    public final static String HESONG_ACCOUNT = "gh_8767e19cb907";
-    public final static String HESONG_ACCOUNT = "gh_be994485fbce";
+    public final static String HESONG_ACCOUNT = "gh_8767e19cb907";
+//    public final static String HESONG_ACCOUNT = "gh_be994485fbce";
     public static Map<String, String> channelMap = new HashMap<String, String>();
     public static Map<String, String> accountMap = new HashMap<String, String>();
     
@@ -84,31 +84,31 @@ public class ContextPreloader extends HttpServlet{
             jedis.del(API.REDIS_CLIENT_ACCOUNT_INFO_KEY, API.REDIS_STAFF_ACCOUNT_INFO_KEY, API.REDIS_WEIXIN_ACCESS_TOKEN_KEY, API.REDIS_WEIXIN_WEBCHAT_SESSIONID, API.REDIS_WAITING_LIST_COUNT);
 
             // Tencent
-//            WeChatHttpsUtil.setAccessTokenToRedis(jedis, "gh_9caaf9d11617", "wxcebdb944e4eede3c", "54dce7e4383ed76be29a8bf2c81c008e", "1", API.REDIS_STAFF_ACCOUNT_INFO_KEY);
-//            WeChatHttpsUtil.setAccessTokenToRedis(jedis, "gh_521460b29d33", "wx6c014d6562dbbe0c", "9d155b4d5e39d61d0775e59fc7d58654", "2", API.REDIS_STAFF_ACCOUNT_INFO_KEY);
-//           
-//            // Staff service account
-//            staffAccountList.add("gh_9caaf9d11617");
-//            staffAccountList.add("gh_521460b29d33");
-//
-//            channelMap.put("gh_9caaf9d11617", "1");
-//            channelMap.put("gh_521460b29d33", "2");
-//            
-//            accountMap.put("1", "gh_9caaf9d11617");
-//            accountMap.put("2", "gh_521460b29d33");
-            
-            WeChatHttpsUtil.setAccessTokenToRedis(jedis, "gh_0221936c0c16", "wx735e58e85eb3614a", "d21d943d536c383c9e60053ff15996c2", "1", API.REDIS_STAFF_ACCOUNT_INFO_KEY);
-            WeChatHttpsUtil.setAccessTokenToRedis(jedis, "gh_510fe6f15310", "wx96bebe11dbeb1c22", "e376af7623f1051fa42693966f13f77c", "2", API.REDIS_STAFF_ACCOUNT_INFO_KEY);
+            WeChatHttpsUtil.setAccessTokenToRedis(jedis, "gh_9caaf9d11617", "wxcebdb944e4eede3c", "54dce7e4383ed76be29a8bf2c81c008e", "1", API.REDIS_STAFF_ACCOUNT_INFO_KEY);
+            WeChatHttpsUtil.setAccessTokenToRedis(jedis, "gh_521460b29d33", "wx6c014d6562dbbe0c", "9d155b4d5e39d61d0775e59fc7d58654", "2", API.REDIS_STAFF_ACCOUNT_INFO_KEY);
            
             // Staff service account
-            staffAccountList.add("gh_0221936c0c16");
-            staffAccountList.add("gh_510fe6f15310");
+            staffAccountList.add("gh_9caaf9d11617");
+            staffAccountList.add("gh_521460b29d33");
 
-            channelMap.put("gh_0221936c0c16", "1");
-            channelMap.put("gh_510fe6f15310", "2");
+            channelMap.put("gh_9caaf9d11617", "1");
+            channelMap.put("gh_521460b29d33", "2");
             
-            accountMap.put("1", "gh_0221936c0c16");
-            accountMap.put("2", "gh_510fe6f15310");
+            accountMap.put("1", "gh_9caaf9d11617");
+            accountMap.put("2", "gh_521460b29d33");
+            
+//            WeChatHttpsUtil.setAccessTokenToRedis(jedis, "gh_0221936c0c16", "wx735e58e85eb3614a", "d21d943d536c383c9e60053ff15996c2", "1", API.REDIS_STAFF_ACCOUNT_INFO_KEY);
+//            WeChatHttpsUtil.setAccessTokenToRedis(jedis, "gh_510fe6f15310", "wx96bebe11dbeb1c22", "e376af7623f1051fa42693966f13f77c", "2", API.REDIS_STAFF_ACCOUNT_INFO_KEY);
+//           
+//            // Staff service account
+//            staffAccountList.add("gh_0221936c0c16");
+//            staffAccountList.add("gh_510fe6f15310");
+//
+//            channelMap.put("gh_0221936c0c16", "1");
+//            channelMap.put("gh_510fe6f15310", "2");
+//            
+//            accountMap.put("1", "gh_0221936c0c16");
+//            accountMap.put("2", "gh_510fe6f15310");
 
             String r = HttpClientUtil
                     .httpGet(API.SUA_TENANT_LIST_URL);
